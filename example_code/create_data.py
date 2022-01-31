@@ -10,7 +10,6 @@ from datetime import datetime
 from multiprocessing import cpu_count
 
 from magtense import magtense
-from magtense.utils.plot import sample_check
 
 def create_halbach(
     idx,
@@ -106,7 +105,8 @@ def create_halbach(
 
     # Plot first ten samples
     if check and idx < 20:
-        sample_check(field, iterated_tiles, pts_eval, v_max=0.2, filename=f'{t_start.strftime("%y%m%d_%H%M")}_{idx}', cube=False, structure=True)
+        print("sample_check")
+        # sample_check(field, iterated_tiles, pts_eval, v_max=0.2, filename=f'{t_start.strftime("%y%m%d_%H%M")}_{idx}', cube=False, structure=True)
     
     sample_dict[idx] = field
     if sample_dict[idx] is not None: np.save(f'{datapath}/{idx}.npy', sample_dict[idx])

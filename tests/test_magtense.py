@@ -1,44 +1,80 @@
-import math
+import numpy as np
 
 from magtense import magtense
+from magtense.utils.eval import get_p2p, get_average_magnetic_flux
 from magtense.utils.plot import create_plot
 
 
+def prism_grid():
+    # Defining grid
+    places = [10, 10, 5]
+    area = [1, 1, 0.5]
 
-def cylinder():
-    B_rem = 1.2
+    # Defining filled places
+    filled_positions = [[4, 3, 4], [1, 2, 2], [3, 1, 0], [2, 7, 2], [8, 9, 3]]
+
     # Optional parameters for setup: n_magnets, filled_positions, mag_angles, eval_points, eval_mode, B_rem
-    (tiles, points, grid) = magtense.setup(places=[3, 3, 3], area=[1, 1, 1], eval_points=[8,8,8])
-
-    # Define validation tile
-    tile_val = magtense.Tiles(1)
-    tile_val.set_center_pos([[0.3, math.pi/2, 0.5]])
-    tile_val.set_dev_center([0.3, math.pi/4, 0.1])
-    tile_val.set_offset_i([0.8, -0.1, 0.3],0)
-
-    tile_val.set_rotation_i([0, 0, 0],0)
-    tile_val.set_tile_type(1)
-    tile_val.set_remanence(B_rem / (4*math.pi*1e-7))
-    tile_val.set_mag_angle([[math.pi/4, -math.pi/2]])
-    tile_val.set_color([[1, 0, 0]])
+    (tiles, points, grid) = magtense.setup(places, area, filled_positions=filled_positions, eval_points=[10, 10, 5])
 
     # Standard parameters in settings: max_error=0.00001, max_it=500
-    # iterated_tiles = magtense.iterate_magnetization(tile_val)
+    (updated_tiles, H) = magtense.run_simulation(tiles, points, grid=grid, plot=True)
 
-    print(tile_val.u_ea)
-
-    N = magtense.get_N_tensor(tile_val,points)
-    print(N.shape)
-    print(N[0][0])
-
-    H = magtense.get_H_field(tile_val,points,N)
-    print(H.shape)
-    print(H[0])
+    print("Average magnetic field: " + str(get_average_magnetic_flux(H)))
+    print("Peak to peak: " + str(get_p2p(H)))
 
 
+def prism_multiple(n_mag=1, soft=None, res=16, x_max=1, y_max=1, z_max=1):
+    mu0 = 4 * np.pi * 1e-7
+    a = 0.1
+    b = 0.3
+    c = 0.2
+    
+    if soft is None: soft = [0 for _ in range(n_mag)]
 
-    create_plot(tile_val, points, H, grid=grid)
+    prism = magtense.Tiles(n_mag)
+    prism.set_tile_type(2)
+
+    for i in range(n_mag):
+        # Relative permeability
+        if soft == 1:
+            prism.set_mu_r_ea_i(4000, i)
+            prism.set_mu_r_oa_i(4000, i)
+            prism.set_remanence_i(0, i)
+            prism.set_mag_type_i(2, i)
+
+            # Default: Easy axis in direction of x-axis
+            # [polar angle, azimuthal angle]
+            prism.set_mag_angle_i([np.pi/2, 0], i)
+
+        else:
+            prism.set_mu_r_ea_i(1.06, i)
+            prism.set_mu_r_oa_i(1.17, i)
+
+            # Set remanence in [A/m]
+            prism.set_remanence_i(1.2 / mu0, i)
+
+            # Default: Easy axis in direction of x-axis
+            # [polar angle, azimuthal angle]
+            prism.set_mag_angle_i([np.random.rand() * np.pi, np.random.rand() * 2 * np.pi], i)
+
+        prism.set_size_i([a, b, c], i) 
+        prism.set_offset_i([0.1 + i*0.5, 0.2 + i*0.5, 0.1 + i*0.5], i)
+        prism.set_mag_angle_rand()
+        prism.set_color_i([i / n_mag, 0, 0], i)
+
+    x_eval = np.linspace(0, x_max, res)
+    y_eval = np.linspace(0, y_max, res)
+    z_eval = np.linspace(0, z_max, res)
+    xv, yv, zv = np.meshgrid(x_eval, y_eval, z_eval)
+    pts_eval = np.hstack([xv.reshape(-1,1), yv.reshape(-1,1), zv.reshape(-1,1)])
+
+    # Simulation
+    (updated_tiles, H) = magtense.run_simulation(prism, pts_eval, plot=False)
+
+    # Plotting
+    create_plot(updated_tiles, H=H, eval_points=pts_eval)
 
 
 if __name__ == '__main__':
-    cylinder()
+    prism_grid()
+    #prism_multiple(n_mag=4, res=8, soft=[0,1])
