@@ -7,6 +7,8 @@ from torch.utils.data import random_split
 from torchvision.datasets import MNIST
 from torchvision import transforms
 import pytorch_lightning as pl
+import hydra
+
 
 class LitAutoEncoder(pl.LightningModule):
 	def __init__(self):
@@ -45,17 +47,16 @@ class LitAutoEncoder(pl.LightningModule):
 		loss = F.mse_loss(x_hat, x)
 		self.log('val_loss', loss)
 
-# data
-dataset = MNIST('', train=True, download=True, transform=transforms.ToTensor())
-mnist_train, mnist_val = random_split(dataset, [55000, 5000])
 
-train_loader = DataLoader(mnist_train, batch_size=32)
-val_loader = DataLoader(mnist_val, batch_size=32)
+def train(cfg):
+    print(cfg)
 
-# model
-model = LitAutoEncoder()
 
-# training
-trainer = pl.Trainer(precision=16, limit_train_batches=0.5)
-trainer.fit(model, train_loader, val_loader)
-    
+@hydra.main(config_path=".", config_name="train.yaml")
+def main(cfg):
+    pl.seed_everything(cfg.seed)
+    train(cfg)
+
+
+if __name__ == '__main__':
+    main()
