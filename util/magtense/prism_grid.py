@@ -91,7 +91,7 @@ i, o = create_prism_grid(res=224, columns=4, rows=4)
 
 #%%
 def create_dataset():
-    
+    return 0
 #%%
 class PrismGridDataset(torch.utils.data.Dataset):
     def __init__(self, datapath, field_input, action_input, target):
