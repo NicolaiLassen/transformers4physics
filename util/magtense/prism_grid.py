@@ -86,12 +86,45 @@ def create_prism_grid(rows=2, columns=2, sizeX=1, sizeY=1, sizeZ=1, res=224):
             imageOut[i,j,3] = lenH
 
     return imageIn, imageOut
+#%%
+class PrismGridDataset(torch.utils.data.Dataset):
+    def __init__(self, images_in, images_target):
+        self.images_in = images_in
+        self.images_target = images_target
 
-i, o = create_prism_grid(res=224, columns=4, rows=4)
+    def __len__(self):
+        return len(self.images_in)
+
+    def __getitem__(self, idx):
+        return self.images_in[idx], self.images_target[idx]
+
+def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, sizeX=1, sizeY=1, sizeZ=1):
+    images_in = []
+    images_target = []
+    for i in range(set_size):
+        r = random.choice(rows)
+        c = random.choice(columns) if square_grid == False else r
+        image_in, image_target = create_prism_grid(
+            rows=r,
+            columns=c,
+            sizeX=sizeX,
+            sizeY=sizeY,
+            sizeZ=sizeZ,
+            res=res,
+        )
+        images_in.append(image_in)
+        images_target.append(image_target)
+    return PrismGridDataset(images_in, images_target)
+
 
 #%%
-def create_dataset():
-    return 0
+a = create_dataset(
+    set_size=5,
+    columns=[4],
+    rows=[4],
+    res=224,
+)
+
 #%%
 class PrismGridDataset(torch.utils.data.Dataset):
     def __init__(self, datapath, field_input, action_input, target):
