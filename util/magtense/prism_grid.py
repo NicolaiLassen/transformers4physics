@@ -45,6 +45,10 @@ def create_prism_grid(rows=2, columns=2, sizeX=1, sizeY=1, sizeZ=1, res=224):
     mask = np.zeros((res,res))
     paddingDim = 0 if rows==columns else 1 if rows < columns else 2
     sideLen = min(res//rows,res//columns)
+    if((res-sideLen*(rows if paddingDim == 2 else columns))%2!=0):
+        raise Exception('this setup can not be properly scaled (whole numbers not possible)')
+    elif((res-sideLen*(columns if paddingDim == 2 else rows))%2!=0):
+        raise Exception('this setup can not be properly scaled (whole numbers not possible)')
     outerPadding = (res-sideLen*(rows if paddingDim == 2 else columns))//2
     innerPadding = (res-sideLen*(columns if paddingDim == 2 else rows))//2
     for i in range(res):
@@ -122,7 +126,7 @@ a = create_dataset(
     set_size=5,
     columns=[4],
     rows=[4],
-    res=224,
+    res=8,
 )
 
 #%%
