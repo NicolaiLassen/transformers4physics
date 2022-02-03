@@ -19,7 +19,6 @@ def create_prism_grid(rows=2, columns=2, sizeX=1, sizeY=1, sizeZ=1, res=224):
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)
     tiles.set_size([sizeX, sizeY, sizeZ])
-    points = [[sizeX/2+x, sizeY/2+y, 0] for y in range(res) for x in range(res)]
     for c in range(columns):
         for r in range(rows):
             i = r+c*rows
@@ -38,6 +37,13 @@ def create_prism_grid(rows=2, columns=2, sizeX=1, sizeY=1, sizeZ=1, res=224):
             ## https://github.com/cmt-dtu-energy/MagTense/blob/master/python/examples/validation_prism.py
             tiles.set_remanence_i(1.2/(4*math.pi*1e-7),i)
             tiles.set_M(tiles.u_ea[i]*tiles.M_rem[i],i)
+
+    ## TODO Change points to instead be scaled down pixel placements
+    ## Currently, the points are set to follow the grid as if each pixel in the resulting 
+    # image was the same size as an internal magnet
+    ## This is wrong, it should instead be the points between the magnets that correspond
+    # to the placement of the pixels in the resulting image
+    points = [[sizeX/2+x, sizeY/2+y, 0] for y in range(res) for x in range(res)]
 
     magtense.run_simulation(tiles,points)
     hField = magtense.get_H_field(tiles,points)
