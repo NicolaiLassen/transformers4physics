@@ -1,36 +1,98 @@
+#%%
 import numpy as np
+import random
+import math
 
 import os
 import torch
 import h5py
 from magtense import magtense
 
+
+#%%
+def normalizeVector(vector):
+    vector = np.array(vector)
+    return vector/np.sqrt(np.sum(vector**2)),np.sqrt(np.sum(vector**2))
+
 # generate simple prism grid to "sim" grains of micro
-def create_prism_grid():
+def create_prism_grid(rows=2, columns=2, sizeX=1, sizeY=1, sizeZ=1, res=224):
+    tiles = magtense.Tiles(rows*columns)
+    tiles.set_tile_type(2)
+    tiles.set_size([sizeX, sizeY, sizeZ])
+    points = [[sizeX/2+x, sizeY/2+y, 0] for y in range(res) for x in range(res)]
+    for c in range(columns):
+        for r in range(rows):
+            i = r+c*rows
+            offset = [sizeX/2+r*sizeX,sizeY/2+c*sizeY,0]
+            tiles.set_offset_i(offset,i)
+            tiles.set_center_pos_i(offset,i)
+            ea = [
+                random.random(),
+                random.random(),
+                random.random(),
+            ]
+            ea,_ = normalizeVector(ea)
+            tiles.set_easy_axis_i(ea,i)
+            ## TODO Change remenance to a random value in a valid span.
+            ## This value is taken from the magtense example
+            ## https://github.com/cmt-dtu-energy/MagTense/blob/master/python/examples/validation_prism.py
+            tiles.set_remanence_i(1.2/(4*math.pi*1e-7),i)
+            tiles.set_M(tiles.u_ea[i]*tiles.M_rem[i],i)
 
-    # Defining grid TODO: should be param
-    rows = 10
-    cols = 10
-    margin = 4
+    magtense.run_simulation(tiles,points)
+    hField = magtense.get_H_field(tiles,points)
 
-    places = [rows + margin, cols + margin, 5]
-    area = [1, 1, 0.5]
+    mask = np.zeros((res,res))
+    paddingDim = 0 if rows==columns else 1 if rows < columns else 2
+    sideLen = min(res//rows,res//columns)
+    outerPadding = (res-sideLen*(rows if paddingDim == 2 else columns))//2
+    innerPadding = (res-sideLen*(columns if paddingDim == 2 else rows))//2
+    for i in range(res):
+        for j in range(res):
+            # outer padding
+            if(i < outerPadding or j < outerPadding or res-outerPadding <= i or res-outerPadding <= j):
+                continue
+            # inner padding x
+            elif(paddingDim == 1 and (j < innerPadding or res-innerPadding <= j)):
+                continue
+            # inner padding y
+            elif(paddingDim == 2 and (i < innerPadding or res-innerPadding <= i)):
+                continue
+            else:
+                if(paddingDim == 0):
+                    mask[i,j] = ((j-outerPadding)//sideLen + 1) + ((i-outerPadding)//sideLen)*rows
+                elif(paddingDim == 1):
+                    mask[i,j] = ((j-outerPadding-innerPadding)//sideLen + 1) + ((i-outerPadding)//sideLen)*rows
+                else:
+                    mask[i,j] = ((j-outerPadding)//sideLen + 1) + ((i-outerPadding-innerPadding)//sideLen)*rows
+    mask = mask.astype(int)
 
-    filled_positions = []
+    imageIn = np.zeros((res,res,4))
+    for i in range(res):
+        for j in range(res):
+            t = mask[i,j] - 1
+            if(t < 0):
+                continue
+            else:
+                normalizedM, lenM = normalizeVector(tiles.get_M(t))
+                imageIn[i,j,0:3] = normalizedM
+                imageIn[i,j,3] = lenM
 
-    for row in range(rows):
-        for col in range(cols):
-            filled_positions.append([row + int(margin / 2) , col + int(margin / 2), 0])
+    imageOut = np.zeros((res,res,4))
+    for i in range(res):
+        for j in range(res):
+            normalizedH, lenH = normalizeVector(hField[j+i*rows])
+            imageOut[i,j,0:3] = normalizedH
+            imageOut[i,j,3] = lenH
 
-    # Optional parameters for setup: n_magnets, filled_positions, mag_angles, eval_points, eval_mode, B_rem
-    (tiles, points, grid) = magtense.setup(places, area, filled_positions=filled_positions, eval_points=[10, 10, 5])
+    return imageIn, imageOut
 
-    # Standard parameters in settings: max_error=0.00001, max_it=500
-    (updated_tiles, H) = magtense.run_simulation(tiles, points, grid=grid, plot=True)
+i, o = create_prism_grid(res=224, columns=4, rows=4)
 
-    return
-
-
+#%%
+def create_dataset():
+    
+#%%
 class PrismGridDataset(torch.utils.data.Dataset):
     def __init__(self, datapath, field_input, action_input, target):
         super(PrismGridDataset, self).__init__()
@@ -105,3 +167,5 @@ class PrismGridDataset(torch.utils.data.Dataset):
 
 if __name__ == '__main__':
     create_prism_grid()
+
+#%%
