@@ -42,52 +42,40 @@ def create_prism_grid(rows=2, columns=2, sizeX=1, sizeY=1, sizeZ=1, res=224):
     magtense.run_simulation(tiles,points)
     hField = magtense.get_H_field(tiles,points)
 
-    mask = np.zeros((res,res))
     paddingDim = 0 if rows==columns else 1 if rows < columns else 2
     sideLen = min(res//rows,res//columns)
     if((res-sideLen*(rows if paddingDim == 2 else columns))%2!=0):
-        raise Exception('this setup can not be properly scaled (whole numbers not possible)')
+        raise Exception('this setup can not be properly scaled (whole numbers for dimensions not possible)')
     elif((res-sideLen*(columns if paddingDim == 2 else rows))%2!=0):
-        raise Exception('this setup can not be properly scaled (whole numbers not possible)')
+        raise Exception('this setup can not be properly scaled (whole numbers for dimensions not possible)')
     outerPadding = (res-sideLen*(rows if paddingDim == 2 else columns))//2
     innerPadding = (res-sideLen*(columns if paddingDim == 2 else rows))//2
-    for i in range(res):
-        for j in range(res):
-            # outer padding
-            if(i < outerPadding or j < outerPadding or res-outerPadding <= i or res-outerPadding <= j):
-                continue
-            # inner padding x
-            elif(paddingDim == 1 and (j < innerPadding or res-innerPadding <= j)):
-                continue
-            # inner padding y
-            elif(paddingDim == 2 and (i < innerPadding or res-innerPadding <= i)):
-                continue
-            else:
-                if(paddingDim == 0):
-                    mask[i,j] = ((j-outerPadding)//sideLen + 1) + ((i-outerPadding)//sideLen)*rows
-                elif(paddingDim == 1):
-                    mask[i,j] = ((j-outerPadding-innerPadding)//sideLen + 1) + ((i-outerPadding)//sideLen)*rows
-                else:
-                    mask[i,j] = ((j-outerPadding)//sideLen + 1) + ((i-outerPadding-innerPadding)//sideLen)*rows
-    mask = mask.astype(int)
+    startX = outerPadding + (innerPadding if paddingDim == 1 else 0)
+    startY = outerPadding + (innerPadding if paddingDim == 2 else 0)
 
     imageIn = np.zeros((res,res,4))
-    for i in range(res):
-        for j in range(res):
-            t = mask[i,j] - 1
-            if(t < 0):
-                continue
-            else:
-                normalizedM, lenM = normalizeVector(tiles.get_M(t))
-                imageIn[i,j,0:3] = normalizedM
-                imageIn[i,j,3] = lenM
+    for c in range(columns):
+        for r in range(rows):
+            i = r + c*rows
+            normalizedM, lenM = normalizeVector(tiles.get_M(i))
 
-    imageOut = np.zeros((res,res,4))
-    for i in range(res):
-        for j in range(res):
-            normalizedH, lenH = normalizeVector(hField[j+i*rows])
-            imageOut[i,j,0:3] = normalizedH
-            imageOut[i,j,3] = lenH
+            imageIn[
+                startY+sideLen*c:startY+sideLen*(c+1),
+                startX+sideLen*r:startX+sideLen*(r+1),
+                0:3,
+            ] = normalizedM
+            imageIn[
+                startY+sideLen*c:startY+sideLen*(c+1),
+                startX+sideLen*r:startX+sideLen*(r+1),
+                3,
+            ] = lenM
+
+    imageOut = np.zeros((res*res,4))
+    normalizedH = [normalizeVector(x)[0] for x in hField]
+    lenH = [normalizeVector(x)[1] for x in hField]
+    imageOut[:,0:3] = normalizedH
+    imageOut[:,3] = lenH
+    imageOut = imageOut.reshape((res,res,4))
 
     return imageIn, imageOut
 #%%
@@ -105,7 +93,7 @@ class PrismGridDataset(torch.utils.data.Dataset):
 def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, sizeX=1, sizeY=1, sizeZ=1):
     images_in = []
     images_target = []
-    for i in range(set_size):
+    for _ in range(set_size):
         r = random.choice(rows)
         c = random.choice(columns) if square_grid == False else r
         image_in, image_target = create_prism_grid(
@@ -126,7 +114,7 @@ a = create_dataset(
     set_size=5,
     columns=[4],
     rows=[4],
-    res=8,
+    res=224,
 )
 
 #%%
