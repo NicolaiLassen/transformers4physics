@@ -8,6 +8,8 @@ def testImageIn():
         columns=2,
         res=6,
     )
+    
+    print(i.shape)
     assert np.all(i[0,:,:] == 0)
     assert np.all(i[:,0:2,:] == 0)
     assert np.all(i[:,4:6,:] == 0)
@@ -19,12 +21,12 @@ def testImageIn():
         columns=2,
         res=4,
     )
+    
+    print(i.shape)
     assert np.all(i[0:2,0:2,:] == i[0,0,:])
     assert np.all(i[0:2,2:4,:] == i[0,2,:])
     assert np.all(i[2:4,0:2,:] == i[2,0,:])
     assert np.all(i[2:4,2:4,:] == i[2,2,:])
-
-
 
     print('done')
 

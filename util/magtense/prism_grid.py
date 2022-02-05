@@ -15,6 +15,7 @@ def normalizeVector(vector):
     return vector/np.sqrt(np.sum(vector**2)),np.sqrt(np.sum(vector**2))
 
 # generate simple prism grid to "sim" grains of micro
+# TODO MAKE THIS TORCH not 
 def create_prism_grid(rows=2, columns=2, size=1, res=224):
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)
@@ -74,7 +75,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
         for j in range(res):
             points[j+i*res,:] = [pointStartX+j*pixelSize, pointStartY+i*pixelSize, 0]
 
-    magtense.run_simulation(tiles,points)
+    magtense.run_simulation(tiles,points, plot=True)
     hField = magtense.get_H_field(tiles,points)
 
     imageOut = np.zeros((res*res,4))
@@ -85,6 +86,8 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     imageOut = imageOut.reshape((res,res,4))
 
     return imageIn, imageOut
+# %%
+
 #%%
 class PrismGridDataset(torch.utils.data.Dataset):
     def __init__(self, images_in, images_target):
