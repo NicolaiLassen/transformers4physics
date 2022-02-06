@@ -1,13 +1,24 @@
+from re import S
 import torch
 import torch.nn as nn
 
 from einops import rearrange
 from einops.layers.torch import Rearrange
 
+# Testing
+
 # paper https://arxiv.org/pdf/2106.04803v2.pdf
 
-def conv_3x3_bn(inp, oup, image_size, downsample=False):
-    stride = 1 if downsample == False else 2
+def conv_3x3_bn(inp, oup, image_size, downsample=False, upsample=False):
+    stride = 1 if (downsample or upsample) == False else 2,
+
+    if upsample: 
+        return nn.Sequential(
+            nn.ConvTranspose2d(inp, oup, 2, stride, bias=False),
+            nn.BatchNorm2d(oup),
+            nn.GELU()
+        )
+
     return nn.Sequential(
         nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
         nn.BatchNorm2d(oup),
@@ -58,22 +69,28 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 
-class MBConvDown(nn.Module):
-    def __init__(self, inp, oup, image_size, downsample=False, expansion=4):
+class MBConv(nn.Module):
+    def __init__(self, inp, oup, image_size, downsample=False, upsample=False, expansion=4):
         super().__init__()
         self.downsample = downsample
-        stride = 1 if self.downsample == False else 2
+        self.upsample = upsample
+
+        stride = 1 if (self.downsample or self.upsample) == False else 2
         hidden_dim = int(inp * expansion)
 
         if self.downsample:
             self.pool = nn.MaxPool2d(3, 2, 1)
             self.proj = nn.Conv2d(inp, oup, 1, 1, 0, bias=False)
 
+        if self.upsample:
+            self.pool1 = nn.MaxUnpool2d(3, 2, 1)
+            self.pool2 = nn.MaxUnpool2d(3, 2, 1)
+            self.proj = nn.ConvTranspose2d(inp, oup, 2, 2, bias=False)
+        
         if expansion == 1:
             self.conv = nn.Sequential(
                 # dw
-                nn.Conv2d(hidden_dim, hidden_dim, 3, stride,
-                          1, groups=hidden_dim, bias=False),
+                nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
                 nn.BatchNorm2d(hidden_dim),
                 nn.GELU(),
                 # pw-linear
@@ -103,6 +120,8 @@ class MBConvDown(nn.Module):
     def forward(self, x):
         if self.downsample:
             return self.proj(self.pool(x)) + self.conv(x)
+        if self.upsample:
+            return self.proj(x)
         else:
             return x + self.conv(x)
 
@@ -163,17 +182,23 @@ class Attention(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, inp, oup, image_size, heads=8, dim_head=32, downsample=False, dropout=0.):
+    def __init__(self, inp, oup, image_size, heads=8, dim_head=32, downsample=False,  upsample=False, dropout=0.):
         super().__init__()
         hidden_dim = int(inp * 4)
 
         self.ih, self.iw = image_size
         self.downsample = downsample
+        self.upsample = upsample
 
         if self.downsample:
             self.pool1 = nn.MaxPool2d(3, 2, 1)
             self.pool2 = nn.MaxPool2d(3, 2, 1)
             self.proj = nn.Conv2d(inp, oup, 1, 1, 0, bias=False)
+        
+        if self.upsample:
+            self.pool1 = nn.MaxUnpool2d(3, 2, 1)
+            self.pool2 = nn.MaxUnpool2d(3, 2, 1)
+            self.proj = nn.ConvTranspose2d(inp, oup, 2, 2, bias=False)
 
         self.attn = Attention(inp, oup, image_size, heads, dim_head, dropout)
         self.ff = FeedForward(oup, hidden_dim, dropout)
@@ -193,45 +218,75 @@ class Transformer(nn.Module):
     def forward(self, x):
         if self.downsample:
             x = self.proj(self.pool1(x)) + self.attn(self.pool2(x))
+        elif self.upsample:
+            x = self.proj(x)
         else:
             x = x + self.attn(x)
         x = x + self.ff(x)
         return x
 
 
-class CoAtEncoder(nn.Module):
+class CoAtED(nn.Module):
     def __init__(self, image_size, in_channels, num_blocks, channels, block_types=['C', 'C', 'T', 'T']):
         super().__init__()
         ih, iw = image_size
 
-        block = {'C': MBConvDown, 'T': Transformer}
+        block = {'C': MBConv, 'T': Transformer}
 
-        self.s0 = self._make_layer(
+        self.s0 = self._make_layer_down(
             conv_3x3_bn, in_channels, channels[0], num_blocks[0], (ih // 2, iw // 2))
-        self.s1 = self._make_layer(
+        self.s1 = self._make_layer_down(
             block[block_types[0]], channels[0], channels[1], num_blocks[1], (ih // 4, iw // 4))
-        self.s2 = self._make_layer(
+        self.s2 = self._make_layer_down(
             block[block_types[1]], channels[1], channels[2], num_blocks[2], (ih // 8, iw // 8))
-        self.s3 = self._make_layer(
+        self.s3 = self._make_layer_down(
             block[block_types[2]], channels[2], channels[3], num_blocks[3], (ih // 16, iw // 16))
-        self.s4 = self._make_layer(
+        self.s4 = self._make_layer_down(
             block[block_types[3]], channels[3], channels[4], num_blocks[4], (ih // 32, iw // 32))
 
-        self.pool = nn.AvgPool2d(ih // 32, 1)
+        self.s5 = self._make_layer_up(
+            Transformer, 768, 384, 2, (ih // 16, iw // 16))
+
+        self.s6 = self._make_layer_up(
+            Transformer, 384, 192, 2, (ih // 8, iw // 8))
+
+        self.s7 = self._make_layer_up(
+            MBConv, 192, 96, 2, (ih // 4, iw // 4))
+        
+        self.s8 = self._make_layer_up(
+            MBConv, 96, 64, 2, (ih // 2, iw // 2))
+
+        self.s9 = self._make_layer_up(
+            conv_3x3_bn, 64, 3, 2, (ih // 1, iw // 1))
+
 
     def forward(self, x):
-        _, channels, res_x, res_y = x.shape
-
+        # encode
         x = self.s0(x)
         x = self.s1(x)
         x = self.s2(x)
         x = self.s3(x)
         x = self.s4(x)
-        print(x.shape)
+
+        # decode
+        x = self.s5(x)
+        x = self.s6(x)
+        x = self.s7(x)
+        x = self.s8(x)
+        x = self.s9(x)
 
         return x
 
-    def _make_layer(self, block, inp, oup, depth, image_size):
+    def _make_layer_up(self, block, inp, oup, depth, image_size):
+        layers = nn.ModuleList([])
+        for i in range(depth):
+            if i == 0:
+                layers.append(block(inp, oup, image_size, upsample=True))
+            else:
+                layers.append(block(oup, oup, image_size))
+        return nn.Sequential(*layers)
+
+    def _make_layer_down(self, block, inp, oup, depth, image_size):
         layers = nn.ModuleList([])
         for i in range(depth):
             if i == 0:
@@ -240,55 +295,29 @@ class CoAtEncoder(nn.Module):
                 layers.append(block(oup, oup, image_size))
         return nn.Sequential(*layers)
 
-
-class CoAtDecoder(nn.Module):
-    def __init__(self, image_size, in_channels, num_blocks, channels, block_types=['C', 'C', 'T', 'T']):
-        super().__init__()
-        ih, iw = image_size
-
-        block = {'C': MBConvDown, 'T': Transformer}
-
-        self.s0 = self._make_layer(
-            conv_3x3_bn, in_channels, channels[0], num_blocks[0], (ih // 2, iw // 2))
-        self.s1 = self._make_layer(
-            block[block_types[0]], channels[0], channels[1], num_blocks[1], (ih // 4, iw // 4))
-        self.s2 = self._make_layer(
-            block[block_types[1]], channels[1], channels[2], num_blocks[2], (ih // 8, iw // 8))
-        self.s3 = self._make_layer(
-            block[block_types[2]], channels[2], channels[3], num_blocks[3], (ih // 16, iw // 16))
-        self.s4 = self._make_layer(
-            block[block_types[3]], channels[3], channels[4], num_blocks[4], (ih // 32, iw // 32))
-
-        self.pool = nn.AvgPool2d(ih // 32, 1)
-
-    def forward(self, x):
-        _, channels, res_x, res_y = x.shape
-
-        x = self.s0(x)
-        x = self.s1(x)
-        x = self.s2(x)
-        x = self.s3(x)
-        x = self.s4(x)
-        print(x.shape)
-        
-        return x
-
-
 # Testing
 def coatnet_0():
     num_blocks = [2, 2, 3, 5, 2]            # L
     channels = [64, 96, 192, 384, 768]      # D
-    return CoAtEncoder((224, 224), 3, num_blocks, channels)
+    return CoAtED((224, 224), 3, num_blocks, channels)
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-
-
+from torch.nn import functional as F
 
 if __name__ == '__main__':
-    img = torch.randn(1, 3, 224, 224)
+    n = torch.randn(1, 3, 224, 224)
+    h = torch.randn(1, 3, 224, 224)
 
     net = coatnet_0()
-    out = net(img)
-    # print(out.shape, count_parameters(net))
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+    
+    ## test
+    for i in range(200):
+        e1 = net(n)
+        l = F.mse_loss(e1, h)
+        l.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        print(l)

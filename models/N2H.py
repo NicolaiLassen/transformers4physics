@@ -9,7 +9,6 @@ from CoAtNet import CoAtEncoder, CoAtDecoder
 
 # moment -> vec embed -> field
 
-
 class N2H(pl.LightningModule):
 	def __init__(self, cfg):
 		super().__init__()
@@ -21,10 +20,6 @@ class N2H(pl.LightningModule):
 		# CoAtEncoderDecoder
 		# N -> E -> K -> D -> H
 		# Koopman eigenfunctions (TODO)
-		net = nn.Sequential(
-				CoAtEncoder(),
-				CoAtDecoder()
-			)
 		return net
 
 	def forward(self, x):
