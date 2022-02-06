@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 import pytorch_lightning as pl
-from CoAtNet import CoAtEncoder, CoAtDecoder
+from models.swin_unet_transformer import SwinUnetTransformer
 
 # moment -> vec embed -> field
 
@@ -16,11 +16,7 @@ class N2H(pl.LightningModule):
 		self.net = self.get_model()
 
 	def get_model(self):
-		## TODO MAKE VOLUME IF config
-		# CoAtEncoderDecoder
-		# N -> E -> K -> D -> H
-		# Koopman eigenfunctions (TODO)
-		return net
+		return SwinUnetTransformer()
 
 	def forward(self, x):
 		return self.net(x)

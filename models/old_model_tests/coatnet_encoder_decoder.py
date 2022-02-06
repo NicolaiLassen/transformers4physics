@@ -6,7 +6,6 @@ from einops import rearrange
 from einops.layers.torch import Rearrange
 
 # Encoder Decoder CoATNet
-
 # paper https://arxiv.org/pdf/2106.04803v2.pdf
 
 def conv_3x3_bn(inp, oup, image_size, downsample=False, upsample=False):
