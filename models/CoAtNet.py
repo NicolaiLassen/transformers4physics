@@ -87,6 +87,7 @@ class MBConv(nn.Module):
             self.pool2 = nn.MaxUnpool2d(3, 2, 1)
             self.proj = nn.ConvTranspose2d(inp, oup, 2, 2, bias=False)
         
+        ## TODO upsample
         if expansion == 1:
             self.conv = nn.Sequential(
                 # dw
@@ -233,32 +234,27 @@ class CoAtED(nn.Module):
 
         block = {'C': MBConv, 'T': Transformer}
 
-        self.s0 = self._make_layer_down(
+        self.s0 = self._make_layer(
             conv_3x3_bn, in_channels, channels[0], num_blocks[0], (ih // 2, iw // 2))
-        self.s1 = self._make_layer_down(
+        self.s1 = self._make_layer(
             block[block_types[0]], channels[0], channels[1], num_blocks[1], (ih // 4, iw // 4))
-        self.s2 = self._make_layer_down(
+        self.s2 = self._make_layer(
             block[block_types[1]], channels[1], channels[2], num_blocks[2], (ih // 8, iw // 8))
-        self.s3 = self._make_layer_down(
+        self.s3 = self._make_layer(
             block[block_types[2]], channels[2], channels[3], num_blocks[3], (ih // 16, iw // 16))
-        self.s4 = self._make_layer_down(
+        self.s4 = self._make_layer(
             block[block_types[3]], channels[3], channels[4], num_blocks[4], (ih // 32, iw // 32))
 
-        self.s5 = self._make_layer_up(
-            Transformer, 768, 384, 2, (ih // 16, iw // 16))
-
-        self.s6 = self._make_layer_up(
-            Transformer, 384, 192, 2, (ih // 8, iw // 8))
-
-        self.s7 = self._make_layer_up(
-            MBConv, 192, 96, 2, (ih // 4, iw // 4))
-        
-        self.s8 = self._make_layer_up(
-            MBConv, 96, 64, 2, (ih // 2, iw // 2))
-
-        self.s9 = self._make_layer_up(
-            conv_3x3_bn, 64, 3, 2, (ih // 1, iw // 1))
-
+        self.s5 = self._make_layer(
+            block[block_types[3]], channels[4], channels[3], 2, (ih // 16, iw // 16), False)
+        self.s6 = self._make_layer(
+            block[block_types[2]], channels[3], channels[2], 5, (ih // 8, iw // 8), False)
+        self.s7 = self._make_layer(
+            block[block_types[1]], channels[2], channels[1], 3, (ih // 4, iw // 4), False)
+        self.s8 = self._make_layer(
+            block[block_types[0]], channels[1], channels[0], 2, (ih // 2, iw // 2), False)
+        self.s9 = self._make_layer(
+            conv_3x3_bn, channels[0], in_channels, 2, (ih // 1, iw // 1), False)
 
     def forward(self, x):
         # encode
@@ -277,20 +273,11 @@ class CoAtED(nn.Module):
 
         return x
 
-    def _make_layer_up(self, block, inp, oup, depth, image_size):
+    def _make_layer(self, block, inp, oup, depth, image_size, downsample=True):
         layers = nn.ModuleList([])
         for i in range(depth):
             if i == 0:
-                layers.append(block(inp, oup, image_size, upsample=True))
-            else:
-                layers.append(block(oup, oup, image_size))
-        return nn.Sequential(*layers)
-
-    def _make_layer_down(self, block, inp, oup, depth, image_size):
-        layers = nn.ModuleList([])
-        for i in range(depth):
-            if i == 0:
-                layers.append(block(inp, oup, image_size, downsample=True))
+                layers.append(block(inp, oup, image_size, downsample=downsample, upsample=not downsample))
             else:
                 layers.append(block(oup, oup, image_size))
         return nn.Sequential(*layers)
@@ -299,7 +286,7 @@ class CoAtED(nn.Module):
 def coatnet_0():
     num_blocks = [2, 2, 3, 5, 2]            # L
     channels = [64, 96, 192, 384, 768]      # D
-    return CoAtED((224, 224), 3, num_blocks, channels)
+    return CoAtED((224, 224), 4, num_blocks, channels)
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -307,8 +294,8 @@ def count_parameters(model):
 from torch.nn import functional as F
 
 if __name__ == '__main__':
-    n = torch.randn(1, 3, 224, 224)
-    h = torch.randn(1, 3, 224, 224)
+    n = torch.randn(1, 4, 224, 224)
+    h = torch.randn(1, 4, 224, 224)
 
     net = coatnet_0()
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
