@@ -8,6 +8,7 @@ import torch
 import h5py
 from magtense import magtense
 
+## TODO Torch
 
 # %%
 def normalizeVector(vector):
@@ -15,8 +16,7 @@ def normalizeVector(vector):
     return vector/np.sqrt(np.sum(vector**2)), np.sqrt(np.sum(vector**2))
 
 # generate simple prism grid to "sim" grains of micro
-
-
+# TODO MAKE THIS TORCH not 
 def create_prism_grid(rows=2, columns=2, size=1, res=224):
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)
@@ -54,8 +54,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     # TODO output mask seperately for use in the model
     mask = np.zeros((res, res))
 
-    # TODO invert order of res res channels
-    imageIn = np.zeros((res, res, 4))
+    imageIn = np.zeros((4, res,res,))
     for c in range(columns):
         for r in range(rows):
             i = r + c*rows
@@ -89,16 +88,14 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     imageOut = np.zeros((res*res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
     lenH = [normalizeVector(x)[1] for x in hField]
-    imageOut[:, 0:3] = normalizedH
-    imageOut[:, 3] = lenH
-    imageOut = imageOut.reshape((res, res, 4))
+    imageOut[:,0:3] = normalizedH
+    imageOut[:,3] = lenH
+    imageOut = imageOut.reshape((4,res,res))
 
     return imageIn, imageOut
-
-
 # %%
 
-
+#%%
 class PrismGridDataset(torch.utils.data.Dataset):
     def __init__(self, images_in, images_target):
         self.images_in = images_in

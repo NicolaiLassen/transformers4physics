@@ -30,8 +30,5 @@ def prism_grid():
     # Standard parameters in settings: max_error=0.00001, max_it=500
     (updated_tiles, H) = magtense.run_simulation(tiles, points, grid=grid, plot=True)
 
-    print("Average magnetic field: " + str(get_average_magnetic_flux(H)))
-    print("Peak to peak: " + str(get_p2p(H)))
-
 if __name__ == '__main__':
     prism_grid()
