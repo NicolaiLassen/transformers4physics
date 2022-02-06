@@ -8,6 +8,7 @@ import torch
 import h5py
 from magtense import magtense
 
+## TODO Torch
 
 #%%
 def normalizeVector(vector):
@@ -50,7 +51,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     startX = innerPadding if paddingDim == 1 else outerPadding
     startY = innerPadding if paddingDim == 2 else outerPadding
 
-    imageIn = np.zeros((res,res,4))
+    imageIn = np.zeros((4, res,res,))
     for c in range(columns):
         for r in range(rows):
             i = r + c*rows
@@ -75,7 +76,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
         for j in range(res):
             points[j+i*res,:] = [pointStartX+j*pixelSize, pointStartY+i*pixelSize, 0]
 
-    magtense.run_simulation(tiles,points, plot=True)
+    magtense.run_simulation(tiles,points)
     hField = magtense.get_H_field(tiles,points)
 
     imageOut = np.zeros((res*res,4))
@@ -83,7 +84,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     lenH = [normalizeVector(x)[1] for x in hField]
     imageOut[:,0:3] = normalizedH
     imageOut[:,3] = lenH
-    imageOut = imageOut.reshape((res,res,4))
+    imageOut = imageOut.reshape((4,res,res))
 
     return imageIn, imageOut
 # %%

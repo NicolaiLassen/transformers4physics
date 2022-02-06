@@ -5,7 +5,7 @@ import torch.nn as nn
 from einops import rearrange
 from einops.layers.torch import Rearrange
 
-# Testing
+# Encoder Decoder CoATNet
 
 # paper https://arxiv.org/pdf/2106.04803v2.pdf
 
@@ -291,16 +291,16 @@ def coatnet_0():
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-from torch.nn import functional as F
 
 if __name__ == '__main__':
+    ## TEST
+    from torch.nn import functional as F
     n = torch.randn(1, 4, 224, 224)
     h = torch.randn(1, 4, 224, 224)
 
     net = coatnet_0()
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
     
-    ## test
     for i in range(200):
         e1 = net(n)
         l = F.mse_loss(e1, h)
