@@ -51,6 +51,10 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     startX = innerPadding if paddingDim == 1 else outerPadding
     startY = innerPadding if paddingDim == 2 else outerPadding
 
+    # TODO output mask seperately for use in the model
+    mask = np.zeros((res, res))
+
+    # TODO invert order of res res channels
     imageIn = np.zeros((res, res, 4))
     for c in range(columns):
         for r in range(rows):
