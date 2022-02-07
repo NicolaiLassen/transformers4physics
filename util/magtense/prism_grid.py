@@ -96,6 +96,9 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     imageOut = imageOut.reshape((res, res, 4))
     imageOut = torch.moveaxis(imageOut, 2, 0)
 
+    imageOut[3,:,:] = imageOut[3,:,:]*(4*math.pi*1e-7)
+    imageIn[3,:,:] = imageIn[3,:,:]*(4*math.pi*1e-7)
+
     return imageIn, mask, imageOut
 
 
@@ -133,4 +136,4 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
         masks.append(mask)
         images_target.append(image_target)
 
-    return PrismGridDataset(images_in, images_target)
+    return PrismGridDataset(images_in, mask, images_target)

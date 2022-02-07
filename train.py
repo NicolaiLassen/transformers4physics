@@ -162,8 +162,10 @@ if __name__ == '__main__':
     from torch.nn import functional as F
     import seaborn as sns
     import matplotlib.pyplot as plt
-    a = create_dataset(set_size=2, columns=[2], rows=[2], res=224)
-    print(a.images_in)
+    a = create_dataset(set_size=10, columns=[2], rows=[2], res=224)
+
+    b_x = torch.stack(a.images_in)
+    b_y = torch.stack(a.images_target)
 
     net = SwinUnetTransformer(in_chans=4)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
@@ -171,8 +173,8 @@ if __name__ == '__main__':
     losses = []
     epochs = 100
     for i in range(epochs):
-        e1 = net(a.images_in)
-        l = F.mse_loss(e1, a.images_target)
+        b_x_hat = net(b_y)
+        l = F.mse_loss(b_x_hat, b_y)
         l.backward()
         optimizer.step()
         optimizer.zero_grad()
