@@ -54,21 +54,20 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     # TODO output mask seperately for use in the model
     mask = np.zeros((res, res))
 
-    imageIn = np.zeros((4, res,res,))
+    imageIn = np.zeros((4,res,res))
     for c in range(columns):
         for r in range(rows):
             i = r + c*rows
             normalizedM, lenM = normalizeVector(tiles.get_M(i))
-
             imageIn[
+                0:3,
                 startY+sideLen*c:startY+sideLen*(c+1),
                 startX+sideLen*r:startX+sideLen*(r+1),
-                0:3,
             ] = normalizedM
             imageIn[
+                3,
                 startY+sideLen*c:startY+sideLen*(c+1),
                 startX+sideLen*r:startX+sideLen*(r+1),
-                3,
             ] = lenM
 
     pixelSize = size/sideLen
@@ -85,11 +84,11 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     magtense.run_simulation(tiles, points)
     hField = magtense.get_H_field(tiles, points)
 
-    imageOut = np.zeros((res*res, 4))
+    imageOut = np.zeros((4, res*res))
     normalizedH = [normalizeVector(x)[0] for x in hField]
     lenH = [normalizeVector(x)[1] for x in hField]
-    imageOut[:,0:3] = normalizedH
-    imageOut[:,3] = lenH
+    imageOut[0:3,:] = normalizedH
+    imageOut[3,:] = lenH
     imageOut = imageOut.reshape((4,res,res))
 
     return imageIn, imageOut
