@@ -8,7 +8,6 @@ import torch
 import h5py
 from magtense import magtense
 
-## TODO Torch
 
 # %%
 def normalizeVector(vector):
@@ -16,7 +15,8 @@ def normalizeVector(vector):
     return vector/np.sqrt(np.sum(vector**2)), np.sqrt(np.sum(vector**2))
 
 # generate simple prism grid to "sim" grains of micro
-# TODO MAKE THIS TORCH not 
+
+
 def create_prism_grid(rows=2, columns=2, size=1, res=224):
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)
@@ -51,24 +51,23 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     startX = innerPadding if paddingDim == 1 else outerPadding
     startY = innerPadding if paddingDim == 2 else outerPadding
 
-    # TODO output mask seperately for use in the model
-    mask = np.zeros((res, res))
-
-    imageIn = np.zeros((4,res,res))
+    imageIn = np.zeros((res, res, 4))
     for c in range(columns):
         for r in range(rows):
             i = r + c*rows
             normalizedM, lenM = normalizeVector(tiles.get_M(i))
+
             imageIn[
-                0:3,
-                startY+sideLen*c:startY+sideLen*(c+1),
                 startX+sideLen*r:startX+sideLen*(r+1),
+                startY+sideLen*c:startY+sideLen*(c+1),
+                0:3,
             ] = normalizedM
             imageIn[
-                3,
-                startY+sideLen*c:startY+sideLen*(c+1),
                 startX+sideLen*r:startX+sideLen*(r+1),
+                startY+sideLen*c:startY+sideLen*(c+1),
+                3,
             ] = lenM
+    imageIn = np.moveaxis(imageIn, 2, 0)
 
     pixelSize = size/sideLen
     pointStartX = pixelSize/2 - \
@@ -84,17 +83,18 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     magtense.run_simulation(tiles, points)
     hField = magtense.get_H_field(tiles, points)
 
-    imageOut = np.zeros((4, res*res))
+    imageOut = np.zeros((res*res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
     lenH = [normalizeVector(x)[1] for x in hField]
-    imageOut[0:3,:] = normalizedH
-    imageOut[3,:] = lenH
-    imageOut = imageOut.reshape((4,res,res))
+    imageOut[:, 0:3] = normalizedH
+    imageOut[:, 3] = lenH
+    imageOut = imageOut.reshape((res, res, 4))
+    imageOut = np.moveaxis(imageOut, 2, 0)
 
     return imageIn, imageOut
 # %%
 
-#%%
+
 class PrismGridDataset(torch.utils.data.Dataset):
     def __init__(self, images_in, images_target):
         self.images_in = images_in
@@ -107,20 +107,23 @@ class PrismGridDataset(torch.utils.data.Dataset):
         return self.images_in[idx], self.images_target[idx]
 
 
-def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, sizeX=1, sizeY=1, sizeZ=1):
+def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1):
     images_in = []
     images_target = []
-    for _ in range(set_size):
+    for i in range(set_size):
+        print('{:06d}/{:06d}'.format(i+1,set_size), end='\r')
         r = random.choice(rows)
         c = random.choice(columns) if square_grid == False else r
         image_in, image_target = create_prism_grid(
             rows=r,
             columns=c,
-            sizeX=sizeX,
-            sizeY=sizeY,
-            sizeZ=sizeZ,
+            size=size,
             res=res,
         )
         images_in.append(image_in)
         images_target.append(image_target)
     return PrismGridDataset(images_in, images_target)
+
+
+# %%
+a = create_dataset(set_size=1024, columns=[2], rows=[2], res=128)
