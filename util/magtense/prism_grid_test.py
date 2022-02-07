@@ -9,10 +9,10 @@ def _checkAllChannelsEq(x, xs, xe, ys, ye):
     return True
 
 def testImageIn():
-    i,h = create_prism_grid(
+    i,_ = create_prism_grid(
         rows=1,
-        columns=1,
-        res=244,
+        columns=2,
+        res=6,
     )
 
     assert np.all(i[:,0,:] == 0)
