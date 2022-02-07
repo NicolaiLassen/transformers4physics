@@ -17,7 +17,7 @@ checkpoint_hist: 1
 workers: 12
 pin_mem: True
 experiment: null
-use_wandb: True
+use_wandb: False
 
 model:
   # poolformer_s12, resnet10

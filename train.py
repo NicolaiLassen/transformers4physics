@@ -20,11 +20,14 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 class N2H(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
+
         self.save_hyperparameters(cfg)
         self.net = self.get_model()
 
-        dataset = PrismGridDataset(
-            cfg.dataset, cfg.field_input, cfg.action_input, cfg.target)
+        # PrismGridDataset(
+            #cfg.dataset, cfg.field_input, cfg.action_input, cfg.target)
+
+        dataset =  create_dataset(set_size=100, columns=[2], rows=[2], res=224)
         train_size = int(0.8 * len(dataset))
         val_size = int(0.05 * len(dataset))
         test_size = len(dataset) - train_size - val_size
@@ -125,9 +128,9 @@ class N2H(pl.LightningModule):
 def train(cfg):
     model = N2H(cfg)
     run = wandb.init(
-        project='static-moment_2_field',
-        entity='transformers4physics',
         name=cfg.experiment,
+        project='v0',
+        entity='transformers4physics',
         notes='test-run',
         config=cfg)
     logger = WandbLogger(log_model=True)
@@ -159,30 +162,4 @@ def main(cfg):
 
 
 if __name__ == '__main__':
-    from torch.nn import functional as F
-    import seaborn as sns
-    import matplotlib.pyplot as plt
-    a = create_dataset(set_size=10, columns=[2], rows=[2], res=224)
-
-    b_x = torch.stack(a.images_in)
-    b_y = torch.stack(a.images_target)
-
-    net = SwinUnetTransformer(in_chans=4)
-    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
-
-    losses = []
-    epochs = 100
-    for i in range(epochs):
-        b_x_hat = net(b_y)
-        l = F.mse_loss(b_x_hat, b_y)
-        l.backward()
-        optimizer.step()
-        optimizer.zero_grad()
-        losses.append(l.item())
-        print(l)
-
-    sns.lineplot(x=range(epochs), y=losses)
-    plt.title('Overfit n to h test')
-    plt.xlabel('epoch')
-    plt.ylabel('mse loss')
-    plt.show()
+    main()
