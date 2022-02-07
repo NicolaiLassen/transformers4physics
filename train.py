@@ -1,4 +1,3 @@
-import torch
 import wandb
 from pathlib import Path
 import hydra
@@ -8,8 +7,9 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 import pytorch_lightning as pl
+import torch
 from models.swin_unet_transformer import SwinUnetTransformer
-from util.magtense.prism_grid import PrismGridDataset, create_dataset
+from util.magtense.prism_grid import PrismGridDataset
 
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
@@ -24,10 +24,11 @@ class N2H(pl.LightningModule):
         self.net = self.get_model()
 
         dataset = PrismGridDataset()
-        dataset.open_hdf5("\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset.hdf5")
+        dataset.open_hdf5(
+            "\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset.hdf5")
 
         train_size = int(0.8 * len(dataset))
-        val_size = int(0.05 * len(dataset))
+        val_size = int(0.1 * len(dataset))
         test_size = len(dataset) - train_size - val_size
 
         self.train_dataset, self.val_dataset, self.test_dataset = \
@@ -122,7 +123,13 @@ class N2H(pl.LightningModule):
         x, _, y = batch
         x_hat = self(x)
         loss = self.criterion(x_hat, y)
+        err = torch.mean(torch.abs(x_hat - y) / y) * 100
+        self.log_dict({
+            f'loss/{mode}': loss.item(),
+            f'err/{mode}': err.item(),
+        })
         return loss
+
 
 def train(cfg):
     model = N2H(cfg)
@@ -164,5 +171,4 @@ def main(cfg):
 
 
 if __name__ == '__main__':
-    # main()
-    create_dataset(set_size=5, rows=[4,7,8,14], square_grid=True, res=224)
+    main()

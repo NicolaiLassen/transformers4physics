@@ -141,8 +141,7 @@ class PrismGridDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.x[idx], self.m[idx], self.y[idx]
 
-
-def create_dataset(set_size=256, columns=[4], rows=[4], square_grid=False, res=224, size=1, datapath="./data/prism_grid_dataset.hdf5"):
+def create_dataset(set_size=512, columns=[4], rows=[4], square_grid=False, res=224, size=1, datapath="./data/prism_grid_dataset.hdf5"):
     images_in = np.zeros((set_size, 4, res, res))
     masks = np.zeros((set_size, res, res))
     images_target = np.zeros((set_size, 4, res, res))
@@ -168,7 +167,3 @@ def create_dataset(set_size=256, columns=[4], rows=[4], square_grid=False, res=2
         f.create_dataset("y", data=images_target)
 
     return PrismGridDataset(images_in, masks, images_target)
-
-
-if __name__ == '__main__':
-    create_dataset(set_size=2, rows=[4, 7, 8, 14], square_grid=True, res=224)
