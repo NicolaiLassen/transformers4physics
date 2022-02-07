@@ -811,7 +811,6 @@ class SwinUnetTransformer(nn.Module):
         flops += self.num_features
         return flops
 
-
 if __name__ == '__main__':
     # TEST for fast fit to one datapoint
     from torch.nn import functional as F

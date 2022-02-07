@@ -40,10 +40,10 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224, uniform=False, plot=Fa
         (innerPadding if paddingDim == 1 else outerPadding)*pixelSize
     pointStartY = pixelSize/2 - \
         (innerPadding if paddingDim == 2 else outerPadding)*pixelSize
-    points = torch.zeros((res, res, 3))
+    points = np.zeros((res, res, 3))
     for i in range(res):
         for j in range(res):
-            points[i, j, :] = torch.tensor([pointStartX+j *
+            points[i, j, :] = np.array([pointStartX+j *
                                             pixelSize, pointStartY+i*pixelSize, 0])
     points = points.reshape((res*res, 3))
     tiles = magtense.Tiles(rows*columns)
@@ -94,16 +94,17 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224, uniform=False, plot=Fa
                 startY+sideLen*c:startY+sideLen*(c+1),
                 startX+sideLen*r:startX+sideLen*(r+1),
             ] = 1
+
     imageIn = np.moveaxis(imageIn, 2, 0)
 
-    imageOut = torch.zeros((res, res, 4))
+    imageOut = np.zeros((res, res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
     lenH = [normalizeVector(x)[1] for x in hField]
-    normalizedH, lenH = torch.tensor(normalizedH), torch.tensor(lenH)
+    normalizedH, lenH = np.array(normalizedH), np.array(lenH)
     for i, (nh, lh) in enumerate(zip(normalizedH, lenH)):
         imageOut[i//res, i % res, 0:3] = nh
         imageOut[i//res, i % res, 3] = lh
-    imageOut = torch.moveaxis(imageOut, 2, 0)
+    imageOut = np.moveaxis(imageOut, 2, 0)
     # Back to tesla
     imageOut[3, :, :] = imageOut[3, :, :]*(4*math.pi*1e-7)
     imageIn[3, :, :] = imageIn[3, :, :]*(4*math.pi*1e-7)
@@ -130,9 +131,9 @@ class PrismGridDataset(torch.utils.data.Dataset):
 
     def open_hdf5(self, datapath):
         db = h5py.File(datapath, mode='r')
-        self.x = torch.tensor(db['x'])
-        self.m = torch.tensor(db['m'])
-        self.y = torch.tensor(db['y'])
+        self.x = torch.tensor(db['x']).float()
+        self.m = torch.tensor(db['m']).float()
+        self.y = torch.tensor(db['y']).float()
 
     def __len__(self):
         return len(self.x)
