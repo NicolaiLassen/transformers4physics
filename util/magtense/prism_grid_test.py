@@ -1,6 +1,6 @@
 #%%
 import numpy as np
-from prism_grid import create_prism_grid
+#from prism_grid import create_prism_grid
 
 def _checkAllChannelsEq(x, xs, xe, ys, ye):
     for i in range(4):
@@ -9,24 +9,27 @@ def _checkAllChannelsEq(x, xs, xe, ys, ye):
     return True
 
 def testImageIn():
-    i,_ = create_prism_grid(
+    i,m,_ = create_prism_grid(
         rows=1,
         columns=2,
         res=6,
     )
+    i = np.array(i)
+    print(i)
 
     assert np.all(i[:,0,:] == 0)
     assert np.all(i[:,5,:] == 0)
-    assert np.all(i[:,:,0:2] == 0)
-    assert np.all(i[:,:,4:6] == 0)
-    assert _checkAllChannelsEq(i, 1, 3, 2, 4)
-    assert _checkAllChannelsEq(i, 3, 5, 2, 4)
+    assert np.all(i[:,0:2,:] == 0)
+    assert np.all(i[:,0:2,:] == 0)
+    assert _checkAllChannelsEq(i, 2, 4, 1, 3)
+    assert _checkAllChannelsEq(i, 2, 4, 3, 5)
 
-    i,_ = create_prism_grid(
+    i,m,_ = create_prism_grid(
         rows=2,
         columns=2,
         res=4,
     )
+    i = np.array(i)
     
     assert _checkAllChannelsEq(i, 0, 2, 0, 2)
     assert _checkAllChannelsEq(i, 2, 4, 0, 2)

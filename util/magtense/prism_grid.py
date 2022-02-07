@@ -17,7 +17,7 @@ def normalizeVector(vector):
 # generate simple prism grid to "sim" grains of micro
 
 
-# TODO MAKE THIS TORCH 
+# TODO MAKE THIS TORCH
 # TODO save as files nok create on go
 def create_prism_grid(rows=2, columns=2, size=1, res=224):
     tiles = magtense.Tiles(rows*columns)
@@ -36,10 +36,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
             ]
             ea, _ = normalizeVector(ea)
             tiles.set_easy_axis_i(ea, i)
-            # TODO Change remenance to a random value in a valid span.
-            # This value is taken from the magtense example
-            # https://github.com/cmt-dtu-energy/MagTense/blob/master/python/examples/validation_prism.py
-            tiles.set_remanence_i(1.2/(4*math.pi*1e-7), i)
+            tiles.set_remanence_i(random.uniform(1.0, 1.5)/(4*math.pi*1e-7), i)
             tiles.set_M(tiles.u_ea[i]*tiles.M_rem[i], i)
 
     paddingDim = 0 if rows == columns else 1 if rows < columns else 2
@@ -53,12 +50,13 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     startX = innerPadding if paddingDim == 1 else outerPadding
     startY = innerPadding if paddingDim == 2 else outerPadding
 
-    imageIn = np.zeros((res, res, 4))
+    imageIn = torch.zeros((res, res, 4))
+    mask = torch.zeros((res, res))
     for c in range(columns):
         for r in range(rows):
             i = r + c*rows
             normalizedM, lenM = normalizeVector(tiles.get_M(i))
-
+            normalizedM, lenM = torch.tensor(normalizedM), torch.tensor(lenM)
             imageIn[
                 startX+sideLen*r:startX+sideLen*(r+1),
                 startY+sideLen*c:startY+sideLen*(c+1),
@@ -69,62 +67,72 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
                 startY+sideLen*c:startY+sideLen*(c+1),
                 3,
             ] = lenM
-    imageIn = np.moveaxis(imageIn, 2, 0)
+            mask[
+                startX+sideLen*r:startX+sideLen*(r+1),
+                startY+sideLen*c:startY+sideLen*(c+1),
+            ] = 1
+    imageIn = torch.moveaxis(imageIn, 2, 0)
 
     pixelSize = size/sideLen
     pointStartX = pixelSize/2 - \
         (innerPadding if paddingDim == 1 else outerPadding)*pixelSize
     pointStartY = pixelSize/2 - \
         (innerPadding if paddingDim == 2 else outerPadding)*pixelSize
-    points = np.zeros((res*res, 3))
+    points = torch.zeros((res*res, 3))
     for i in range(res):
         for j in range(res):
-            points[j+i*res, :] = [pointStartX+j *
-                                  pixelSize, pointStartY+i*pixelSize, 0]
+            points[j+i*res, :] = torch.tensor([pointStartX+j *
+                                               pixelSize, pointStartY+i*pixelSize, 0])
 
     magtense.run_simulation(tiles, points)
     hField = magtense.get_H_field(tiles, points)
 
-    imageOut = np.zeros((res*res, 4))
+    imageOut = torch.zeros((res*res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
     lenH = [normalizeVector(x)[1] for x in hField]
+    normalizedH, lenH = torch.tensor(normalizedH), torch.tensor(lenH)
     imageOut[:, 0:3] = normalizedH
     imageOut[:, 3] = lenH
     imageOut = imageOut.reshape((res, res, 4))
-    imageOut = np.moveaxis(imageOut, 2, 0)
+    imageOut = torch.moveaxis(imageOut, 2, 0)
 
-    return imageIn, imageOut
+    return imageIn, mask, imageOut
+
+
 # %%
 
 
 class PrismGridDataset(torch.utils.data.Dataset):
-    def __init__(self, images_in, images_target):
+    def __init__(self, images_in, masks, images_target):
         self.images_in = images_in
+        self.masks = masks
         self.images_target = images_target
 
     def __len__(self):
         return len(self.images_in)
 
     def __getitem__(self, idx):
-        return self.images_in[idx], self.images_target[idx]
+        return self.images_in[idx], self.masks[idx], self.images_target[idx]
 
 
 def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1):
     images_in = []
+    masks = []
     images_target = []
     for i in range(set_size):
-        print('{:06d}/{:06d}'.format(i+1,set_size), end='\r')
+        print('{:06d}/{:06d}'.format(i+1, set_size), end='\r')
         r = random.choice(rows)
         c = random.choice(columns) if square_grid == False else r
-        image_in, image_target = create_prism_grid(
+        image_in, mask, image_target = create_prism_grid(
             rows=r,
             columns=c,
             size=size,
             res=res,
         )
         images_in.append(image_in)
+        masks.append(mask)
         images_target.append(image_target)
-    return PrismGridDataset(images_in, images_target)
+    return PrismGridDataset(images_in, masks, images_target)
 
 
 # %%
