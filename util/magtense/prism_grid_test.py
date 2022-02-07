@@ -3,13 +3,15 @@ import numpy as np
 from prism_grid import create_prism_grid
 
 def testImageIn():
-    i,_ = create_prism_grid(
+    i,h = create_prism_grid(
         rows=1,
-        columns=2,
-        res=6,
+        columns=1,
+        res=244,
     )
     
-    print(i.shape)
+    print(i)
+    print(h)
+    print(h.shape)
     assert np.all(i[0,:,:] == 0)
     assert np.all(i[:,0:2,:] == 0)
     assert np.all(i[:,4:6,:] == 0)

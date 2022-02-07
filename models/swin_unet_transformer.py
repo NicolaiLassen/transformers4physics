@@ -816,10 +816,13 @@ if __name__ == '__main__':
     from torch.nn import functional as F
     import seaborn as sns
     import matplotlib.pyplot as plt
-    n = torch.randn(1, 3, 224, 224)
-    h = torch.randn(1, 3, 224, 224)
 
-    net = SwinUnetTransformer()
+    n = torch.randn(2, 4, 224, 224)
+    h = torch.randn(2, 4, 224, 224)
+
+    print(n.dtype)
+
+    net = SwinUnetTransformer(in_chans=4)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
 
     losses = []
@@ -831,6 +834,7 @@ if __name__ == '__main__':
         optimizer.step()
         optimizer.zero_grad()
         losses.append(l.item())
+        print(l)
 
     sns.lineplot(x=range(epochs),y=losses)
     plt.title('Overfit n to h test')
