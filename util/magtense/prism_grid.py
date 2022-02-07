@@ -20,7 +20,7 @@ def normalizeVector(vector):
 
 
 # TODO save as files nok create on go
-def create_prism_grid(rows=2, columns=2, size=1, res=224):
+def create_prism_grid(rows=2, columns=2, size=1, res=224, uniform=False):
     paddingDim = 0 if rows == columns else 1 if rows < columns else 2
     sideLen = min(res//rows, res//columns)
     if((res-sideLen*(rows if paddingDim == 2 else columns)) % 2 != 0):
@@ -58,10 +58,15 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
                 random.random()*2-1,
                 random.random()*2-1,
                 random.random()*2-1,
+            ] if not uniform else [
+                1,
+                0,
+                0,
             ]
             ea, _ = normalizeVector(ea)
             tiles.set_easy_axis_i(ea, i)
-            tiles.set_remanence_i(random.uniform(1.0, 1.5)/(4*math.pi*1e-7), i)
+            tiles.set_remanence_i(random.uniform(
+                1.0, 1.5 if not uniform else 1.0)/(4*math.pi*1e-7), i)
             tiles.set_M(tiles.u_ea[i]*tiles.M_rem[i], i)
     magtense.run_simulation(tiles, points)
     hField = magtense.get_H_field(tiles, points)
@@ -88,8 +93,6 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
                 startX+sideLen*r:startX+sideLen*(r+1),
             ] = 1
     imageIn = torch.moveaxis(imageIn, 2, 0)
-    # Back to tesla
-    imageIn[3, :, :] = imageIn[3, :, :]*(4*math.pi*1e-7)
 
     imageOut = torch.zeros((res, res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
@@ -101,11 +104,7 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     imageOut = torch.moveaxis(imageOut, 2, 0)
     # Back to tesla
     imageOut[3, :, :] = imageOut[3, :, :]*(4*math.pi*1e-7)
-
-    imageOut[3, :, :] = imageOut[3, :, :]*(4*math.pi*1e-7)
     imageIn[3, :, :] = imageIn[3, :, :]*(4*math.pi*1e-7)
-    #print(imageOut)
-    #print(normalizedH)
 
     return imageIn, mask, imageOut
 
@@ -150,4 +149,3 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
         masks.append(mask)
         images_target.append(image_target)
     return PrismGridDataset(images_in, mask, images_target)
-

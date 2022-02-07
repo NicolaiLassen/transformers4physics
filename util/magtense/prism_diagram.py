@@ -9,8 +9,8 @@ prefix = 'uniform_x'
 res = 224
 
 imgin, m, imgout = create_prism_grid(
-    rows=4,
-    columns=4,
+    rows=2,
+    columns=1,
     res=res,
 )
 imgin, m, imgout = np.array(imgin), np.array(m), np.array(imgout)

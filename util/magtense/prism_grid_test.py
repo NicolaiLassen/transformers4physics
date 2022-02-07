@@ -26,7 +26,6 @@ def testImageIn():
     )
     i = np.array(i)
     m = np.array(m)
-    print(i)
 
     assert _checkMaskingMatch(i,m)
     assert np.all(i[:,0,:] == 0)
