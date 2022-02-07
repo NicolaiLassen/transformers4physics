@@ -1,0 +1,59 @@
+seed: 42
+dataset: 'halbach_24_100_200.h5'
+# 'field', 'spherical_harmonics'
+field_input: 'field'
+# 'index', 'one_hot', 'position'
+action_input: 'index'
+# 'learned'
+pos_embedding: 'learned'
+# 'p2p_next', 'p2p_next_comp', 'bins'
+target: 'bins'
+batch_size: 20
+val_batch_size: 20
+recovery_interval: 0
+checkpoint_path: './ckpt/'
+check_val_every_n_epoch: 10
+checkpoint_hist: 1
+workers: 12
+pin_mem: True
+experiment: null
+use_wandb: True
+
+model:
+  # swin
+  name: 'swin'
+  pretrained: False
+  resume: ''
+  num_classes: 5
+  
+opt:
+  name: 'adamw'
+  eps: 1e-8
+  momentum: 0.9
+  beta0: 0.9
+  beta1: 0.999
+  weight_decay: 0.05
+  clip_grad: null
+  clip_mode: 'norm'
+
+lr:
+  sched: 'cosine'
+  lr: 1e-3
+  noise: null
+  noise_pct: 0.67
+  noise_std: 1.0
+  cycle_mul: 1.0
+  cycle_decay: 0.5
+  cycle_limit: 1
+  k_decay: 1.0
+  warmup_lr: 1e-6
+  min_lr: 1e-6
+  epochs: 100
+  epoch_repeats: 0
+  start_epoch: null
+  decay_epochs: 50
+  warmup_epochs: 5
+  cooldown_epochs: 25
+  patience_epochs: 10
+  decay_rate: 0.1
+  multistep_milestones: [25, 50, 75, 100]

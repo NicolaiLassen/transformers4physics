@@ -17,6 +17,8 @@ def normalizeVector(vector):
 # generate simple prism grid to "sim" grains of micro
 
 
+# TODO MAKE THIS TORCH 
+# TODO save as files nok create on go
 def create_prism_grid(rows=2, columns=2, size=1, res=224):
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)

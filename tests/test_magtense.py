@@ -27,8 +27,14 @@ def prism_grid():
     # Optional parameters for setup: n_magnets, filled_positions, mag_angles, eval_points, eval_mode, B_rem
     (tiles, points, grid) = magtense.setup(places, area, filled_positions=filled_positions, eval_points=[10, 10, 5])
 
+
+    N = magtense.get_N_tensor(tiles,points)
     # Standard parameters in settings: max_error=0.00001, max_it=500
-    (updated_tiles, H) = magtense.run_simulation(tiles, points, grid=grid, plot=True)
+    (updated_tiles, H) = magtense.run_simulation(tiles, points, grid=grid)
+
+    print(N.shape)
+    print(H.shape)
+
 
 if __name__ == '__main__':
     prism_grid()
