@@ -12,6 +12,7 @@ imgin, m, imgout = create_prism_grid(
     rows=2,
     columns=1,
     res=res,
+    plot=True,
 )
 imgin, m, imgout = np.array(imgin), np.array(m), np.array(imgout)
 m = m - 1

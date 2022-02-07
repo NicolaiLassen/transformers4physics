@@ -20,7 +20,7 @@ def normalizeVector(vector):
 
 
 # TODO save as files nok create on go
-def create_prism_grid(rows=2, columns=2, size=1, res=224, uniform=False):
+def create_prism_grid(rows=2, columns=2, size=1, res=224, uniform=False, plot=True):
     paddingDim = 0 if rows == columns else 1 if rows < columns else 2
     sideLen = min(res//rows, res//columns)
     if((res-sideLen*(rows if paddingDim == 2 else columns)) % 2 != 0):
@@ -106,15 +106,18 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224, uniform=False):
     imageOut[3, :, :] = imageOut[3, :, :]*(4*math.pi*1e-7)
     imageIn[3, :, :] = imageIn[3, :, :]*(4*math.pi*1e-7)
 
+    if(plot):
+        magtense.create_plot(tiles)
+
     return imageIn, mask, imageOut
 
 
 # %%
-imgin, m, imgout = create_prism_grid(
-    rows=2,
-    columns=1,
-    res=4,
-)
+# imgin, m, imgout = create_prism_grid(
+#     rows=2,
+#     columns=1,
+#     res=4,
+# )
 # %%
 
 
