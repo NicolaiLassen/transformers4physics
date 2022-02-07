@@ -3,22 +3,14 @@ from PIL import Image
 from matplotlib import pyplot as plt
 import numpy as np
 import seaborn as sns; sns.set_theme()
+from prism_grid import create_prism_grid
 
-#from util.magtense.prism_grid import create_prism_grid
+prefix = 'uniform_x'
+res = 224
 
-def convertToImage(img):
-    w, h = img[0].shape
-    data = np.zeros((h, w, 3), dtype=np.uint8)
-    for i,channel in enumerate(img[0:3,:,:]):
-        for j in range(w):
-            for k in range(h):
-                data[k, j, i] = channel[j,k]*255
-    return data
-
-res = 128
 imgin, m, imgout = create_prism_grid(
-    rows=3,
-    columns=3,
+    rows=4,
+    columns=4,
     res=res,
 )
 imgin, m, imgout = np.array(imgin), np.array(m), np.array(imgout)
@@ -30,17 +22,18 @@ m = m * (-1)
 #imgout = convertToImage(imgout)
 
 #%%
-print(imgin)
-#%%
 showimgin = imgin[0:3]*imgin[3]
 showimgout = imgout[0:3]*imgout[3]
-def showHeat(images):
-    for img in images:
+def showHeat(images, titles):
+    for img,t in zip(images, titles):
         sns.heatmap(img, cmap="mako", mask=m)
+        ax = plt.axes()
+        ax.set_title('{}_{}'.format(prefix, t))
+        #plt.savefig('{}_{}.png'.format(prefix, t))
         plt.show()
 
-showHeat(showimgin[0:3])
-showHeat(showimgout[0:3])
+showHeat(showimgin[0:3], ['X-magnetization', 'Y-magnetization', 'Z-magnetization'])
+showHeat(showimgout[0:3], ['X-field', 'Y-field', 'Z-field'])
 #%%
 for i in range(1,15):
     print(i)

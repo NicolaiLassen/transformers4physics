@@ -70,22 +70,22 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
     mask = torch.zeros((res, res))
     for c in range(columns):
         for r in range(rows):
-            i = c + r*rows
+            i = r + c*rows
             normalizedM, lenM = normalizeVector(tiles.get_M(i))
             normalizedM, lenM = torch.tensor(normalizedM), torch.tensor(lenM)
             imageIn[
-                startX+sideLen*r:startX+sideLen*(r+1),
                 startY+sideLen*c:startY+sideLen*(c+1),
+                startX+sideLen*r:startX+sideLen*(r+1),
                 0:3,
             ] = normalizedM
             imageIn[
-                startX+sideLen*r:startX+sideLen*(r+1),
                 startY+sideLen*c:startY+sideLen*(c+1),
+                startX+sideLen*r:startX+sideLen*(r+1),
                 3,
             ] = lenM
             mask[
-                startX+sideLen*r:startX+sideLen*(r+1),
                 startY+sideLen*c:startY+sideLen*(c+1),
+                startX+sideLen*r:startX+sideLen*(r+1),
             ] = 1
     imageIn = torch.moveaxis(imageIn, 2, 0)
     # Back to tesla
@@ -104,15 +104,17 @@ def create_prism_grid(rows=2, columns=2, size=1, res=224):
 
     imageOut[3, :, :] = imageOut[3, :, :]*(4*math.pi*1e-7)
     imageIn[3, :, :] = imageIn[3, :, :]*(4*math.pi*1e-7)
+    #print(imageOut)
+    #print(normalizedH)
 
     return imageIn, mask, imageOut
 
 
 # %%
 imgin, m, imgout = create_prism_grid(
-    columns=2,
     rows=2,
-    res=16,
+    columns=1,
+    res=4,
 )
 # %%
 
@@ -149,6 +151,3 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
         images_target.append(image_target)
     return PrismGridDataset(images_in, mask, images_target)
 
-
-# %%
-a = create_dataset(set_size=64, columns=[2], rows=[2], res=2)
