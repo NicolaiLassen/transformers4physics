@@ -125,7 +125,3 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
         images_in.append(image_in)
         images_target.append(image_target)
     return PrismGridDataset(images_in, images_target)
-
-
-# %%
-a = create_dataset(set_size=1024, columns=[2], rows=[2], res=128)

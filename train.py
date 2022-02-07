@@ -16,10 +16,7 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 
-
 # moment -> vec embed -> field
-
-
 class N2H(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
@@ -38,8 +35,8 @@ class N2H(pl.LightningModule):
         self.criterion = self.get_criterion()
 
     def get_model(self):
-		## CONFIG
-        return SwinUnetTransformer()
+        # CONFIG
+        return SwinUnetTransformer(in_chans=4)
 
     def get_criterion(self):
         return F.mse_loss
@@ -128,10 +125,11 @@ class N2H(pl.LightningModule):
 def train(cfg):
     model = N2H(cfg)
     run = wandb.init(
-        project='static_moment2field',
+        project='static-moment_2_field',
         entity='transformers4physics',
         name=cfg.experiment,
-        notes='test-run', config=cfg)
+        notes='test-run',
+        config=cfg)
     logger = WandbLogger(log_model=True)
     logger.watch(model)
     wandb.config.update(cfg)
@@ -143,7 +141,8 @@ def train(cfg):
         num_nodes=1,
         logger=logger if cfg.use_wandb else None,
         callbacks=[
-            ModelCheckpoint(dirpath=checkpoint_path, monitor='loss/val', mode='min'),
+            ModelCheckpoint(dirpath=checkpoint_path,
+                            monitor='loss/val', mode='min'),
         ],
         check_val_every_n_epoch=cfg.check_val_every_n_epoch,
     )
@@ -151,11 +150,37 @@ def train(cfg):
     trainer.fit(model)
     run.finish()
 
+
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg):
+    print(cfg)
     pl.seed_everything(cfg.seed)
     train(cfg)
 
 
 if __name__ == '__main__':
-    main()
+    from torch.nn import functional as F
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    a = create_dataset(set_size=2, columns=[2], rows=[2], res=224)
+    print(a.images_in)
+
+    net = SwinUnetTransformer(in_chans=4)
+    optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
+
+    losses = []
+    epochs = 100
+    for i in range(epochs):
+        e1 = net(a.images_in)
+        l = F.mse_loss(e1, a.images_target)
+        l.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+        losses.append(l.item())
+        print(l)
+
+    sns.lineplot(x=range(epochs), y=losses)
+    plt.title('Overfit n to h test')
+    plt.xlabel('epoch')
+    plt.ylabel('mse loss')
+    plt.show()
