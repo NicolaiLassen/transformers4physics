@@ -16,18 +16,18 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 
-
 # moment -> vec embed -> field
-
-
 class N2H(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
+
         self.save_hyperparameters(cfg)
         self.net = self.get_model()
 
-        dataset = PrismGridDataset(
-            cfg.dataset, cfg.field_input, cfg.action_input, cfg.target)
+        # PrismGridDataset(
+            #cfg.dataset, cfg.field_input, cfg.action_input, cfg.target)
+
+        dataset =  create_dataset(set_size=100, columns=[2], rows=[2], res=224)
         train_size = int(0.8 * len(dataset))
         val_size = int(0.05 * len(dataset))
         test_size = len(dataset) - train_size - val_size
@@ -38,8 +38,8 @@ class N2H(pl.LightningModule):
         self.criterion = self.get_criterion()
 
     def get_model(self):
-		## CONFIG
-        return SwinUnetTransformer()
+        # CONFIG
+        return SwinUnetTransformer(in_chans=4)
 
     def get_criterion(self):
         return F.mse_loss
@@ -128,10 +128,11 @@ class N2H(pl.LightningModule):
 def train(cfg):
     model = N2H(cfg)
     run = wandb.init(
-        project='static_moment2field',
-        entity='transformers4physics',
         name=cfg.experiment,
-        notes='test-run', config=cfg)
+        project='v0',
+        entity='transformers4physics',
+        notes='test-run',
+        config=cfg)
     logger = WandbLogger(log_model=True)
     logger.watch(model)
     wandb.config.update(cfg)
@@ -143,7 +144,8 @@ def train(cfg):
         num_nodes=1,
         logger=logger if cfg.use_wandb else None,
         callbacks=[
-            ModelCheckpoint(dirpath=checkpoint_path, monitor='loss/val', mode='min'),
+            ModelCheckpoint(dirpath=checkpoint_path,
+                            monitor='loss/val', mode='min'),
         ],
         check_val_every_n_epoch=cfg.check_val_every_n_epoch,
     )
@@ -151,8 +153,10 @@ def train(cfg):
     trainer.fit(model)
     run.finish()
 
+
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg):
+    print(cfg)
     pl.seed_everything(cfg.seed)
     train(cfg)
 
