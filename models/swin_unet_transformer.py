@@ -811,16 +811,44 @@ class SwinUnetTransformer(nn.Module):
         flops += self.num_features
         return flops
 
+import h5py
+
+class PrismGridDataset(torch.utils.data.Dataset):
+    def __init__(self, images_in=None, masks=None, images_target=None):
+        self.x = images_in
+        self.m = masks
+        self.y = images_target
+
+    def open_hdf5(self, datapath):
+        db = h5py.File(datapath, mode='r')
+        self.x = torch.tensor(db['x'])
+        self.m = torch.tensor(db['m'])
+        self.y = torch.tensor(db['y'])
+
+    def __len__(self):
+        return len(self.x)
+
+    def __getitem__(self, idx):
+        return self.x[idx], self.m[idx], self.y[idx]
+
 if __name__ == '__main__':
     # TEST for fast fit to one datapoint
     from torch.nn import functional as F
     import seaborn as sns
     import matplotlib.pyplot as plt
+  
+    dataset = PrismGridDataset()
+    dataset.open_hdf5("\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset.hdf5")
 
-    n = torch.randn(2, 4, 224, 224)
-    h = torch.randn(2, 4, 224, 224)
 
-    print(n.dtype)
+    # n = torch.randn(2, 4, 224, 224)
+    # h = torch.randn(2, 4, 224, 224)
+
+    n = dataset.x[[0]].float()
+    h = dataset.y[[0]].float()
+
+    print(n)
+    print(h)
 
     net = SwinUnetTransformer(in_chans=4)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)

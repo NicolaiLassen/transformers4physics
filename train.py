@@ -1,4 +1,3 @@
-
 import torch
 import wandb
 from pathlib import Path
@@ -10,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 import pytorch_lightning as pl
 from models.swin_unet_transformer import SwinUnetTransformer
-from util.magtense.prism_grid import create_dataset, PrismGridDataset
+from util.magtense.prism_grid import PrismGridDataset, create_dataset
 
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
@@ -24,13 +23,13 @@ class N2H(pl.LightningModule):
         self.save_hyperparameters(cfg)
         self.net = self.get_model()
 
-        # PrismGridDataset(
-            #cfg.dataset, cfg.field_input, cfg.action_input, cfg.target)
+        dataset = PrismGridDataset()
+        dataset.open_hdf5("\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset.hdf5")
 
-        dataset =  create_dataset(set_size=100, columns=[2], rows=[2], res=224)
         train_size = int(0.8 * len(dataset))
         val_size = int(0.05 * len(dataset))
         test_size = len(dataset) - train_size - val_size
+
         self.train_dataset, self.val_dataset, self.test_dataset = \
             random_split(dataset, [train_size, val_size, test_size])
 
@@ -120,29 +119,32 @@ class N2H(pl.LightningModule):
         return self.step(batch=batch, batch_idx=batch_idx, mode='test')
 
     def step(self, batch, batch_idx, mode):
-        x, y = batch
+        x, _, y = batch
         x_hat = self(x)
         loss = self.criterion(x_hat, y)
         return loss
 
 def train(cfg):
     model = N2H(cfg)
-    run = wandb.init(
-        name=cfg.experiment,
-        project='v0',
-        entity='transformers4physics',
-        notes='test-run',
-        config=cfg)
-    logger = WandbLogger(log_model=True)
-    logger.watch(model)
-    wandb.config.update(cfg)
+
+    logger = None
+    if cfg.use_wandb:
+        run = wandb.init(
+            name=cfg.experiment,
+            project='v0',
+            entity='transformers4physics',
+            notes='test-run',
+            config=cfg)
+        logger = WandbLogger(log_model=True)
+        logger.watch(model)
+        wandb.config.update(cfg)
 
     checkpoint_path = Path(cfg.checkpoint_path)
     trainer = pl.Trainer(
         max_epochs=cfg.lr.epochs,
         gpus=1,
         num_nodes=1,
-        logger=logger if cfg.use_wandb else None,
+        logger=logger,
         callbacks=[
             ModelCheckpoint(dirpath=checkpoint_path,
                             monitor='loss/val', mode='min'),
@@ -163,3 +165,4 @@ def main(cfg):
 
 if __name__ == '__main__':
     main()
+    # create_dataset(rows=[4,7,8,14], square_grid=True, res=224)
