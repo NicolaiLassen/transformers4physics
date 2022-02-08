@@ -14,7 +14,7 @@ recovery_interval: 0
 checkpoint_path: './ckpt/'
 check_val_every_n_epoch: 10
 checkpoint_hist: 1
-workers: 12
+workers: 2
 pin_mem: True
 experiment: null
 use_wandb: False

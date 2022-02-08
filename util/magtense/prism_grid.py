@@ -9,8 +9,9 @@ import torch
 import h5py
 from magtense import magtense
 
-
 # %%
+
+
 def normalizeVector(vector):
     vector = np.array(vector)
     return vector/np.sqrt(np.sum(vector**2)), np.sqrt(np.sum(vector**2))
@@ -52,7 +53,7 @@ def create_prism_grid(
     points = torch.zeros((res, res, 3))
     for i in range(res):
         for j in range(res):
-            points[i, j, :] = torch.tensor([pointStartX+j *
+            points[i, j, :] = np.array([pointStartX+j *
                                             pixelSize, pointStartY+i*pixelSize, 0])
     points = torch.flip(points, dims=[0])
     points = points.reshape((res*res, 3))
@@ -76,13 +77,13 @@ def create_prism_grid(
                 ((rng.random()*0.5+1) if not uniform_tesla else uniform_tesla)/(4*math.pi*1e-7), i)
     _, hField = magtense.run_simulation(tiles, points)
 
-    imageIn = torch.zeros((res, res, 4))
-    mask = torch.zeros((res, res))
+    imageIn = np.zeros((res, res, 4))
+    mask = np.zeros((res, res))
     for c in range(columns):
         for r in range(rows):
             i = r + c*rows
             normalizedM, lenM = normalizeVector(tiles.get_M(i))
-            normalizedM, lenM = torch.tensor(normalizedM), torch.tensor(lenM)
+            normalizedM, lenM = np.array(normalizedM), np.array(lenM)
             imageIn[
                 startX+sideLen*r:startX+sideLen*(r+1),
                 startY+sideLen*c:startY+sideLen*(c+1),
@@ -103,10 +104,12 @@ def create_prism_grid(
     imageIn = torch.flip(imageIn, dims=[1])
     mask = torch.flip(mask, dims=[1])
 
-    imageOut = torch.zeros((res, res, 4))
+    imageIn = np.moveaxis(imageIn, 2, 0)
+
+    imageOut = np.zeros((res, res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
     lenH = [normalizeVector(x)[1] for x in hField]
-    normalizedH, lenH = torch.tensor(normalizedH), torch.tensor(lenH)
+    normalizedH, lenH = np.array(normalizedH), np.array(lenH)
     for i, (nh, lh) in enumerate(zip(normalizedH, lenH)):
         imageOut[i//res, i % res, 0:3] = nh
         imageOut[i//res, i % res, 3] = lh
@@ -130,25 +133,29 @@ def create_prism_grid(
 # )
 # %%
 
-
 class PrismGridDataset(torch.utils.data.Dataset):
-    def __init__(self, images_in, masks, images_target):
-        self.images_in = images_in
-        self.masks = masks
-        self.images_target = images_target
+    def __init__(self, images_in=None, masks=None, images_target=None):
+        self.x = images_in
+        self.m = masks
+        self.y = images_target
+
+    def open_hdf5(self, datapath):
+        db = h5py.File(datapath, mode='r')
+        self.x = torch.tensor(db['x']).float()
+        self.m = torch.tensor(db['m']).float()
+        self.y = torch.tensor(db['y']).float()
 
     def __len__(self):
-        return len(self.images_in)
+        return len(self.x)
 
     def __getitem__(self, idx):
-        return self.images_in[idx], self.masks[idx], self.images_target[idx]
-
+        return self.x[idx], self.m[idx], self.y[idx]
 
 def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1, seed=None):
     rng = np.random.default_rng(seed)
-    images_in = []
-    masks = []
-    images_target = []
+    images_in = np.zeros((set_size, 4, res, res))
+    masks = np.zeros((set_size, res, res))
+    images_target = np.zeros((set_size, 4, res, res))
     for i in range(set_size):
         print('{:06d}/{:06d}'.format(i+1, set_size), end='\r')
         r = rng.choice(rows)
@@ -159,7 +166,15 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
             size=size,
             res=res,
         )
-        images_in.append(image_in)
-        masks.append(mask)
-        images_target.append(image_target)
-    return PrismGridDataset(images_in, mask, images_target)
+
+        images_in[i] = image_in
+        masks[i] = mask
+        images_target[i] = image_target
+
+    # TODO
+    with h5py.File(datapath, "w") as f:
+        f.create_dataset("x", data=images_in)
+        f.create_dataset("m", data=masks)
+        f.create_dataset("y", data=images_target)
+
+    return PrismGridDataset(images_in, masks, images_target)

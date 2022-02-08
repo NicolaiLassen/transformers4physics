@@ -816,11 +816,16 @@ if __name__ == '__main__':
     from torch.nn import functional as F
     import seaborn as sns
     import matplotlib.pyplot as plt
+  
+    # dataset = PrismGridDataset()
+    # dataset.open_hdf5("\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset.hdf5")
+
 
     n = torch.randn(2, 4, 224, 224)
     h = torch.randn(2, 4, 224, 224)
 
-    print(n.dtype)
+    # n = dataset.x[[0,1,2]].float()
+    # h = dataset.y[[0,1,2]].float()
 
     net = SwinUnetTransformer(in_chans=4)
     optimizer = torch.optim.Adam(net.parameters(), lr=1e-3)
