@@ -50,12 +50,12 @@ def create_prism_grid(
         (innerPadding if paddingDim == 2 else outerPadding)*pixelSize
     pointStartY = pixelSize/2 - \
         (innerPadding if paddingDim == 1 else outerPadding)*pixelSize
-    points = torch.zeros((res, res, 3))
+    points = np.zeros((res, res, 3))
     for i in range(res):
         for j in range(res):
             points[i, j, :] = np.array([pointStartX+j *
                                             pixelSize, pointStartY+i*pixelSize, 0])
-    points = torch.flip(points, dims=[0])
+    points = np.flip(points, 0)
     points = points.reshape((res*res, 3))
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)
@@ -98,13 +98,11 @@ def create_prism_grid(
                 startX+sideLen*r:startX+sideLen*(r+1),
                 startY+sideLen*c:startY+sideLen*(c+1),
             ] = 1
-    imageIn = torch.moveaxis(imageIn, 2, 0)
+    imageIn = np.moveaxis(imageIn, 2, 0)
     # Image and mask are constructed from bottom to top instead of top to bottom
     # Flip the image and mask to correct this
-    imageIn = torch.flip(imageIn, dims=[1])
-    mask = torch.flip(mask, dims=[1])
-
-    imageIn = np.moveaxis(imageIn, 2, 0)
+    imageIn = np.flip(imageIn, 1)
+    mask = np.flip(mask, 1)
 
     imageOut = np.zeros((res, res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]
@@ -114,7 +112,7 @@ def create_prism_grid(
         imageOut[i//res, i % res, 0:3] = nh
         imageOut[i//res, i % res, 3] = lh
     # The target image is constructed correctly as the evaluation points are defined going from top to bottom
-    imageOut = torch.moveaxis(imageOut, 2, 0)
+    imageOut = np.moveaxis(imageOut, 2, 0)
     # Back to tesla
     imageOut[3, :, :] = imageOut[3, :, :]*(4*math.pi*1e-7)
     imageIn[3, :, :] = imageIn[3, :, :]*(4*math.pi*1e-7)
