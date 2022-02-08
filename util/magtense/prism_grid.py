@@ -24,10 +24,9 @@ def create_prism_grid(
     columns=2,
     size=1,
     res=224,
-    uniform=False,
     plot=False,
     seed=None,
-    uniform_ea=[1, 0, 0],
+    uniform_ea=None,
     uniform_tesla=None,
     restrict_z=False,
 ):
@@ -70,7 +69,7 @@ def create_prism_grid(
                 rng.random()*2-1,
                 rng.random()*2-1,
                 rng.random()*2-1 if not restrict_z else 0,
-            ] if not uniform else uniform_ea
+            ] if not uniform_ea else uniform_ea
             ea, _ = normalizeVector(ea)
             tiles.set_easy_axis_i(ea, i)
             tiles.set_remanence_i(

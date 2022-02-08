@@ -17,10 +17,9 @@ imgin, m, imgout = create_prism_grid(
     res=res,
     plot=True,
     restrict_z=True,
-    seed=5,
-    # uniform=True,
-    # uniform_tesla=1.0,
-    # uniform_ea=[1,0,0],
+    seed=48,
+    uniform_tesla=1.0,
+    uniform_ea=[0,0,-1],
 )
 imgin, m, imgout = np.array(imgin), np.array(m), np.array(imgout)
 
