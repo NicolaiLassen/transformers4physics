@@ -147,14 +147,14 @@ def train(cfg):
         wandb.config.update(cfg)
 
     checkpoint_path = Path(cfg.checkpoint_path)
+    
     trainer = pl.Trainer(
         max_epochs=cfg.lr.epochs,
         gpus=1,
         num_nodes=1,
         logger=logger,
         callbacks=[
-            ModelCheckpoint(dirpath=checkpoint_path,
-                            monitor='loss/val', mode='min'),
+            ModelCheckpoint(dirpath=checkpoint_path, monitor='loss/val', mode='min'),
         ],
         check_val_every_n_epoch=cfg.check_val_every_n_epoch,
     )

@@ -186,3 +186,4 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
 
     save_dataset()
     return PrismGridDataset(images_in, masks, images_target)
+
