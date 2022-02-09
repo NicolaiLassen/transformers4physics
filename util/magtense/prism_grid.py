@@ -26,6 +26,7 @@ def create_prism_grid(
     size=1,
     res=224,
     plot=False,
+    console=False,
     seed=None,
     uniform_ea=None,
     uniform_tesla=None,
@@ -74,7 +75,7 @@ def create_prism_grid(
             tiles.set_easy_axis_i(ea, i)
             tiles.set_remanence_i(
                 ((rng.random()*0.5+1) if not uniform_tesla else uniform_tesla)/(4*math.pi*1e-7), i)
-    _, hField = magtense.run_simulation(tiles, points)
+    _, hField = magtense.run_simulation(tiles, points, console=console)
 
     imageIn = np.zeros((res, res, 4))
     mask = np.zeros((res, res))
@@ -144,11 +145,22 @@ class PrismGridDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.x[idx], self.m[idx], self.y[idx]
 
-def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1, seed=None):
+def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1, seed=None, fileName='prism_grid_dataset.hdf5', datapath="./data"):
+
+    if not os.path.exists(datapath):
+        os.mkdir(datapath)
+
     rng = np.random.default_rng(seed)
     images_in = np.zeros((set_size, 4, res, res))
     masks = np.zeros((set_size, res, res))
     images_target = np.zeros((set_size, 4, res, res))
+
+    def save_dataset():
+        with h5py.File("{}/{}".format(datapath,fileName) , "w") as f:
+            f.create_dataset("x", data=images_in)
+            f.create_dataset("m", data=masks)
+            f.create_dataset("y", data=images_target)
+
     for i in range(set_size):
         print('{:06d}/{:06d}'.format(i+1, set_size), end='\r')
         r = rng.choice(rows)
@@ -164,10 +176,8 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
         masks[i] = mask
         images_target[i] = image_target
 
-    # TODO
-    with h5py.File(datapath, "w") as f:
-        f.create_dataset("x", data=images_in)
-        f.create_dataset("m", data=masks)
-        f.create_dataset("y", data=images_target)
+        if i % int(set_size/10) == 0:
+            save_dataset()
 
+    save_dataset()
     return PrismGridDataset(images_in, masks, images_target)
