@@ -56,7 +56,6 @@ def create_prism_grid(
         for j in range(res):
             points[i, j, :] = np.array([pointStartX+j *
                                             pixelSize, pointStartY+i*pixelSize, 0])
-    points = np.flip(points, 0)
     points = points.reshape((res*res, 3))
     tiles = magtense.Tiles(rows*columns)
     tiles.set_tile_type(2)
@@ -100,10 +99,6 @@ def create_prism_grid(
                 startY+sideLen*c:startY+sideLen*(c+1),
             ] = 1
     imageIn = np.moveaxis(imageIn, 2, 0)
-    # Image and mask are constructed from bottom to top instead of top to bottom
-    # Flip the image and mask to correct this
-    imageIn = np.flip(imageIn, 1)
-    mask = np.flip(mask, 1)
 
     imageOut = np.zeros((res, res, 4))
     normalizedH = [normalizeVector(x)[0] for x in hField]

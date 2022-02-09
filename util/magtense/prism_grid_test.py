@@ -28,12 +28,12 @@ def testImageIn():
     m = np.array(m)
 
     assert _checkMaskingMatch(i,m)
-    assert np.all(i[:,0,:] == 0)
-    assert np.all(i[:,5,:] == 0)
-    assert np.all(i[:,:,0:2] == 0)
-    assert np.all(i[:,:,0:2] == 0)
-    assert _checkAllChannelsEq(i, 3, 5, 2, 4)
-    assert _checkAllChannelsEq(i, 3, 5, 4, 6)
+    assert np.all(i[:,0:2,:] == 0)
+    assert np.all(i[:,4:6,:] == 0)
+    assert np.all(i[:,:,0] == 0)
+    assert np.all(i[:,:,5] == 0)
+    assert _checkAllChannelsEq(i, 2, 4, 1, 3)
+    assert _checkAllChannelsEq(i, 2, 4, 3, 5)
 
     i,m,_ = create_prism_grid(
         rows=2,
