@@ -138,9 +138,9 @@ def train(cfg):
     if cfg.use_wandb:
         run = wandb.init(
             name=cfg.experiment,
-            project='v0',
+            project=cfg.project,
             entity='transformers4physics',
-            notes='test-run',
+            notes=cfg.notes,
             config=cfg)
         logger = WandbLogger(log_model=True)
         logger.watch(model)
