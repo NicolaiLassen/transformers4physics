@@ -1,3 +1,5 @@
+from collections import OrderedDict
+import re
 import wandb
 from pathlib import Path
 import hydra
@@ -8,11 +10,13 @@ from torch.utils.data import DataLoader
 from torch.utils.data import random_split
 import pytorch_lightning as pl
 import torch
-from models.swin_unet_transformer import SwinUnetTransformer
-from util.magtense.prism_grid import PrismGridDataset
+from example_code.plot import sample_check
+from models.swin_transformer import SwinTransformer
+from util.magtense.prism_grid import PrismGridDataset, create_dataset
 
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from torch import nn
 
 
 # moment -> vec embed -> field
@@ -21,11 +25,10 @@ class N2H(pl.LightningModule):
         super().__init__()
 
         self.save_hyperparameters(cfg)
-        self.net = self.get_model()
 
         dataset = PrismGridDataset()
         dataset.open_hdf5(
-            "\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset.hdf5")
+            "\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset_224.hdf5")
 
         train_size = int(0.8 * len(dataset))
         val_size = int(0.1 * len(dataset))
@@ -34,26 +37,25 @@ class N2H(pl.LightningModule):
         self.train_dataset, self.val_dataset, self.test_dataset = \
             random_split(dataset, [train_size, val_size, test_size])
 
-        self.net = self.get_model()
-        self.criterion = self.get_criterion()
+        self.discriminator = SwinTransformer(in_chans=4, depths=[2, 2], num_heads=[1, 2], num_classes=4*224*244)
+        self.generator = SwinTransformer(in_chans=4, depths=[2, 2], num_heads=[1, 2], num_classes=1)
 
-    def get_model(self):
-        # CONFIG
-        return SwinUnetTransformer(in_chans=4)
+    def adversarial_loss(self, y_hat, y):
+        return F.binary_cross_entropy(y_hat, y)
 
-    def get_criterion(self):
-        return F.mse_loss
-
-    def forward(self, x):
-        return self.net(x)
+    def forward(self, z):
+        return self.generator(z)
 
     def configure_optimizers(self):
         cfg = self.hparams
 
         if cfg.opt.name == 'adamw':
-            optimizer = optim.AdamW(self.net.parameters(), lr=cfg.lr.lr,
-                                    betas=(cfg.opt.beta0,
-                                           cfg.opt.beta1), eps=cfg.opt.eps,
+            optimizer_g = optim.AdamW(self.generator.parameters(), lr=cfg.lr.lr,
+                                    betas=(cfg.opt.beta0, cfg.opt.beta1), eps=cfg.opt.eps,
+                                    weight_decay=cfg.opt.weight_decay)
+
+            optimizer_d  = optim.AdamW(self.discriminator.parameters(), lr=cfg.lr.lr,
+                                    betas=(cfg.opt.beta0, cfg.opt.beta1), eps=cfg.opt.eps,
                                     weight_decay=cfg.opt.weight_decay)
         else:
             raise NotImplementedError()
@@ -62,23 +64,33 @@ class N2H(pl.LightningModule):
         if cfg.lr.sched is not None:
             lr_scheduler = None
             if cfg.lr.sched == 'cosine':
-                lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer,
+                lr_scheduler_g = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer_g,
+                    T_max=cfg.lr.epochs,
+                )
+                lr_scheduler_d = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer_d,
                     T_max=cfg.lr.epochs,
                 )
             elif cfg.lr.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
-                    optimizer,
+                    optimizer_g,
                     milestones=cfg.lr.multistep_milestones
                 )
+                lr_scheduler_d = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer_d,
+                    T_max=cfg.lr.epochs,
+                )
+            
             start_epoch = 0
             if cfg.lr.start_epoch is not None:
                 start_epoch = cfg.lr.start_epoch
             if lr_scheduler is not None and start_epoch > 0:
                 lr_scheduler.step(start_epoch)
-            return [optimizer], [lr_scheduler]
+
+            return [optimizer_g, optimizer_d], [lr_scheduler_g, lr_scheduler_d]
         else:
-            return optimizer
+            return [optimizer_g, optimizer_d], []
 
     def train_dataloader(self):
         return DataLoader(
@@ -110,28 +122,58 @@ class N2H(pl.LightningModule):
             num_workers=self.hparams.workers
         )
 
-    def training_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='train')
+    def training_step(self, batch, batch_idx, optimizer_idx):
+        return self.step(batch=batch, batch_idx=batch_idx, mode='train', optimizer_idx=optimizer_idx)
 
-    def validation_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='val')
+    def validation_step(self, batch, batch_idx, optimizer_idx):
+        return self.step(batch=batch, batch_idx=batch_idx, mode='val', optimizer_idx=optimizer_idx)
 
-    def test_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='test')
+    def test_step(self, batch, batch_idx, optimizer_idx):
+        return self.step(batch=batch, batch_idx=batch_idx, mode='test', optimizer_idx=optimizer_idx)
 
-    def step(self, batch, batch_idx, mode):
+    def step(self, batch, batch_idx, mode, optimizer_idx):
+
         x, _, y = batch
-        x_hat = self(x)
-        loss = self.criterion(x_hat, y)
-        err = torch.mean(torch.abs(x_hat - y) / y) * 100
-        self.log_dict({
-            f'loss/{mode}': loss.item(),
-            f'err/{mode}': err.item(),
-        })
-        return loss
 
+        if optimizer_idx == 0:
 
+            # generate images
+            y_hat = self(x)
+
+            # ground truth result (ie: all fake)
+            # put on GPU because we created this tensor inside training_loop
+            valid = torch.ones(y.size(0), 1)
+
+            # adversarial loss is binary cross-entropy
+            g_loss = self.adversarial_loss(self.discriminator(self(y_hat)), valid)
+            tqdm_dict = {"g_loss": g_loss}
+            output = OrderedDict({"loss": g_loss, "progress_bar": tqdm_dict, "log": tqdm_dict})
+
+            return output
+    
+        if optimizer_idx == 1:
+            # Measure discriminator's ability to classify real from generated samples
+
+            # how well can it label as real?
+            valid = torch.ones(y.size(0), 1)
+
+            real_loss = self.adversarial_loss(self.discriminator(y), valid)
+
+            # how well can it label as fake?
+            fake = torch.zeros(y.size(0), 1)
+
+            fake_loss = self.adversarial_loss(self.discriminator(self(x).detach()), fake)
+
+            # discriminator loss is the average of these
+            d_loss = (real_loss + fake_loss) / 2
+            tqdm_dict = {"d_loss": d_loss}
+            output = OrderedDict({"loss": d_loss, "progress_bar": tqdm_dict, "log": tqdm_dict})
+
+            return output
+        
+  
 def train(cfg):
+
     model = N2H(cfg)
 
     logger = None
@@ -167,8 +209,28 @@ def train(cfg):
 def main(cfg):
     print(cfg)
     pl.seed_everything(cfg.seed)
-    train(cfg)
+
+    net = N2H(cfg)
+
+    dataset = PrismGridDataset()
+    dataset.open_hdf5(
+            "\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset_224.hdf5")
+
+    net(dataset.x[:2])
+    pytorch_total_params = sum(p.numel() for p in net.parameters())
+    print(pytorch_total_params)
+
+    # train(cfg)
+
+
+from matplotlib import pyplot as plt
+import seaborn as sns; sns.set_theme()
+def showNorm(imageOut):
+    ax = sns.heatmap(imageOut[3], cmap="mako")
+    ax.invert_yaxis()
+    plt.show()
 
 
 if __name__ == '__main__':
     main()
+    # create_dataset(rows=[4,7,8,14], square_grid=True, res=224)

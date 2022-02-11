@@ -441,6 +441,13 @@ class PatchEmbed(nn.Module):
         return flops
 
 
+
+
+
+
+
+
+
 class SwinTransformer(nn.Module):
     r""" Swin Transformer
         A PyTorch impl of : `Swin Transformer: Hierarchical Vision Transformer using Shifted Windows`  -

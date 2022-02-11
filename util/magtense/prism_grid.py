@@ -145,21 +145,21 @@ class PrismGridDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         return self.x[idx], self.m[idx], self.y[idx]
 
-def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1, seed=None, fileName='prism_grid_dataset.hdf5', datapath="./data"):
+def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=224, size=1, seed=None, fileName='prism_grid_dataset_224.hdf5', datapath="./data"):
 
     if not os.path.exists(datapath):
         os.mkdir(datapath)
 
     rng = np.random.default_rng(seed)
-    images_in = np.zeros((set_size, 4, res, res))
-    masks = np.zeros((set_size, res, res))
-    images_target = np.zeros((set_size, 4, res, res))
+    images_in = []
+    masks = []
+    images_target = []
 
     def save_dataset():
         with h5py.File("{}/{}".format(datapath,fileName) , "w") as f:
-            f.create_dataset("x", data=images_in)
-            f.create_dataset("m", data=masks)
-            f.create_dataset("y", data=images_target)
+            f.create_dataset("x", data=np.stack(images_in, 0))
+            f.create_dataset("m", data=np.stack(masks, 0))
+            f.create_dataset("y", data=np.stack(images_target, 0))
 
     for i in range(set_size):
         print('{:06d}/{:06d}'.format(i+1, set_size), end='\r')
@@ -172,9 +172,9 @@ def create_dataset(set_size=1024, columns=[4], rows=[4], square_grid=False, res=
             res=res,
         )
 
-        images_in[i] = image_in
-        masks[i] = mask
-        images_target[i] = image_target
+        images_in.append(image_in)
+        masks.append(mask)
+        images_target.append(image_target)
 
         if i % int(set_size/10) == 0:
             save_dataset()

@@ -1,17 +1,17 @@
 seed: 0
-dataset: 'square_prism_grid.h5'
-batch_size: 6
-val_batch_size: 4
+dataset: 'prism_grid_dataset_224.hdf5'
+batch_size: 1
+val_batch_size: 1
 recovery_interval: 0
 checkpoint_path: './ckpt/'
 check_val_every_n_epoch: 5
 checkpoint_hist: 1
-workers: 2
-pin_mem: True
-experiment: "swin_0.0.2"
+workers: 1
+pin_mem: False
+experiment: "plain_swin_0.0.1"
 project: "v0"
 notes: "local"
-use_wandb: True
+use_wandb: False
 
 model:
   # swin
