@@ -27,30 +27,31 @@ class Mlp(nn.Module):
 def window_partition(x, window_size):
     """
     Args:
-        x: (B, H, W, C)
+        x: (B, H, W, D, C)
         window_size (int): window size
     Returns:
         windows: (num_windows*B, window_size, window_size, C)
     """
-    B, H, W, C = x.shape
-    x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
-    windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
+    B, H, W, D, C = x.shape
+    x = x.view(B, H // window_size, window_size, W // window_size, window_size, D // window_size, window_size, C)
+    windows = x.permute(0, 1, 3, 2, 4, 5, 6, 7).contiguous().view(-1, window_size, window_size, window_size, C)
     return windows
 
 
-def window_reverse(windows, window_size, H, W):
+def window_reverse(windows, window_size, H, W, D):
     """
     Args:
-        windows: (num_windows*B, window_size, window_size, C)
+        windows: (num_windows*B, window_size, window_size, window_size, C)
         window_size (int): Window size
         H (int): Height of image
         W (int): Width of image
+        D (int): Depth of image
     Returns:
-        x: (B, H, W, C)
+        x: (B, H, W, D, C)
     """
-    B = int(windows.shape[0] / (H * W / window_size / window_size))
-    x = windows.view(B, H // window_size, W // window_size, window_size, window_size, -1)
-    x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
+    B = int(windows.shape[0] / (H * W * D/ window_size / window_size))
+    x = windows.view(B, H // window_size, W // window_size, D // window_size, window_size, window_size, window_size, -1)
+    x = x.permute(0, 1, 3, 2, 4, 5, 6, 7).contiguous().view(B, H, W, D, -1)
     return x
 
 
@@ -71,21 +72,22 @@ class WindowAttention(nn.Module):
 
         super().__init__()
         self.dim = dim
-        self.window_size = window_size  # Wh, Ww
+        self.window_size = window_size  # Wh, Ww, Wd
         self.num_heads = num_heads
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim ** -0.5
 
         # define a parameter table of relative position bias
         self.relative_position_bias_table = nn.Parameter(
-            torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads))  # 2*Wh-1 * 2*Ww-1, nH
+            torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1) * (2 * window_size[2] - 1), num_heads))  # 2*Wh-1 * 2*Ww-1 * 2*Wd-1, nH
 
         # get pair-wise relative position index for each token inside the window
         coords_h = torch.arange(self.window_size[0])
         coords_w = torch.arange(self.window_size[1])
-        coords = torch.stack(torch.meshgrid([coords_h, coords_w]))  # 2, Wh, Ww
-        coords_flatten = torch.flatten(coords, 1)  # 2, Wh*Ww
-        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 2, Wh*Ww, Wh*Ww
+        coords_d = torch.arange(self.window_size[2])
+        coords = torch.stack(torch.meshgrid([coords_h, coords_w, coords_d]))  # 3, Wh, Ww, Wd
+        coords_flatten = torch.flatten(coords, 1)  # 3, Wh*Ww*Wd
+        relative_coords = coords_flatten[:, :, None] - coords_flatten[:, None, :]  # 3, Wh*Ww, Wh*Ww, W
         relative_coords = relative_coords.permute(1, 2, 0).contiguous()  # Wh*Ww, Wh*Ww, 2
         relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
         relative_coords[:, :, 1] += self.window_size[1] - 1
