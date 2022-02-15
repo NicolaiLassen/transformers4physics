@@ -1,5 +1,6 @@
 '''
 This script contains a helper function to create dense feedforward neural networks in Pytorch.
+From https://github.com/fletchf/skel 
 '''
 
 import torch

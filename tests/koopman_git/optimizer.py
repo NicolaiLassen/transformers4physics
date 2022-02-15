@@ -1,5 +1,6 @@
 '''
 This script optimizes the simulation error of a Koopman model.
+From https://github.com/fletchf/skel 
 '''
 
 import numpy as np

@@ -1,6 +1,8 @@
 '''
 This script defines the Koopman model described in https://arxiv.org/abs/2110.06509
+From https://github.com/fletchf/skel 
 '''
+
 
 import torch
 from torch._C import device

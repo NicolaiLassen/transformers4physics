@@ -1,3 +1,7 @@
+'''
+From https://github.com/fletchf/skel 
+'''
+
 import numpy as np
 import torch
 import torch.optim as optim
@@ -33,7 +37,7 @@ def perform_test(model : KoopmanModel):
     test_pred_trajectory.append(test_init)
     test_recon_true_trajectory.append(test_init)
     for i in range(1, asd):
-        y[i] = A @ y[i-1]
+        y[i] = A @ y[-1]
         test_pred_trajectory.append(model.phi_inv(y[i]).cpu().detach().numpy())
         test_recon_true_trajectory.append(model.phi_inv(model.phi(
             torch.tensor(test_lorenz[i], dtype=torch.float64).cuda())).cpu().detach().numpy())
@@ -95,7 +99,7 @@ if __name__ == '__main__':
         errtype='sim',
         lr=0.001,
         epochs=200,
-        batch_size=20,
+        batch_size=1000,
         debug=True,
     )
 
