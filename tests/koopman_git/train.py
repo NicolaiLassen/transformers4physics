@@ -18,7 +18,7 @@ def perform_test(model : KoopmanModel):
         x=10.9582,
         y=-2.4449,
         z=35.7579,
-        steps=150,
+        steps=128,
     )
     model.eval()
     asd = len(test_lorenz)
@@ -37,7 +37,7 @@ def perform_test(model : KoopmanModel):
     test_pred_trajectory.append(test_init)
     test_recon_true_trajectory.append(test_init)
     for i in range(1, asd):
-        y[i] = A @ y[-1]
+        y[i] = A @ y[i-1]
         test_pred_trajectory.append(model.phi_inv(y[i]).cpu().detach().numpy())
         test_recon_true_trajectory.append(model.phi_inv(model.phi(
             torch.tensor(test_lorenz[i], dtype=torch.float64).cuda())).cpu().detach().numpy())
@@ -50,15 +50,15 @@ if __name__ == '__main__':
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     dt = 0.01
     disc = True
-    set_size = 100
+    set_size = 200
     num_demos = set_size
-    embed = 128
+    embed = 32
 
     data = create_lorenz_dataset(
         seed=42,
         set_size=set_size,
         dt=dt,
-        num_steps=[63, 255, 127]
+        num_steps=[1024, 512, 2048],
     )
     pos, pos_next = [], []
     seq_len = np.zeros((set_size, ), dtype=int)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
         X.shape[0],
         embed,
         recon=True,
-        hidden_dims=[64, 64],
+        hidden_dims=[500],
     )
     model.cuda()
 
@@ -98,9 +98,10 @@ if __name__ == '__main__':
         disc=True,
         errtype='sim',
         lr=0.001,
-        epochs=200,
-        batch_size=1000,
+        epochs=1000,
+        batch_size=20,
         debug=True,
+        alpha=1000,
     )
 
     losses = optimizer.train()

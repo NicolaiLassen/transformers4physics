@@ -48,16 +48,34 @@ def _lorenz(x, y, z, s=10, r=28, b=2.667):
     return x_dot, y_dot, z_dot
 
 
-def create_lorenz_sequence(x, y, z, steps=10000, dt=0.01):
-    seq = np.empty((steps+1, 3))
-    seq[0] = [x, y, z]
-    for i in range(steps):
-        x_dot, y_dot, z_dot = _lorenz(seq[i, 0], seq[i, 1], seq[i, 2])
-        seq[i+1] = [
-            seq[i, 0] + (x_dot*dt),
-            seq[i, 1] + (y_dot*dt),
-            seq[i, 2] + (z_dot*dt),
-        ]
+def create_lorenz_sequence(x, y, z, steps=10000, dt=0.01, include_vel=False):
+    seq = np.empty((steps, 6 if include_vel else 3))
+    if(include_vel):
+        x_dot, y_dot, z_dot = _lorenz(x, y, z)
+        seq[0] = [x, y, z, x_dot, y_dot, z_dot]
+        for i in range(1, steps):
+            x = seq[i-1, 0] + (seq[i-1, 3]*dt)
+            y = seq[i-1, 1] + (seq[i-1, 4]*dt)
+            z = seq[i-1, 2] + (seq[i-1, 5]*dt)
+            x_dot, y_dot, z_dot = _lorenz(x, y, z)
+            seq[i] = [
+                x,
+                y,
+                z,
+                x_dot,
+                y_dot,
+                z_dot,
+            ]
+    else:
+        seq[0] = [x, y, z]
+        for i in range(1, steps):
+            x_dot, y_dot, z_dot = _lorenz(
+                seq[i-1, 0], seq[i-1, 1], seq[i-1, 2])
+            seq[i] = [
+                seq[i-1, 0] + (x_dot*dt),
+                seq[i-1, 1] + (y_dot*dt),
+                seq[i-1, 2] + (z_dot*dt),
+            ]
     return seq
 
 
@@ -69,6 +87,7 @@ def create_lorenz_dataset(
     z=[10, 40],
     dt=0.01,
     num_steps=[2047, 63, 255],
+    include_vel=False,
 ):
     rng = np.random.default_rng(seed)
     sequences = []
@@ -81,10 +100,12 @@ def create_lorenz_dataset(
             steps=rng.choice(num_steps),
             dt=dt,
         )
-        sequences.append(np.array(seq, dtype=np.float64).reshape(3,-1))
+        sequences.append(np.array(seq, dtype=np.float64).reshape(
+            6 if include_vel else 3, -1))
         sequence_lengths.append(np.array(len(seq), dtype=np.int))
-    
+
     return LorenzData(sequences_in=sequences, sequence_lengths=sequence_lengths)
+
 
 def create_lorenz_data_loader(
     dataset,

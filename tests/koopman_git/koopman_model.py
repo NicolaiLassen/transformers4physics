@@ -46,6 +46,16 @@ class KoopmanModel(nn.Module):
 
         return A
 
+    def step(self, K, steps=1):
+        if(steps == 0):
+            return K
+        A = self.forward()
+        lam, V = torch.linalg.eig(A)
+        lamt = torch.pow(lam, steps).T
+        At = V @ (lamt.diag_embed() @ V.inverse())
+        At = At.real
+        return At @ K
+
 
 class KoopmanModelCT(nn.Module):
 
