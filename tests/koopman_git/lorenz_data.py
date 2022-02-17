@@ -28,21 +28,28 @@ def get_lorenz_statistics(sequences):
 
 
 def normalize_lorenz_seq(seq, myx, myy, myz, stdx, stdy, stdz):
+    seq = np.array(seq)
+    oldShape = seq.shape
+    seq = seq.reshape(-1,3)
     x, y, z = seq[:, 0], seq[:, 1], seq[:, 2]
     x = (x-myx)/stdx
     y = (y-myy)/stdy
     z = (z-myz)/stdz
     seq[:, 0], seq[:, 1], seq[:, 2] = x, y, z
+    seq = seq.reshape(oldShape)
     return seq
 
 
 def denormalize_lorenz_seq(seq, myx, myy, myz, stdx, stdy, stdz):
     seq = np.array(seq)
+    oldShape = seq.shape
+    seq = seq.reshape(-1,3)
     x, y, z = seq[:, 0], seq[:, 1], seq[:, 2]
     x = stdx*x+myx
     y = stdy*y+myy
     z = stdz*z+myz
     seq[:, 0], seq[:, 1], seq[:, 2] = x, y, z
+    seq = seq.reshape(oldShape)
     return seq
 
 
