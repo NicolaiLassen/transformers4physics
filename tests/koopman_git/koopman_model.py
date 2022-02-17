@@ -31,7 +31,7 @@ class KoopmanModel(nn.Module):
         self.A = torch.zeros((dim_K, dim_K), device=self.device)
     
     # forward function only computes Koopman matrix A
-    def forward(self):
+    def forward(self) -> torch.Tensor:
 
         dim = self.dim_K
         R = self.R

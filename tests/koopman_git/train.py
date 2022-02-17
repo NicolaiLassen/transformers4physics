@@ -73,12 +73,7 @@ def perform_test(model: KoopmanModel, init=None):
             test_lorenz = denormalize_lorenz_seq(
                 test_lorenz, myx, myy, myz, stdx, stdy, stdz)
 
-        print(test_lorenz[0:3])
-        print(test_recon_true_trajectory[0:3])
-        print(X_sim[0:3])
-        
         mse = ((Z_sim-Z)**2).mean(axis=1)
-        print(mse)
         print(mse.median())
         print(mse.mean())
         plot_lorenz(test_recon_true_trajectory,
@@ -139,7 +134,7 @@ if __name__ == '__main__':
         X.shape[0],
         embed,
         recon=True,
-        hidden_dims=[50, 50],
+        hidden_dims=[500],
     )
     model.cuda()
 
@@ -151,16 +146,13 @@ if __name__ == '__main__':
         disc=True,
         errtype='sim',
         lr=0.001,
-        epochs=500,
+        epochs=75,
         batch_size=5000,
         debug=True,
-        alpha=1000,
+        alpha=0.05,
     )
 
     losses = optimizer.train()
 
-    # perform_test(model, init=data[0][0][:, 0])
-    if(normalize):
-        perform_test(model, init=normalize_lorenz_seq(np.array([data[0][0][:,0]]),myx, myy, myz, stdx, stdy, stdz)[0])
-    else:
-        perform_test(model, init=np.array(data[0][0][:,0]))
+    perform_test(model, init=normalize_lorenz_seq(np.array([[25.0,25.0,30.0]]),myx, myy, myz, stdx, stdy, stdz)[0])
+    # perform_test(model, init=normalize_lorenz_seq(np.array([25.0,25.0,30.0]))[0])
