@@ -8,58 +8,102 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 
 from koopman_model import KoopmanModel
-from lorenz_data import create_lorenz_dataset, create_lorenz_sequence, plot_lorenz
+from lorenz_data import create_lorenz_dataset, create_lorenz_sequence, plot_lorenz, average_lorenz_sequences, denormalize_lorenz_seq, normalize_lorenz_seq
 from optimizer import SimErrorOptimizer
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def perform_test(model : KoopmanModel):
-    test_lorenz = create_lorenz_sequence(
-        x=10.9582,
-        y=-2.4449,
-        z=35.7579,
-        steps=128,
-    )
-    model.eval()
-    asd = len(test_lorenz)
-    plot_lorenz(test_lorenz)
-    test_pred_trajectory = []
-    test_recon_true_trajectory = []
-    y = torch.zeros((asd, embed)).cuda()
-    test_init = [
-        10.9582,
-        -2.4449,
-        35.7579,
-    ]
+def perform_test(model: KoopmanModel, init=None):
+    with torch.no_grad():
+        if(type(init) == None):
+            init = np.array([
+                0,
+                0,
+                25,
+            ])
+        test_lorenz = create_lorenz_sequence(
+            x=init[0],
+            y=init[1],
+            z=init[2],
+            steps=128,
+        )
 
-    A = model()
-    y[0] = model.phi(torch.tensor(test_init,dtype=torch.float64).cuda())
-    test_pred_trajectory.append(test_init)
-    test_recon_true_trajectory.append(test_init)
-    for i in range(1, asd):
-        y[i] = A @ y[i-1]
-        test_pred_trajectory.append(model.phi_inv(y[i]).cpu().detach().numpy())
-        test_recon_true_trajectory.append(model.phi_inv(model.phi(
-            torch.tensor(test_lorenz[i], dtype=torch.float64).cuda())).cpu().detach().numpy())
-    plot_lorenz(test_pred_trajectory)
-    plot_lorenz(test_recon_true_trajectory)
+        plot_lorenz(test_lorenz, title="True")
+
+        if(normalize):
+            test_lorenz = normalize_lorenz_seq(test_lorenz, myx, myy, myz, stdx, stdy, stdz)
+
+        model.eval()
+        # Update internal A
+        A = model()
+        asd = len(test_lorenz)
+
+        test_pred_trajectory = []
+        test_recon_true_trajectory = []
+        Z = torch.zeros((asd, model.dim_K)).cuda()
+
+        Z[0] = model.phi(torch.tensor(init, dtype=torch.float64).cuda())
+        test_pred_trajectory.append(init)
+        test_recon_true_trajectory.append(init)
+        for i in range(1, asd):
+            Z[i] = model.phi(torch.tensor(
+                test_lorenz[i], dtype=torch.float64).cuda())
+            test_recon_true_trajectory.append(
+                (model.phi_inv(Z[i])).cpu().detach().numpy())
+                
+
+        tvec = torch.arange(0, int(asd), device=device).unsqueeze(-1)
+        z0 = model.phi(torch.tensor((init).T, device=device))
+        A = model()
+        lam, V = torch.linalg.eig(A)
+        Lamt = torch.pow(lam.repeat(tvec.shape[0], 1), tvec)
+        At = V @ (Lamt.diag_embed() @ V.inverse())
+        Z_sim = (At.real @ z0.T).squeeze()
+
+        X_sim = model.phi_inv(Z_sim).cpu().detach().numpy()
+
+        if(normalize):
+            X_sim = denormalize_lorenz_seq(
+                X_sim, myx, myy, myz, stdx, stdy, stdz)
+            test_recon_true_trajectory = denormalize_lorenz_seq(
+                test_recon_true_trajectory, myx, myy, myz, stdx, stdy, stdz)
+
+        mse = ((Z_sim-Z)**2).mean(axis=1)
+        print(mse)
+        print(mse.median())
+
+        plot_lorenz(test_recon_true_trajectory,
+                    title="Reconstructed step by step")
+        plot_lorenz(X_sim, title="Koopman + recon")
 
 
 if __name__ == '__main__':
     import os
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-    dt = 0.01
+    dt = 0.001
     disc = True
     set_size = 200
     num_demos = set_size
     embed = 32
+    num_steps = [50, 50]
+    normalize = True
 
-    data = create_lorenz_dataset(
-        seed=42,
-        set_size=set_size,
-        dt=dt,
-        num_steps=[1024, 512, 2048],
-    )
+    if(normalize):
+        data, myx, myy, myz, stdx, stdy, stdz = create_lorenz_dataset(
+            seed=42,
+            set_size=set_size,
+            dt=dt,
+            num_steps=num_steps,
+            normalize=normalize,
+        )
+    else:
+        data = create_lorenz_dataset(
+            seed=42,
+            set_size=set_size,
+            dt=dt,
+            num_steps=num_steps,
+            normalize=normalize,
+        )
     pos, pos_next = [], []
     seq_len = np.zeros((set_size, ), dtype=int)
     for i in range(set_size):
@@ -99,11 +143,11 @@ if __name__ == '__main__':
         errtype='sim',
         lr=0.001,
         epochs=1000,
-        batch_size=20,
+        batch_size=1000,
         debug=True,
         alpha=1000,
     )
 
     losses = optimizer.train()
 
-    perform_test(model)
+    perform_test(model, init=data[0][0][:, 0])

@@ -28,6 +28,7 @@ class KoopmanModel(nn.Module):
         self.R = nn.Parameter(torch.rand(dim_K, dim_K, device=self.device))     # parameter for Koopman matrix A
         self.L = nn.Parameter(torch.rand(dim_K * 2, dim_K * 2, device=self.device)) # parameter for Koopman matrix A
         self.epsI = 1e-8 * torch.eye(dim_K * 2, device=self.device)
+        self.A = torch.zeros((dim_K, dim_K), device=self.device)
     
     # forward function only computes Koopman matrix A
     def forward(self):
@@ -43,13 +44,16 @@ class KoopmanModel(nn.Module):
         E = (M[:dim, :dim] + P) / 2 + Skew
 
         A = torch.linalg.solve(E, F)
+        self.A = A
 
         return A
 
-    def step(self, K, steps=1):
+    def step(self, K, steps=1, updateA=False):
         if(steps == 0):
             return K
-        A = self.forward()
+        A = self.A
+        if(steps == 1):
+            return A @ K
         lam, V = torch.linalg.eig(A)
         lamt = torch.pow(lam, steps).T
         At = V @ (lamt.diag_embed() @ V.inverse())

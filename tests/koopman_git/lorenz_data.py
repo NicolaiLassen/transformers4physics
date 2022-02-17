@@ -17,7 +17,45 @@ class LorenzData(torch.utils.data.Dataset):
         return self.x[idx], self.l[idx]
 
 
-def plot_lorenz(seq):
+def get_lorenz_statistics(sequences):
+    x, y, z = [], [], []
+    for seq in sequences:
+        x.extend(seq[:, 0])
+        y.extend(seq[:, 1])
+        z.extend(seq[:, 2])
+    x, y, z = np.array(x), np.array(y), np.array(z)
+    return x.mean(), y.mean(), z.mean(), x.std(), y.std(), z.std()
+
+
+def normalize_lorenz_seq(seq, myx, myy, myz, stdx, stdy, stdz):
+    x, y, z = seq[:, 0], seq[:, 1], seq[:, 2]
+    x = (x-myx)/stdx
+    y = (y-myy)/stdy
+    z = (z-myz)/stdz
+    seq[:, 0], seq[:, 1], seq[:, 2] = x, y, z
+    return seq
+
+
+def denormalize_lorenz_seq(seq, myx, myy, myz, stdx, stdy, stdz):
+    seq = np.array(seq)
+    x, y, z = seq[:, 0], seq[:, 1], seq[:, 2]
+    x = stdx*x+myx
+    y = stdy*y+myy
+    z = stdz*z+myz
+    seq[:, 0], seq[:, 1], seq[:, 2] = x, y, z
+    return seq
+
+
+def normalize_lorenz_sequences(sequences):
+    myx, myy, myz, stdx, stdy, stdz = get_lorenz_statistics(sequences)
+    n_seq = []
+    for seq in sequences:
+        n_seq.append(normalize_lorenz_seq(
+            seq, myx, myy, myz, stdx, stdy, stdz))
+    return n_seq, myx, myy, myz, stdx, stdy, stdz
+
+
+def plot_lorenz(seq, title="Lorenz Attractor"):
     x = [s[0] for s in seq]
     y = [s[1] for s in seq]
     z = [s[2] for s in seq]
@@ -28,7 +66,7 @@ def plot_lorenz(seq):
     ax.set_xlabel("X Axis")
     ax.set_ylabel("Y Axis")
     ax.set_zlabel("Z Axis")
-    ax.set_title("Lorenz Attractor")
+    ax.set_title(title)
 
     plt.show()
 
@@ -79,6 +117,10 @@ def create_lorenz_sequence(x, y, z, steps=10000, dt=0.01, include_vel=False):
     return seq
 
 
+def average_lorenz_sequences(sequences):
+    return np.average(sequences, axis=0)
+
+
 def create_lorenz_dataset(
     seed=None,
     set_size=200,
@@ -86,7 +128,8 @@ def create_lorenz_dataset(
     y=[-20, 20],
     z=[10, 40],
     dt=0.01,
-    num_steps=[2047, 63, 255],
+    num_steps=[2048, 64, 256],
+    normalize=True,
     include_vel=False,
 ):
     rng = np.random.default_rng(seed)
@@ -102,7 +145,12 @@ def create_lorenz_dataset(
         )
         sequences.append(np.array(seq, dtype=np.float64).reshape(
             6 if include_vel else 3, -1))
-        sequence_lengths.append(np.array(len(seq), dtype=np.int))
+        sequence_lengths.append(np.array(len(seq), dtype=int))
+
+    if(normalize):
+        sequences, myx, myy, myz, stdx, stdy, stdz = normalize_lorenz_sequences(
+            sequences)
+        return LorenzData(sequences_in=sequences, sequence_lengths=sequence_lengths), myx, myy, myz, stdx, stdy, stdz
 
     return LorenzData(sequences_in=sequences, sequence_lengths=sequence_lengths)
 
@@ -135,3 +183,21 @@ def create_lorenz_data_loader(
         drop_last=True,
         collate_fn=c,
     )
+
+
+if __name__ == '__main__':
+    import os
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    asd = create_lorenz_sequence(10, 10, 10, steps=2)
+    asd2 = create_lorenz_sequence(0, 0, 10, steps=2)
+    asd3 = create_lorenz_sequence(0, 0, 10, steps=2)
+    asd4 = create_lorenz_sequence(0, 0, 10, steps=2)
+    print(asd)
+    plot_lorenz(asd)
+    x, y, z, a, b, c = get_lorenz_statistics([asd, asd2, asd3, asd4])
+    asd = normalize_lorenz_seq(asd, x, y, z, a, b, c)
+    print(asd)
+    plot_lorenz(asd)
+    asd = denormalize_lorenz_seq(asd, x, y, z, a, b, c)
+    print(asd)
+    plot_lorenz(asd)
