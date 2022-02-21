@@ -86,10 +86,10 @@ if __name__ == '__main__':
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     dt = 0.01
     disc = True
-    set_size = 100
+    set_size = 2048
     num_demos = set_size
     embed = 32
-    num_steps = [256, 512]
+    num_steps = [16]
     normalize = True
 
     if(normalize):
@@ -146,10 +146,10 @@ if __name__ == '__main__':
         disc=True,
         errtype='sim',
         lr=0.001,
-        epochs=75,
-        batch_size=5000,
+        epochs=150,
+        batch_size=512,
         debug=True,
-        alpha=0.05,
+        alpha=1000,
     )
 
     losses = optimizer.train()

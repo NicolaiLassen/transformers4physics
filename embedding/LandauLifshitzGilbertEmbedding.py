@@ -9,6 +9,12 @@ TensorTuple = Tuple[torch.Tensor]
 ## TODO convert to attention based medthod
 # https://arxiv.org/pdf/2110.06509.pdf
 
+# Note
+# We wan't a stable model for non-lin systems 
+# how to generate time of magnetization
+# data -> embed -> seq 
+# s_0 -> ebmed -> (s_1) feed self with  
+
 class LandauLifshitzGilbertEmbedding(nn.Module):
     """ Stable Koopman Embedding model for Landau Lifshitz Gilbert system """
 
