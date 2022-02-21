@@ -12,11 +12,14 @@ experiment: "plain_swin_0.0.1"
 project: "v0"
 notes: "local"
 use_wandb: False
+strategy: ['GAN','AE']
 
 model:
   # swin
   name: 'swin'
+  embbeding: 'koopman'
   pretrained: False
+
 opt:
   name: 'adamw'
   eps: 1e-8

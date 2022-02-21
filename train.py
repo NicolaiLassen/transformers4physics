@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import re
+from telnetlib import GA
 import wandb
 from pathlib import Path
 import hydra
@@ -19,12 +20,14 @@ from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from torch import nn
 
 
-# moment -> vec embed -> field
-class N2H(pl.LightningModule):
+class Moment2Field(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
         self.save_hyperparameters(cfg)
+
+        # TODO Select strat
+        cfg.strategy
 
         dataset = PrismGridDataset()
         dataset.open_hdf5(
@@ -170,11 +173,10 @@ class N2H(pl.LightningModule):
             output = OrderedDict({"loss": d_loss, "progress_bar": tqdm_dict, "log": tqdm_dict})
 
             return output
-        
   
 def train(cfg):
 
-    model = N2H(cfg)
+    model = Moment2Field(cfg)
 
     logger = None
     if cfg.use_wandb:
