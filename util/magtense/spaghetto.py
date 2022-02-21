@@ -1,4 +1,6 @@
+# %%
 from sqlalchemy import over
+from prism_grid_3d import create_prism_grid_3d
 from re import M
 from PIL import Image
 from matplotlib import cm, pyplot as plt
@@ -6,14 +8,52 @@ import numpy as np
 import seaborn as sns
 import os
 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+sns.set_theme()
 
-def showNorm(imageOut, mask=None):
+res = 32
+
+# %matplotlib qt
+
+imgin, m, imgout = create_prism_grid_3d(
+    rows=2,
+    columns=2,
+    depth=1,
+    res=res,
+    plot=True,
+    restrict_z=True,
+    seed=3,
+    uniform_tesla=1.0,
+    uniform_ea=[1, 0, 0],
+)
+imgin, m, imgout = np.array(imgin), np.array(m), np.array(imgout)
+
+#imgin = convertToImage(imgin)
+#imgout = convertToImage(imgout)
+
+# %%
+# %matplotlib inline
+
+
+def showNorm(imageOut, mask):
     ax = sns.heatmap(imageOut[3], cmap="mako", mask=mask)
     ax.invert_yaxis()
     plt.show()
 
 
-def showNorm3d(image, mask=None, override_channel=3):
+showNorm(imgout, m)
+
+ax = sns.heatmap(imgin[0], cmap="mako", mask=m)
+ax.invert_yaxis()
+plt.show()
+
+# %%
+
+# %%
+# %matplotlib qt
+
+
+def showNorm3d(image, mask, override_channel=3):
 
     # # creating figures
     fig = plt.figure(figsize=(10, 10))
@@ -21,21 +61,20 @@ def showNorm3d(image, mask=None, override_channel=3):
     ax = fig.add_subplot(111, projection='3d')
 
     # # setting color bar
-    y,x,z = (np.ma.masked_array(image[override_channel], mask=mask)).nonzero()
-    maskedVals = np.ma.masked_array(image[override_channel, :, :, :], mask=mask)
+    y, x, z = (np.ma.masked_array(
+        image[override_channel], mask=mask)).nonzero()
+    maskedVals = np.ma.masked_array(
+        image[override_channel, :, :, :], mask=mask)
     maskedVals = maskedVals[~maskedVals.mask].flatten()
     cmap = sns.dark_palette("#69d", reverse=False, as_cmap=True)
     color_map = cm.ScalarMappable(cmap=cmap)
     color_map.set_array(maskedVals)
-    s_min = 1
-    s_max = 64
-    s_vals = [s_min + (x - min(maskedVals)) * (s_max - s_min) / (max(maskedVals) - min(maskedVals)) for x in maskedVals]
 
     # # creating the heatmap
     if(np.all(maskedVals == maskedVals[0])):
-        img = ax.scatter(x, y, z, marker='s', s=s_vals, color='Blue')
+        img = ax.scatter(x, y, z, marker='s', s=8, color='Blue')
     else:
-        img = ax.scatter(x, y, z, marker='s', s=s_vals, cmap=cmap, c=maskedVals)
+        img = ax.scatter(x, y, z, marker='s', s=8, cmap=cmap, c=maskedVals)
         plt.colorbar(color_map)
 
     # # adding title and labels
@@ -55,3 +94,6 @@ def showNorm3d(image, mask=None, override_channel=3):
 
     # # displaying plot
     plt.show()
+
+
+showNorm3d(imgout, m)

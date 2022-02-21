@@ -4,6 +4,7 @@ import torch.utils.checkpoint as checkpoint
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 
 
+
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
@@ -574,6 +575,7 @@ class SwinTransformer(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
+<<<<<<< HEAD
 
 
 if __name__ == '__main__':
@@ -581,3 +583,5 @@ if __name__ == '__main__':
     x = torch.rand((1,3,224,224))
     model = SwinTransformer(in_chans=3)
     model(x)
+=======
+>>>>>>> ccad70317aef589bf0117d46bdfbc678c1ef803b
