@@ -29,15 +29,11 @@ if __name__ == '__main__':
         cfg
     )
     model.load_model(
-        file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz225.pth')
-    f = h5py.File('lorenz_norm_params.h5', 'r')
+        file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz150.pth')
+    f = h5py.File('./tests/koopman_git_2/lorenz_norm_params.h5', 'r')
     mu = torch.tensor(f['dataset_1'][0]).cuda()
     std = torch.tensor(f['dataset_1'][1]).cuda()
     f.close()
-    f = h5py.File('koopman_op.h5', 'r')
-    A = torch.tensor(f['dataset_1']).cuda()
-    f.close()
-    print(A)
     model.mu = mu
     model.std = std
     with torch.no_grad():
@@ -66,16 +62,6 @@ if __name__ == '__main__':
             test_recon_true_trajectory.append(
                 (model.recover(Z[i])).cpu().detach().numpy())
         test_recon_true_trajectory = np.array(test_recon_true_trajectory)
-        
-        Z_koop = torch.zeros((asd, model.obsdim)).cuda()
-        X_sim = torch.zeros((asd, 3))
-
-        Z_koop[0] = Z[0]
-        X_sim[0] = model.recover(Z[0])
-        for i in range(1, asd):
-            Z_koop[i] = A @ Z_koop[i-1]
-            X_sim[i] = model.recover(Z_koop[i]).cpu()
 
         plot_lorenz(test_recon_true_trajectory.reshape(-1,3),
                     title="Reconstructed step by step")
-        plot_lorenz(X_sim.reshape(-1,3), title="Koopman + recon")

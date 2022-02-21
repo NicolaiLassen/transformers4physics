@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     lr = 1e-3
-    epochs = 50
+    epochs = 75
+    embed = 32
 
     # Setup logging
     logging.basicConfig(
@@ -45,20 +46,20 @@ if __name__ == '__main__':
     # Set up data-loaders
     data_handler = LorenzDataHandler()
     training_loader = data_handler.createTrainingLoader(
-        batch_size=512,
+        batch_size=1024,
         block_size=16,
-        file_path='./lorenz_data_train.h5',
+        file_path='./tests/koopman_git_2/lorenz_data_train.h5',
     )
     testing_loader = data_handler.createTestingLoader(
         batch_size=8,
         block_size=32,
-        file_path='./lorenz_data_test.h5',
+        file_path='./tests/koopman_git_2/lorenz_data_test.h5',
     )
 
     # Set up model
     cfg = PhysConfig(
         n_ctx=64,
-        n_embd=32,
+        n_embd=embed,
         n_layer=4,
         n_head=4,
         state_dims=[3],
@@ -68,11 +69,10 @@ if __name__ == '__main__':
     model = LorenzEmbeddingTrainer(
         config=cfg,
     ).to(device)
-    model.embedding_model.koopmanOperation(torch.rand(1,32).cuda())
-    print(model.embedding_model.koopmanOperator)
+    model.embedding_model.koopmanOperation(torch.rand(1,embed).cuda())
 
     mu, std = data_handler.norm_params
-    hf = h5py.File('lorenz_norm_params.h5', 'w')
+    hf = h5py.File('./tests/koopman_git_2/lorenz_norm_params.h5', 'w')
     hf.create_dataset('dataset_1', data=np.array([mu.detach().cpu().numpy(),std.detach().cpu().numpy()]))
     hf.close()
     model.mu = mu.to(device)
@@ -94,6 +94,6 @@ if __name__ == '__main__':
         model, args, (optimizer, scheduler))
     trainer.train(training_loader, testing_loader)
     print(model.embedding_model.koopmanOperator)
-    hf = h5py.File('koopman_op.h5', 'w')
+    hf = h5py.File('./tests/koopman_git_2/koopman_op.h5', 'w')
     hf.create_dataset('dataset_1', data=model.embedding_model.koopmanOperator.detach().cpu().numpy())
     hf.close()

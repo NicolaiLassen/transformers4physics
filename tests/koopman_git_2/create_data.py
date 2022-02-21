@@ -9,7 +9,7 @@ def asd(
     y=[-20, 20],
     z=[10, 40],
     dt=0.01,
-    num_steps=[1024, 512, 256],
+    num_steps=[256],
     include_vel=False,
 ):
     rng = np.random.default_rng(seed)
@@ -27,7 +27,6 @@ def asd(
             6 if include_vel else 3, -1))
         sequence_lengths.append(np.array(len(seq), dtype=int))
 
-    # return sequences
     return np.array(sequences).reshape((-1,3))
 
 dataset = asd(
@@ -42,10 +41,10 @@ dataset_test = asd(
     num_steps=[512],
     set_size=16,
 )
-hf = h5py.File('lorenz_data_train.h5', 'w')
+hf = h5py.File('./tests/koopman_git_2/lorenz_data_train.h5', 'w')
 hf.create_dataset('dataset_1', data=dataset)
 hf.close()
 
-hf = h5py.File('lorenz_data_test.h5', 'w')
+hf = h5py.File('./tests/koopman_git_2/lorenz_data_test.h5', 'w')
 hf.create_dataset('dataset_1', data=dataset_test)
 hf.close()
