@@ -15,13 +15,13 @@ import h5py
 from turtle import st
 import torch
 from torch.optim.lr_scheduler import ExponentialLR
-from embedding_lorenz import LorenzEmbedding, LorenzEmbeddingTrainer
-from enn_data_handler import LorenzDataHandler
+from embedding.embedding_lorenz import LorenzEmbedding, LorenzEmbeddingTrainer
+from data.enn_data_handler import LorenzDataHandler
 
-from viz_lorenz import LorenzViz
-from enn_trainer import *
-from lorenz_data import *
-from config_phys import PhysConfig
+from viz.viz_lorenz import LorenzViz
+from embedding.enn_trainer import *
+from data.lorenz_data import *
+from config.config_phys import PhysConfig
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +40,6 @@ if __name__ == '__main__':
         use_cuda = "cuda"
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     logger.info("Torch device: {}".format(device))
-
-    # Load transformer config file
 
     # Set up data-loaders
     data_handler = LorenzDataHandler()
@@ -69,7 +67,6 @@ if __name__ == '__main__':
     model = LorenzEmbeddingTrainer(
         config=cfg,
     ).to(device)
-    model.embedding_model.koopmanOperation(torch.rand(1,embed).cuda())
 
     mu, std = data_handler.norm_params
     hf = h5py.File('./tests/koopman_git_2/lorenz_norm_params.h5', 'w')
@@ -93,7 +90,3 @@ if __name__ == '__main__':
     trainer = EmbeddingTrainer(
         model, args, (optimizer, scheduler))
     trainer.train(training_loader, testing_loader)
-    print(model.embedding_model.koopmanOperator)
-    hf = h5py.File('./tests/koopman_git_2/koopman_op.h5', 'w')
-    hf.create_dataset('dataset_1', data=model.embedding_model.koopmanOperator.detach().cpu().numpy())
-    hf.close()

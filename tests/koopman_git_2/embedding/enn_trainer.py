@@ -15,8 +15,8 @@ import argparse
 
 from typing import Dict, Tuple
 from torch.utils.data import DataLoader
-from embedding_model import EmbeddingTrainingHead
-from viz_model import Viz
+from .embedding_model import EmbeddingTrainingHead
+from viz.viz_model import Viz
 
 logger = logging.getLogger(__name__)
 

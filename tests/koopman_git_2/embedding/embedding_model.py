@@ -12,7 +12,7 @@ import logging
 import torch
 import torch.nn as nn
 from abc import abstractmethod
-from config_phys import PhysConfig
+from config.config_phys import PhysConfig
 
 logger = logging.getLogger(__name__)
 

@@ -12,8 +12,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 from typing import List, Tuple
-from embedding_model import EmbeddingModel, EmbeddingTrainingHead
-from config_phys import PhysConfig
+from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+from config.config_phys import PhysConfig
 from torch.autograd import Variable
 
 logger = logging.getLogger(__name__)

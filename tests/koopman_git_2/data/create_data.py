@@ -1,4 +1,4 @@
-from lorenz_data import create_lorenz_sequence
+from data.lorenz_data import create_lorenz_sequence
 import numpy as np
 import h5py
 

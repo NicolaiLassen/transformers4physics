@@ -4,7 +4,6 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 class LorenzData(torch.utils.data.Dataset):
     def __init__(self, sequences_in=None, sequence_lengths=None):
         self.x = torch.tensor(sequences_in, dtype=torch.float)

@@ -2,23 +2,28 @@
 From https://github.com/fletchf/skel 
 '''
 
+from re import X
+import matplotlib as mpl
 import numpy as np
 import torch
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import h5py
 
-from config_phys import PhysConfig
-from lorenz_data import create_lorenz_dataset, create_lorenz_sequence, plot_lorenz, average_lorenz_sequences, denormalize_lorenz_seq, normalize_lorenz_seq
-from embedding_lorenz import LorenzEmbedding
+from config.config_phys import PhysConfig
+from data.lorenz_data import create_lorenz_dataset, create_lorenz_sequence, plot_lorenz, average_lorenz_sequences, denormalize_lorenz_seq, normalize_lorenz_seq
+from embedding.embedding_lorenz import LorenzEmbedding
+from transformer import PhysformerGPT2
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+mpl.use('TkAgg')
 
 if __name__ == '__main__':
     import os
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    embed = 32
     cfg = PhysConfig(
         n_ctx=64,
-        n_embd=32,
+        n_embd=embed,
         n_layer=4,
         n_head=4,
         state_dims=[3],
@@ -30,17 +35,25 @@ if __name__ == '__main__':
     )
     model.load_model(
         file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz150.pth')
-    f = h5py.File('./tests/koopman_git_2/lorenz_norm_params.h5', 'r')
-    mu = torch.tensor(f['dataset_1'][0]).cuda()
-    std = torch.tensor(f['dataset_1'][1]).cuda()
-    f.close()
-    model.mu = mu
-    model.std = std
+    config = PhysConfig(
+        n_ctx=64,
+        n_embd=embed,
+        n_layer=4,
+        n_head=4,
+        state_dims=[3],
+        activation_function="gelu_new",
+        initializer_range=0.05,
+    )
+    transformer = PhysformerGPT2(config, "Lorenz")
+    transformer = transformer.cuda()
+    transformer.load_model(
+        './tests/koopman_git_2/koop_model/transformer_Lorenz200.pth')
     with torch.no_grad():
+        x,y,z = 20,15,30
         test_lorenz = create_lorenz_sequence(
-            x=15,
-            y=15,
-            z=30,
+            x=x,
+            y=y,
+            z=z,
             steps=128,
         )
 
@@ -51,17 +64,39 @@ if __name__ == '__main__':
         asd = len(test_lorenz)
 
         test_recon_true_trajectory = []
+        test_transform = []
         Z = torch.zeros((asd, model.obsdim)).cuda()
 
-        Z[0] = model.embed(torch.tensor([15,15,30], dtype=torch.float).cuda())
+        Z[0] = model.embed(torch.tensor(
+            [x, y, z], dtype=torch.float).cuda())
+        Z_trans = transformer.generate(
+            Z[0].unsqueeze(0).unsqueeze(0), max_length=asd)
+        Z_trans = Z_trans[0].reshape(asd, model.obsdim)
         test_recon_true_trajectory.append(
             (model.recover(Z[0])).cpu().detach().numpy())
+        test_transform.append(
+            (model.recover(Z[0])).cpu().detach().numpy())
         for i in range(1, asd):
-            Z[i] = model.embed(torch.tensor(
-                test_lorenz[i], dtype=torch.float).cuda())
-            test_recon_true_trajectory.append(
-                (model.recover(Z[i])).cpu().detach().numpy())
-        test_recon_true_trajectory = np.array(test_recon_true_trajectory)
+            Z[i] = model.embed(
+                torch.tensor(
+                    test_lorenz[i], dtype=torch.float).cuda()
+            )
 
-        plot_lorenz(test_recon_true_trajectory.reshape(-1,3),
+            test_recon_true_trajectory.append(
+                (model.recover(Z[i])).cpu().detach().numpy()
+            )
+
+            test_transform.append(
+                (model.recover(Z_trans[i])).cpu().detach().numpy()
+            )
+
+        test_recon_true_trajectory = np.array(test_recon_true_trajectory)
+        test_transform = np.array(test_transform)
+        print(((test_lorenz - test_recon_true_trajectory)**2).mean())
+        print(((test_lorenz - test_transform)**2).mean())
+        print(((test_recon_true_trajectory - test_transform)**2).mean())
+
+        plot_lorenz(test_recon_true_trajectory.reshape(-1, 3),
                     title="Reconstructed step by step")
+        plot_lorenz(test_transform.reshape(-1, 3),
+                    title="Reconstructed transformer")

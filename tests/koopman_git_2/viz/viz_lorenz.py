@@ -23,9 +23,12 @@ from mpl_toolkits.mplot3d.art3d import Line3DCollection
 from matplotlib.patches import Rectangle
 from matplotlib.legend_handler import HandlerBase
 
-from viz_model import Viz
+from viz.viz_model import Viz
 
 Tensor = torch.Tensor
+
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 # Interface to LineCollection:
 def _colorline3d(x, y, z, t=None, cmap=plt.get_cmap('viridis'), linewidth=1, alpha=1.0, ax=None):
