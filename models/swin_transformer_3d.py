@@ -24,7 +24,6 @@ class Mlp(nn.Module):
         x = self.drop(x)
         return x
 
-
 def window_partition(x, window_size):
     """
     Args:
@@ -598,8 +597,6 @@ class SwinTransformer3D(nn.Module):
     
 
 if __name__ == '__main__':
-
-
     x = torch.rand((1,3,224,224,224))
     model = SwinTransformer3D(in_chans=3)
     model(x)

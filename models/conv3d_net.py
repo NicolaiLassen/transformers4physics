@@ -1,13 +1,6 @@
 import torch
 import torch.nn as nn
-
-class Swish(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.activation = nn.Sigmoid()
-
-    def forward(self, x):
-        return x * self.activation(x)
+from models.swish import Swish
 
 class ConvMToH(nn.Module):
     def __init__(self, res=224, in_channels=4, hidden_channels=[16, 32, 64], kernel_size=[4,4,3]):
