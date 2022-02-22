@@ -4,3 +4,5 @@
 /tests/koopman_git_2/plots/*
 /tests/koopman_git_2/**/*.h5
 /tests/koopman_git_2/**/*.pyc
+tests/koopman_git_2/lorenz_data_train.h5
+tests/koopman_git_2/lorenz_data_test.h5

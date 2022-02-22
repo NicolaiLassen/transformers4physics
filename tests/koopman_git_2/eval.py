@@ -21,6 +21,7 @@ if __name__ == '__main__':
     import os
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     embed = 32
+    init_embeds = 8
     cfg = PhysConfig(
         n_ctx=64,
         n_embd=embed,
@@ -49,7 +50,7 @@ if __name__ == '__main__':
     transformer.load_model(
         './tests/koopman_git_2/koop_model/transformer_Lorenz200.pth')
     with torch.no_grad():
-        x,y,z = 20,15,30
+        x,y,z = -10,10,20
         test_lorenz = create_lorenz_sequence(
             x=x,
             y=y,
@@ -69,9 +70,6 @@ if __name__ == '__main__':
 
         Z[0] = model.embed(torch.tensor(
             [x, y, z], dtype=torch.float).cuda())
-        Z_trans = transformer.generate(
-            Z[0].unsqueeze(0).unsqueeze(0), max_length=asd)
-        Z_trans = Z_trans[0].reshape(asd, model.obsdim)
         test_recon_true_trajectory.append(
             (model.recover(Z[0])).cpu().detach().numpy())
         test_transform.append(
@@ -86,17 +84,21 @@ if __name__ == '__main__':
                 (model.recover(Z[i])).cpu().detach().numpy()
             )
 
-            test_transform.append(
-                (model.recover(Z_trans[i])).cpu().detach().numpy()
-            )
+        Z_trans_in = Z[0:init_embeds].unsqueeze(0)
+        # Z_trans_in = Z[0].unsqueeze(0).unsqueeze(0)
+        Z_trans = transformer.generate(
+            Z_trans_in, max_length=asd)
+        Z_trans = Z_trans[0].reshape(-1, model.obsdim)
+
+        test_transform = [(model.recover(z)).cpu().detach().numpy() for z in Z_trans]
 
         test_recon_true_trajectory = np.array(test_recon_true_trajectory)
         test_transform = np.array(test_transform)
-        print(((test_lorenz - test_recon_true_trajectory)**2).mean())
-        print(((test_lorenz - test_transform)**2).mean())
-        print(((test_recon_true_trajectory - test_transform)**2).mean())
+        # print(((test_lorenz - test_recon_true_trajectory)**2).mean())
+        # print(((test_lorenz - test_transform)**2).mean())
+        # print(((test_recon_true_trajectory - test_transform)**2).mean())
 
         plot_lorenz(test_recon_true_trajectory.reshape(-1, 3),
                     title="Reconstructed step by step")
         plot_lorenz(test_transform.reshape(-1, 3),
-                    title="Reconstructed transformer")
+                    title="Reconstructed using koopman transformer ({} initial koopman {})".format(init_embeds, 'embedding' if init_embeds == 1 else 'embeddings'))
