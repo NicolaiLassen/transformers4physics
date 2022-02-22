@@ -21,7 +21,7 @@ if __name__ == '__main__':
     import os
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     embed = 32
-    init_embeds = 8
+    init_embeds = 1
     cfg = PhysConfig(
         n_ctx=64,
         n_embd=embed,
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         cfg
     )
     model.load_model(
-        file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz150.pth')
+        file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz200.pth')
     config = PhysConfig(
         n_ctx=64,
         n_embd=embed,
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     transformer = PhysformerGPT2(config, "Lorenz")
     transformer = transformer.cuda()
     transformer.load_model(
-        './tests/koopman_git_2/koop_model/transformer_Lorenz200.pth')
+        './tests/koopman_git_2/koop_model/transformer_Lorenz300.pth')
     with torch.no_grad():
         x,y,z = -10,10,20
         test_lorenz = create_lorenz_sequence(
