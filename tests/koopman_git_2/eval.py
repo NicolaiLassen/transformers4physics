@@ -55,7 +55,7 @@ if __name__ == '__main__':
             x=x,
             y=y,
             z=z,
-            steps=128,
+            steps=300,
         )
 
         plot_lorenz(test_lorenz, title="True")
@@ -94,9 +94,9 @@ if __name__ == '__main__':
 
         test_recon_true_trajectory = np.array(test_recon_true_trajectory)
         test_transform = np.array(test_transform)
-        # print(((test_lorenz - test_recon_true_trajectory)**2).mean())
-        # print(((test_lorenz - test_transform)**2).mean())
-        # print(((test_recon_true_trajectory - test_transform)**2).mean())
+        print(((test_lorenz - test_recon_true_trajectory)**2).mean())
+        print(((test_lorenz - test_transform)**2).mean())
+        print(((test_recon_true_trajectory - test_transform)**2).mean())
 
         plot_lorenz(test_recon_true_trajectory.reshape(-1, 3),
                     title="Reconstructed step by step")
