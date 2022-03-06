@@ -33,13 +33,13 @@ dataset = asd(
     seed=42,
     dt=0.01,
     num_steps=[512],
-    set_size=32,
+    set_size=128,
 )
 dataset_test = asd(
     seed=24,
     dt=0.01,
     num_steps=[512],
-    set_size=16,
+    set_size=32,
 )
 hf = h5py.File('./tests/koopman_git_2/lorenz_data_train.h5', 'w')
 hf.create_dataset('dataset_1', data=dataset)

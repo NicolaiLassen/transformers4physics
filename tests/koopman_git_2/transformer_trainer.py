@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     embed = 32
     lr = 1e-3
-    epochs = 200
+    epochs = 300
 
     sys.argv = sys.argv + ["--training_h5_file",
                            "./data/lorenz_training_rk.hdf5"]
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         config
     )
     embedding_model.load_model(
-        file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz150.pth')
+        file_or_path_directory='./tests/koopman_git_2/koop_model/embedding_lorenz200.pth')
     embedding_model = embedding_model.to(device)
 
     # Load visualization utility class
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     training_loader = LorenzDataset(
         embedder=embedding_model,
         file_path='./tests/koopman_git_2/lorenz_data_train.h5',
-        block_size=16,
+        block_size=config.n_ctx,
         ndata=2048,
         stride=64,
     )

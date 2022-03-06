@@ -75,6 +75,9 @@ def plot_lorenz(seq, title="Lorenz Attractor"):
     ax.set_xlabel("X Axis")
     ax.set_ylabel("Y Axis")
     ax.set_zlabel("Z Axis")
+    ax.set_xlim([-20,20])
+    ax.set_ylim([-20,20])
+    ax.set_zlim([10,40])
     ax.set_title(title)
 
     plt.show()

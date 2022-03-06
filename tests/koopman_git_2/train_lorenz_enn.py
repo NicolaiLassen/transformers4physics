@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     lr = 1e-3
-    epochs = 75
+    epochs = 200
     embed = 32
 
     # Setup logging
@@ -44,8 +44,9 @@ if __name__ == '__main__':
     # Set up data-loaders
     data_handler = LorenzDataHandler()
     training_loader = data_handler.createTrainingLoader(
-        batch_size=1024,
+        batch_size=512,
         block_size=16,
+        ndata=2048,
         file_path='./tests/koopman_git_2/lorenz_data_train.h5',
     )
     testing_loader = data_handler.createTestingLoader(
@@ -72,8 +73,8 @@ if __name__ == '__main__':
     hf = h5py.File('./tests/koopman_git_2/lorenz_norm_params.h5', 'w')
     hf.create_dataset('dataset_1', data=np.array([mu.detach().cpu().numpy(),std.detach().cpu().numpy()]))
     hf.close()
-    model.mu = mu.to(device)
-    model.std = std.to(device)
+    model.embedding_model.mu = mu.to(device)
+    model.embedding_model.std = std.to(device)
 
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=1e-8)
