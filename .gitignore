@@ -1,2 +1,6 @@
 /data/*
 /outputs/*
+/tests/koopman_git_2/koop_model/*
+/tests/koopman_git_2/plots/*
+/tests/koopman_git_2/**/*.h5
+/tests/koopman_git_2/**/*.pyc

@@ -429,15 +429,9 @@ class PatchEmbed(nn.Module):
         # FIXME look at relaxing size constraints
         assert H == self.img_size[0] and W == self.img_size[1], \
             f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
-        
         x = self.proj(x).flatten(2).transpose(1, 2)  # B Ph*Pw C
-
-        print(x.shape)
         if self.norm is not None:
             x = self.norm(x)
-        
-        print(x.shape)
-
         return x
 
     def flops(self):
@@ -446,6 +440,13 @@ class PatchEmbed(nn.Module):
         if self.norm is not None:
             flops += Ho * Wo * self.embed_dim
         return flops
+
+
+
+
+
+
+
 
 
 class SwinTransformer(nn.Module):
@@ -575,13 +576,3 @@ class SwinTransformer(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
-<<<<<<< HEAD
-
-
-if __name__ == '__main__':
-
-    x = torch.rand((1,3,224,224))
-    model = SwinTransformer(in_chans=3)
-    model(x)
-=======
->>>>>>> ccad70317aef589bf0117d46bdfbc678c1ef803b
