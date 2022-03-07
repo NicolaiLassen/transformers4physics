@@ -9,20 +9,18 @@ doi:
 github: https://github.com/zabaras/transformer-physx
 =====
 """
-import sys
-import logging
-import h5py
-from turtle import st
-import torch
-from torch.optim.lr_scheduler import ExponentialLR
-from embedding.embedding_lorenz import LorenzEmbedding, LorenzEmbeddingTrainer
-from data.enn_data_handler import LorenzDataHandler
-from koopman_git_2.embedding.embedding_magnet import LandauLifshitzGilbertEmbedding
 
-from viz.viz_lorenz import LorenzViz
-from embedding.enn_trainer import *
-from data.lorenz_data import *
-from config.config_phys import PhysConfig
+
+import logging
+
+import torch
+from tests.koopman_git_2.config.config_phys import PhysConfig
+
+from tests.koopman_git_2.data.enn_data_handler import LorenzDataHandler
+from tests.koopman_git_2.embedding.embedding_magnet import LandauLifshitzGilbertEmbedding
+
+import h5py
+
 
 logger = logging.getLogger(__name__)
 

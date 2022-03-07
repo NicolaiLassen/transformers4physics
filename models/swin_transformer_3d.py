@@ -187,7 +187,6 @@ class SwinTransformerBlock(nn.Module):
         assert 0 <= self.shift_size < self.window_size, "shift_size must in 0-window_size"
 
         self.norm1 = norm_layer(dim)
-        # to_2tuple should probably be 3
         self.attn = WindowAttention(
             dim, window_size=to_2tuple(self.window_size), num_heads=num_heads,
             qkv_bias=qkv_bias, qk_scale=qk_scale, attn_drop=attn_drop, proj_drop=drop)
@@ -443,14 +442,6 @@ class PatchEmbed(nn.Module):
             flops += Ho * Wo * self.embed_dim
         return flops
 
-
-
-
-
-
-
-
-
 class SwinTransformer(nn.Module):
     r""" Swin Transformer
         A PyTorch impl of : `Swin Transformer: Hierarchical Vision Transformer using Shifted Windows`  -
@@ -578,12 +569,9 @@ class SwinTransformer(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
-<<<<<<< HEAD
     
 
 if __name__ == '__main__':
     x = torch.rand((1,3,224,224,224))
-    model = SwinTransformer3D(in_chans=3)
+    model = SwinTransformer(in_chans=3)
     model(x)
-=======
->>>>>>> e0a238c1c7853002d99d1df34889ffcc7f361f24

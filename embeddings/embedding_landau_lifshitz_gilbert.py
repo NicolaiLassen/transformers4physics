@@ -3,6 +3,9 @@ import torch
 import numpy as np
 from typing import List, Tuple
 from torch.autograd import Variable
+from config.config_phys import PhysConfig
+
+from embeddings.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 
 TensorTuple = Tuple[torch.Tensor]
 
@@ -15,29 +18,34 @@ TensorTuple = Tuple[torch.Tensor]
 # data -> embed -> seq 
 # s_0 -> ebmed -> (s_1) feed self with  
 
-class LandauLifshitzGilbertEmbedding(nn.Module):
+# Custom types
+Tensor = torch.Tensor
+TensorTuple = Tuple[torch.Tensor]
+FloatTuple = Tuple[float]
+
+class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     """ Stable Koopman Embedding model for Landau Lifshitz Gilbert system """
 
-    def __init__(self, config: Config) -> None:  
+    def __init__(self, config: PhysConfig) -> None:  
         super().__init__(config)
 
         # TODO Landau Lifshitz Gilbert system is a fully connected system so use attention
         self.observableNet = nn.Sequential(
-            nn.Conv3d(2, 64, kernel_size=(5, 5, 5), stride=2, padding=2, padding_mode='circular'),
-            nn.BatchNorm3d(64),
+            nn.Conv2d(3, 64, kernel_size=(5, 5, 5), stride=2, padding=2, padding_mode='zeros'),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.02, inplace=True),
             # 8, 32, 32, 32
-            nn.Conv3d(64, 128, kernel_size=(3, 3, 3), stride=2, padding=1, padding_mode='circular'),
-            nn.BatchNorm3d(128),
+            nn.Conv2d(64, 128, kernel_size=(3, 3, 3), stride=2, padding=1, padding_mode='zeros'),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.02, inplace=True),
             # 16, 16, 16, 16
-            nn.Conv3d(128, 128, kernel_size=(3, 3, 3), stride=2, padding=1, padding_mode='circular'),
-            nn.BatchNorm3d(128),
+            nn.Conv2d(128, 128, kernel_size=(3, 3, 3), stride=2, padding=1, padding_mode='zeros'),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.02, inplace=True),
             # 
             # 32, 8, 8, 8
-            nn.Conv3d(128, 64, kernel_size=(1, 1, 1), stride=1, padding=0, padding_mode='circular'),
-            nn.BatchNorm3d(64),
+            nn.Conv2d(128, 64, kernel_size=(1, 1, 1), stride=1, padding=0, padding_mode='zeros'),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.02, inplace=True),
         )
 
@@ -56,28 +64,28 @@ class LandauLifshitzGilbertEmbedding(nn.Module):
         )
 
         self.recoveryNet = nn.Sequential(
-            nn.Conv3d(64, 128, kernel_size=(1, 1, 1), stride=1, padding=0, padding_mode='circular'),
-            nn.BatchNorm3d(128),
+            nn.Conv2d(64, 128, kernel_size=(1, 1, 1), stride=1, padding=0, padding_mode='circular'),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.02, inplace=True),
             # 
             # 32, 8, 8, 8
             nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False),
-            nn.Conv3d(128, 128, kernel_size=(3, 3, 3), stride=1, padding=1, padding_mode='circular'),
-            nn.BatchNorm3d(128),
+            nn.Conv2d(128, 128, kernel_size=(3, 3, 3), stride=1, padding=1, padding_mode='circular'),
+            nn.BatchNorm2d(128),
             nn.LeakyReLU(0.02, inplace=True),
             # 
             # 16, 16, 16, 16
             nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False),
-            nn.Conv3d(128, 64, kernel_size=(3, 3, 3), stride=1, padding=1, padding_mode='circular'),
-            nn.BatchNorm3d(64),
+            nn.Conv2d(128, 64, kernel_size=(3, 3, 3), stride=1, padding=1, padding_mode='circular'),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.02, inplace=True),
             # 8, 32, 32, 32
             nn.Upsample(scale_factor=2, mode='trilinear', align_corners=False),
-            nn.Conv3d(64, 64, kernel_size=(3, 3, 3), stride=1, padding=1, padding_mode='circular'),
-            nn.BatchNorm3d(64),
+            nn.Conv2d(64, 64, kernel_size=(3, 3, 3), stride=1, padding=1, padding_mode='circular'),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.02, inplace=True),
 
-            nn.Conv3d(64, 2, kernel_size=(1, 1, 1), stride=1, padding=0, padding_mode='circular')
+            nn.Conv2d(64, 2, kernel_size=(1, 1, 1), stride=1, padding=0, padding_mode='circular')
         )
 
         # Learned Koopman operator
@@ -187,3 +195,84 @@ def _normalize(self, x):
 
 def _unnormalize(self, x):
     return self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1) * x + self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+
+
+class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
+    """Training head for the Lorenz embedding model
+    Args:
+        config (PhysConfig): Configuration class with transformer/embedding parameters
+    """
+    def __init__(self, config: PhysConfig):
+        """Constructor method
+        """
+        super().__init__()
+        self.embedding_model = LandauLifshitzGilbertEmbedding(config)
+
+    def forward(self, states: Tensor) -> FloatTuple:
+        """Trains model for a single epoch
+        Args:
+            states (Tensor): [B, T, res, res] Time-series feature tensor
+        Returns:
+            FloatTuple: Tuple containing:
+            
+                | (float): Koopman based loss of current epoch
+                | (float): Reconstruction loss
+        """
+        self.embedding_model.train()
+        device = self.embedding_model.devices[0]
+
+        loss_reconstruct = 0
+        mseLoss = nn.MSELoss()
+
+        xin0 = states[:,0].to(device) # Time-step
+
+        # Model forward for initial time-step
+        g0, xRec0 = self.embedding_model(xin0)
+        loss = (1e4)*mseLoss(xin0, xRec0)
+        loss_reconstruct = loss_reconstruct + mseLoss(xin0, xRec0).detach()
+
+        g1_old = g0
+        # Loop through time-series
+        for t0 in range(1, states.shape[1]):
+            xin0 = states[:,t0,:,:].to(device) # Next time-step
+            _, xRec1 = self.embedding_model(xin0)
+
+            g1Pred = self.embedding_model.koopmanOperation(g1_old)
+            xgRec1 = self.embedding_model.recover(g1Pred)
+
+            loss = loss + mseLoss(xgRec1, xin0) + (1e4)*mseLoss(xRec1, xin0) \
+                + (1e-1)*torch.sum(torch.pow(self.embedding_model.koopmanOperator, 2))
+
+            loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
+            g1_old = g1Pred
+
+        return loss, loss_reconstruct
+
+    def evaluate(self, states: Tensor) -> Tuple[float, Tensor, Tensor]:
+        """Evaluates the embedding models reconstruction error and returns its
+        predictions.
+        Args:
+            states (Tensor): [B, T, res, res] Time-series feature tensor
+        Returns:
+            Tuple[Float, Tensor, Tensor]: Test error, Predicted states, Target states
+        """
+        self.embedding_model.eval()
+        device = self.embedding_model.devices[0]
+
+        mseLoss = nn.MSELoss()
+
+        # Pull out targets from prediction dataset
+        yTarget = states[:,1:].to(device)
+        xInput = states[:,:-1].to(device)
+        yPred = torch.zeros(yTarget.size()).to(device)
+
+        # Test accuracy of one time-step
+        for i in range(xInput.size(1)):
+            xInput0 = xInput[:,i].to(device)
+            g0 = self.embedding_model.embed(xInput0)
+            yPred0 = self.embedding_model.recover(g0)
+            yPred[:,i] = yPred0.squeeze().detach()
+
+        test_loss = mseLoss(yTarget, yPred)
+
+        return test_loss, yPred, yTarget
