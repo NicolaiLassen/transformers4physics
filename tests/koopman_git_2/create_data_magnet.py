@@ -14,11 +14,11 @@ def asd(
     sequence_lengths = []
 
     for _ in range(set_size):
-        seq = rng.random((rng.choice(num_steps), 3, 64, 64)).astype(np.float)
+        seq = rng.random((rng.choice(num_steps), 3, 64, 64)).astype(float)
         sequences.append(seq)
         sequence_lengths.append(np.array(len(seq), dtype=int))
     
-    return np.array(sequences).reshape((-1, 128, 3, 64, 64))
+    return np.array(sequences).reshape((-1, 3, 64, 64))
 
 dataset = asd(
     seed=42,

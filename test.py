@@ -21,9 +21,11 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from config.config_phys import PhysConfig
 from data_utils.enn_data_handler import LorenzDataHandler
-from embeddings.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embeddings.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
 from embeddings.embedding_model import EmbeddingTrainingHead
 import numpy as np
+
+from embeddings.enn_trainer import EmbeddingTrainer
 
 
 logger = logging.getLogger(__name__)
@@ -68,7 +70,7 @@ if __name__ == '__main__':
         activation_function="gelu_new",
         initializer_range=0.05,
     )
-    model = LandauLifshitzGilbertEmbedding(
+    model = LandauLifshitzGilbertEmbeddingTrainer(
         config=cfg,
     ).to(device)
 
@@ -91,6 +93,6 @@ if __name__ == '__main__':
     args.save_steps = 25
     args.ckpt_dir = './tests/koopman_git_2/mag_model_koop/'
 
-    trainer = EmbeddingTrainingHead(
-        model, args, (optimizer, scheduler))
+    trainer = EmbeddingTrainer(model, args, (optimizer, scheduler))
+    
     trainer.train(training_loader, testing_loader)

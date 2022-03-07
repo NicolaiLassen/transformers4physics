@@ -4,7 +4,6 @@ import numpy as np
 from typing import List, Tuple
 from torch.autograd import Variable
 from config.config_phys import PhysConfig
-
 from embeddings.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 
 TensorTuple = Tuple[torch.Tensor]
@@ -124,7 +123,7 @@ def forward(self, x: Tensor) -> TensorTuple:
     out0 = self.recoveryNetFC(g).view(-1, 64, 4, 4, 4)
     out = self.recoveryNet(out0)
     xhat = self._unnormalize(out)
-    return g, xhat, g0, out0, self._unnormalize(self.recoveryNet(g0))
+    return g, xhat
 
 def embed(self, x: Tensor) -> Tensor:
     """Embeds tensor of state variables to Koopman observables
@@ -228,6 +227,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
 
         # Model forward for initial time-step
         g0, xRec0 = self.embedding_model(xin0)
+
         loss = (1e4)*mseLoss(xin0, xRec0)
         loss_reconstruct = loss_reconstruct + mseLoss(xin0, xRec0).detach()
 

@@ -15,6 +15,8 @@ from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
+## TODO MOVE TO HYDRA 
+
 CONFIG_NAME = "config_trphysx.json"
 
 class PhysConfig(object):

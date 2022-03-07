@@ -233,6 +233,8 @@ def showNorm(imageOut):
     plt.show()
 
 
+## SETUP TRAINER HERE
+
 if __name__ == '__main__':
     main()
     # create_dataset(rows=[4,7,8,14], square_grid=True, res=224)
