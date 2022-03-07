@@ -50,13 +50,15 @@ if __name__ == '__main__':
     data_handler = LorenzDataHandler()
     training_loader = data_handler.createTrainingLoader(
         batch_size=16,
-        block_size=16,
-        ndata=1,
+        block_size=64,
+        stride=64,
+        ndata=-1,
         file_path='./tests/koopman_git_2/magnet_data_train.h5',
     )
     testing_loader = data_handler.createTestingLoader(
-        batch_size=16,
-        block_size=16,
+        batch_size=1,
+        block_size=64,
+        ndata=4,
         file_path='./tests/koopman_git_2/magnet_data_train.h5',
     )
 
