@@ -52,7 +52,7 @@ if __name__ == '__main__':
         batch_size=16,
         block_size=64,
         stride=64,
-        ndata=-1,
+        ndata=1,
         file_path='./tests/koopman_git_2/magnet_data_train.h5',
     )
     testing_loader = data_handler.createTestingLoader(
@@ -93,7 +93,7 @@ if __name__ == '__main__':
     args.seed = 2
     args.epochs = epochs
     args.save_steps = 25
-    args.ckpt_dir = './tests/koopman_git_2/mag_model_koop/'
+    args.ckpt_dir = './checkpoints/mag_model_koop/'
 
     trainer = EmbeddingTrainer(model, args, (optimizer, scheduler))
     
