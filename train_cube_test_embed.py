@@ -21,7 +21,7 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from config.config_phys import PhysConfig
 from data_utils.enn_data_handler import LorenzDataHandler
-from magtense_micro_test import LandauLifshitzGilbertEmbeddingTrainer
+from magtense_micro_test import MicroMagnetEmbeddingTrainer
 import numpy as np
 
 from embeddings.enn_trainer import EmbeddingTrainer
@@ -71,7 +71,7 @@ if __name__ == '__main__':
         activation_function="gelu_new",
         initializer_range=0.05,
     )
-    model = LandauLifshitzGilbertEmbeddingTrainer(
+    model = MicroMagnetEmbeddingTrainer(
         config=cfg,
     ).to(device)
 

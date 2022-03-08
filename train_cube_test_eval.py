@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import h5py
 from config.config_phys import PhysConfig
 
-from magtense_micro_test.magtense_micro_test_embedding import LandauLifshitzGilbertEmbedding
+from magtense_micro_test.magtense_micro_test_embedding import MicroMagnetEmbedding
 from tests.koopman_git_2.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from tests.koopman_git_2.viz.viz_magnet import MicroMagViz
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -30,7 +30,7 @@ if __name__ == '__main__':
         activation_function="gelu_new",
         initializer_range=0.05,
     )
-    model = LandauLifshitzGilbertEmbedding(
+    model = MicroMagnetEmbedding(
         cfg
     )
     model.load_model(

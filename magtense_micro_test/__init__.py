@@ -1,1 +1,1 @@
-from .magtense_micro_test_embedding import LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
+from .magtense_micro_test_embedding import MicroMagnetEmbedding, MicroMagnetEmbeddingTrainer

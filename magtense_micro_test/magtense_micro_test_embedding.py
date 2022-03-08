@@ -41,7 +41,7 @@ class Upscaler(nn.Module):
         return x
 
 
-class LandauLifshitzGilbertEmbedding(EmbeddingModel):
+class MicroMagnetEmbedding(EmbeddingModel):
     """ Stable Koopman Embedding model for Landau Lifshitz Gilbert system """
 
     def __init__(self, config: PhysConfig) -> None:
@@ -186,7 +186,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
 
-class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
+class MicroMagnetEmbeddingTrainer(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
     Args:
         config (PhysConfig): Configuration class with transformer/embedding parameters
@@ -196,7 +196,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         """Constructor method
         """
         super().__init__()
-        self.embedding_model = LandauLifshitzGilbertEmbedding(config)
+        self.embedding_model = MicroMagnetEmbedding(config)
 
     def forward(self, states: Tensor) -> FloatTuple:
         """Trains model for a single epoch

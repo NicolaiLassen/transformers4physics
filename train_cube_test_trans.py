@@ -4,7 +4,7 @@ import logging
 import torch
 from config.config_phys import PhysConfig
 from config.args import TrainingArguments
-from magtense_micro_test.magtense_micro_test_embedding import LandauLifshitzGilbertEmbedding
+from magtense_micro_test.magtense_micro_test_embedding import MicroMagnetEmbedding
 from tests.koopman_git_2.data.dataset_magnet import MicroMagnetismDataset
 from tests.koopman_git_2.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from tests.koopman_git_2.transformer.phys_transformer_helpers import PhysformerTrain
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     )
 
     # Load embedding model
-    embedding_model = LandauLifshitzGilbertEmbedding(
+    embedding_model = MicroMagnetEmbedding(
         config
     )
     embedding_model.load_model(
