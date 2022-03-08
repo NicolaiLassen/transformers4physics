@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from typing import List, Tuple
-from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 from config.config_phys import PhysConfig
 from torch.autograd import Variable
 

@@ -16,7 +16,7 @@ from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel
 
 logger = logging.getLogger(__name__)
 
-class LorenzDataset(PhysicalDataset):
+class MicroMagnetismDataset(PhysicalDataset):
     """Dataset for the Lorenz numerical example
     """
     def embed_data(self, h5_file: h5py.File, embedder: EmbeddingModel) -> None:
@@ -28,9 +28,8 @@ class LorenzDataset(PhysicalDataset):
         # Iterate through stored time-series
         samples = 0
         for key in h5_file.keys():
-            data_series = torch.Tensor(h5_file[key]).to(embedder.devices[0]).view([-1] + embedder.input_dims)
+            data_series = torch.Tensor(h5_file[key]).to(embedder.devices[0])
             with torch.no_grad():
-                print(data_series.shape)
                 embedded_series = embedder.embed(data_series).cpu()
 
             # Stride over time-series
@@ -38,6 +37,7 @@ class LorenzDataset(PhysicalDataset):
                            self.stride):  # Truncate in block of block_size
 
                 data_series0 = embedded_series[i: i + self.block_size]
+                print(data_series0.shape)
                 self.examples.append(data_series0)
 
                 if self.eval:

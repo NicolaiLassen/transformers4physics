@@ -18,7 +18,7 @@ from typing import Dict
 from abc import abstractmethod
 from filelock import FileLock
 from torch.utils.data.dataset import Dataset
-from embedding.embedding_model import EmbeddingModel
+from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel
 
 logger = logging.getLogger(__name__)
 

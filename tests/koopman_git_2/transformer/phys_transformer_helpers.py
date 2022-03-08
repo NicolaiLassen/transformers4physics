@@ -12,7 +12,7 @@ from typing import Tuple, Dict, Union, List
 import torch
 from torch import LongTensor, nn
 from .phys_transformer_base import PhysformerBase
-from embedding.embedding_model import EmbeddingModel
+from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel
 from config.config_phys import PhysConfig
 
 logger = logging.getLogger(__name__)
