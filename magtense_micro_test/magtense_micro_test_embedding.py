@@ -26,10 +26,10 @@ FloatTuple = Tuple[float]
 class Upscaler(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2,
+        self.conv1 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2,
                                         padding=1, padding_mode='zeros')
-        self.bnorm1 = nn.BatchNorm2d(16)
-        self.conv2 = nn.ConvTranspose2d(16, 3, kernel_size=3, stride=2,
+        self.bnorm1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.ConvTranspose2d(32, 3, kernel_size=3, stride=2,
                                         padding=1, padding_mode='zeros')
         self.act = nn.LeakyReLU(0.02, inplace=True)
 
@@ -50,18 +50,18 @@ class MicroMagnetEmbedding(EmbeddingModel):
         self.obsdim = config.n_embd
 
         self.observableNet = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=5, stride=2,
+            nn.Conv2d(3, 32, kernel_size=5, stride=2,
                       padding=2, padding_mode='zeros'),
-            nn.BatchNorm2d(16),
-            nn.LeakyReLU(0.02, inplace=True),
-            nn.Conv2d(16, 32, kernel_size=3, stride=2,
-                      padding=1, padding_mode='zeros'),
             nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.02, inplace=True),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2,
+                      padding=1, padding_mode='zeros'),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.02, inplace=True),
         )
 
         self.observableNetFC = nn.Sequential(
-            nn.Linear(32*9*9, 8*8*8),
+            nn.Linear(64*9*9, 8*8*8),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(8*8*8, config.n_embd),
             nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon),
@@ -70,7 +70,7 @@ class MicroMagnetEmbedding(EmbeddingModel):
         self.recoveryNetFC = nn.Sequential(
             nn.Linear(config.n_embd, 8*8*8),
             nn.LeakyReLU(1.0, inplace=True),
-            nn.Linear(8*8*8, 32*9*9),
+            nn.Linear(8*8*8, 64*9*9),
             nn.LeakyReLU(0.02, inplace=True),
         )
 
@@ -108,7 +108,7 @@ class MicroMagnetEmbedding(EmbeddingModel):
         g0 = self.observableNet(x)
         g = self.observableNetFC(g0.view(g0.size(0), -1))
         # Decode
-        out0 = self.recoveryNetFC(g).view(-1, 32, 9, 9)
+        out0 = self.recoveryNetFC(g).view(-1, 64, 9, 9)
         out = self.recoveryNet(out0)
         xhat = self._unnormalize(out)
         return g, xhat
@@ -132,7 +132,7 @@ class MicroMagnetEmbedding(EmbeddingModel):
         Returns:
             (Tensor): [B, 2, H, W, D] Physical feature tensor
         """
-        out = self.recoveryNetFC(g).view(-1, 32, 9, 9)
+        out = self.recoveryNetFC(g).view(-1, 64, 9, 9)
         out = self.recoveryNet(out)
         x = self._unnormalize(out)
         return x

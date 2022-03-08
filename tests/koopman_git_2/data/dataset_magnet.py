@@ -37,7 +37,6 @@ class MicroMagnetismDataset(PhysicalDataset):
                            self.stride):  # Truncate in block of block_size
 
                 data_series0 = embedded_series[i: i + self.block_size]
-                print(data_series0.shape)
                 self.examples.append(data_series0)
 
                 if self.eval:

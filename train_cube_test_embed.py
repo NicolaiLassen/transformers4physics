@@ -31,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 if __name__ == '__main__':
     lr = 1e-3
-    epochs = 200
-    embed = 32
+    epochs = 300
+    embed = 128
 
     # Setup logging
     logging.basicConfig(
@@ -48,22 +48,22 @@ if __name__ == '__main__':
     # Set up data-loaders
     data_handler = LorenzDataHandler()
     training_loader = data_handler.createTrainingLoader(
-        batch_size=1,
-        block_size=500,
-        stride=500,
-        ndata=1,
+        batch_size=64,
+        block_size=4,
+        stride=4,
+        ndata=-1,
         file_path='./magtense_micro_test/cube36_3d.h5',
     )
     testing_loader = data_handler.createTestingLoader(
-        batch_size=1,
-        block_size=500,
-        ndata=1,
+        batch_size=16,
+        block_size=32,
+        ndata=6,
         file_path='./magtense_micro_test/cube36_3d.h5',
     )
 
     # Set up model
     cfg = PhysConfig(
-        n_ctx=64,
+        n_ctx=16,
         n_embd=embed,
         n_layer=4,
         n_head=4,

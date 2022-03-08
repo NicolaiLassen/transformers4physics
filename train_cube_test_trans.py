@@ -17,15 +17,15 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
-    embed = 32
+    embed = 128
     lr = 1e-3
     epochs = 300
 
     # Load model configuration
     config = PhysConfig(
-        n_ctx=64,
+        n_ctx=16,
         n_embd=embed,
-        n_layer=4,
+        n_layer=6,
         n_head=4,
         state_dims=[3,36,36],
         activation_function="gelu_new",
@@ -37,7 +37,7 @@ if __name__ == "__main__":
         config
     )
     embedding_model.load_model(
-        file_or_path_directory='./checkpoints/magtense_micro_test/embedding_model200.pth')
+        file_or_path_directory='./checkpoints/magtense_micro_test/embedding_model300.pth')
     embedding_model = embedding_model.to(device)
 
     # Load visualization utility class
@@ -63,13 +63,13 @@ if __name__ == "__main__":
         file_path='./magtense_micro_test/cube36_3d.h5',
         block_size=config.n_ctx,
         ndata=-1,
-        stride=1,
+        stride=6,
     )
     testing_loader = MicroMagnetismDataset(
         embedder=embedding_model,
         file_path='./magtense_micro_test/cube36_3d.h5',
         block_size=100,
-        stride=400,
+        stride=100,
         ndata=-1, 
         eval=True,
     )
@@ -80,6 +80,12 @@ if __name__ == "__main__":
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
         optimizer, 14, 2, eta_min=1e-9)
 
+    # Setup logging
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+        datefmt="%m/%d/%Y %H:%M:%S",
+    level=logging.INFO)
+
     args = TrainingArguments()
     args.exp_dir = './log/magtense_micro_test/'
     args.src_device = device
@@ -88,7 +94,7 @@ if __name__ == "__main__":
     args.epochs = epochs
     args.save_steps = 25
     args.ckpt_dir = './checkpoints/magtense_micro_test/'
-    args.train_batch_size = 1
+    args.train_batch_size = 4
     args.plot_max = 500
 
 
@@ -100,6 +106,6 @@ if __name__ == "__main__":
         eval_dataset=testing_loader,
         embedding_model=embedding_model,
         # viz=viz
-        )
+    )
 
     trainer.train()
