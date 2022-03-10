@@ -33,8 +33,10 @@ class MicroMagViz(Viz):
         super().__init__(plot_dir=plot_dir)
         self.coords = None
 
-    def setCoords(self, coords) -> None:
-        self.coords = coords
+    def setCoords(self, coords_path) -> None:
+        b = np.load(coords_path)
+        b = b.swapaxes(0,1).reshape(3,36,36).swapaxes(1,2)
+        self.coords = b
     
     def plotPrediction(self,
         y_pred: Tensor,
