@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument('--config', type=str)
     args = parser.parse_args()
     config_path = vars(args)['config']
-    assert config_path is not None, 'Please provide a config file'
+    assert config_path is not None, 'Please provide a config file via --config'
     cfg = read_config(config_path)
     cfg_tsf = cfg['TRANSFORMER']
 
