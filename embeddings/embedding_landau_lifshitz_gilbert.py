@@ -1,61 +1,26 @@
-from tkinter import N
-from torch import Tensor, nn
-import torch
-import numpy as np
 from typing import List, Tuple
+
+import numpy as np
+import torch
+from config.config_emmbeding import Emmbeding
+from torch import Tensor, nn
 from torch.autograd import Variable
-from config.config_phys import PhysConfig
+
 from embeddings.embedding_model import EmbeddingModel, EmbeddingTrainingHead
-
-TensorTuple = Tuple[torch.Tensor]
-
-# TODO convert to attention based medthod
-# https://arxiv.org/pdf/2110.06509.pdf
-
-# Note
-# We wan't a stable model for non-lin systems
-# how to generate time of magnetization
-# data -> embed -> seq
-# s_0 -> ebmed -> (s_1) feed self with
 
 # Custom types
 Tensor = torch.Tensor
 TensorTuple = Tuple[torch.Tensor]
 FloatTuple = Tuple[float]
 
-
-class Upscaler(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.conv1 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2,
-                                        padding=1, padding_mode='zeros')
-        self.bnorm1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2,
-                                        padding=1, padding_mode='zeros')
-        self.bnorm2 = nn.BatchNorm2d(32)
-        self.conv3 = nn.ConvTranspose2d(32, 3, kernel_size=5, stride=2,
-                                        padding=2, padding_mode='zeros')
-        self.act = nn.LeakyReLU(0.02, inplace=True)
-
-    def forward(self, x):
-        x = self.conv1(x, output_size=(16, 16))
-        x = self.bnorm1(x)
-        x = self.act(x)  
-        x = self.conv2(x, output_size=(32, 32))
-        x = self.bnorm2(x)
-        x = self.act(x)  
-        x = self.conv3(x, output_size=(64, 64))
-        return x
-
-
 class LandauLifshitzGilbertEmbedding(EmbeddingModel):
-    """Embedding Koopman model for the 2D flow around a cylinder system
+    """Embedding Koopman model for Landau-Lifshitz-Gilbert
     Args:
-        config (PhysConfig): Configuration class with transformer/embedding parameters
+        config (EmbeddingConfig): Configuration class
     """
-    model_name = "embedding_cylinder"
+    model_name = "embedding_landau-lifshitz-gilbert"
 
-    def __init__(self, config: PhysConfig) -> None:
+    def __init__(self, config: Emmbeding) -> None:
         super().__init__(config)
 
         X, Y = np.meshgrid(np.linspace(-2, 14, 128), np.linspace(-4, 4, 64))
@@ -77,8 +42,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             nn.LeakyReLU(0.02, inplace=True),
         )
 
-        print(config.layer_norm_epsilon)
-
         self.observableNetFC = nn.Sequential(
             nn.Linear(128*8*8, 8*8*8),
             nn.LeakyReLU(0.02, inplace=True),
@@ -95,7 +58,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             nn.LeakyReLU(0.02, inplace=True),
         )
 
-        self.recoveryNet = Upscaler()
+        self.recoveryNet = nn.Sequential()
 
         # Learned Koopman operator
         self.kMatrixDiag = nn.Parameter(torch.ones(config.n_embd))
@@ -229,7 +192,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         config (PhysConfig): Configuration class with transformer/embedding parameters
     """
 
-    def __init__(self, config: PhysConfig):
+    def __init__(self, config: Emmbeding):
         """Constructor method
         """
         super().__init__()

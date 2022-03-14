@@ -15,8 +15,6 @@ from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
-## TODO MOVE TO HYDRA 
-
 CONFIG_NAME = "config_trphysx.json"
 
 class PhysConfig(object):
@@ -24,26 +22,7 @@ class PhysConfig(object):
     This is a slimmed version of the pretrainedconfig from the Hugging Face
     repository.
     Args:
-        n_ctx (int): Context window of transformer model.
-        n_embd (int): Dimensionality of the embeddings and hidden states.
-        n_layer (int): Number of hidden layers in the transformer.
-        n_head (int): Number of self-attention heads in each layer.
-        state_dims (List): List of physical state dimensionality. Used in embedding models.
-        activation_function (str, optional): Activation function. Defaults to "gelu_new".
-        resid_pdrop (float, optional):
-            The dropout probability for all fully connected layers in the transformer.
-            Defaults to 0.0.
-        embd_pdrop (float, optional):
-            The dropout ratio for the embeddings. Defaults to 0.0.
-        attn_pdrop (float, optional):
-            The dropout ratio for the multi-head attention. Defaults to 0.0.
-        layer_norm_epsilon (float, optional):
-            The epsilon to use in the layer normalization layers. Defaults to 1e-5.
-        initializer_range (float, optional):
-            The standard deviation for initializing all weight matrices. Defaults to 0.02.
-        output_hidden_states (bool, optional): Output embeddeding states from transformer. Defaults to False.
-        output_attentions (bool, optional): Output attention values from transformer. Defaults to False.
-        use_cache (bool, optional): Store transformers internal state for rapid predictions. Defaults to True.
+    
     Raises:
         AssertionError: If provided parameter is not a config parameter
     """

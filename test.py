@@ -19,7 +19,7 @@ import h5py
 
 from torch.optim.lr_scheduler import ExponentialLR
 
-from config.config_phys import PhysConfig
+from config.config_emmbeding import Emmbeding
 from data_utils.enn_data_handler import LorenzDataHandler
 from embeddings.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
 from embeddings.embedding_model import EmbeddingTrainingHead
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     )
 
     # Set up model
-    cfg = PhysConfig(
+    cfg = Emmbeding(
         n_ctx=64,
         n_embd=embed,
         n_layer=4,

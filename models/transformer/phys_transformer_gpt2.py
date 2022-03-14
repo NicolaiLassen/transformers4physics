@@ -16,7 +16,7 @@ from .attention import MaskedAttention
 from .utils import Conv1D, ACT2FN
 from .phys_transformer_base import PhysformerBase
 from .generate_utils import GenerationMixin
-from config.config_phys import PhysConfig
+from config.config_emmbeding import Emmbeding
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class MLP(nn.Module):
         n_state (int): dimensionality of input features
         config (PhysConfig): Phys-transformer config object
     """
-    def __init__(self, n_state: int, config: PhysConfig) -> None:
+    def __init__(self, n_state: int, config: Emmbeding) -> None:
         """Constructor 
         """
         super().__init__()
@@ -60,7 +60,7 @@ class Block(nn.Module):
         config (PhysConfig): Phys-transformer config object
         scale (bool, optional): Scaled self-attention calculation. Defaults to False.
     """
-    def __init__(self, n_ctx: int, config: PhysConfig, scale: bool = False) -> None:
+    def __init__(self, n_ctx: int, config: Emmbeding, scale: bool = False) -> None:
         """Constructor
         """
         super().__init__()
@@ -117,7 +117,7 @@ class PhysformerGPT2(GenerationMixin, PhysformerBase): # Mixins come first befor
             config (PhysConfig): Phys-transformer config object
             model_name (str, optional): Model name. Defaults to None.
     """
-    def __init__(self, config: PhysConfig, model_name: str = None) -> None:
+    def __init__(self, config: Emmbeding, model_name: str = None) -> None:
         """Constructor        
         """
         PhysformerBase.__init__(self, config)
