@@ -4,6 +4,7 @@ From https://github.com/fletchf/skel
 
 import argparse
 import ast
+import configparser
 from re import X
 
 import h5py
@@ -14,7 +15,6 @@ import torch
 import torch.optim as optim
 
 from config.config_phys import PhysConfig
-from embeddings.embed_config import read_config
 from embeddings.magtense_micro_test_embedding import MicroMagnetEmbedding
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 
@@ -22,6 +22,11 @@ from viz.viz_magnet import MicroMagViz
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 mpl.use('TkAgg')
+
+def read_config(config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    return (config)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

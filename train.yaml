@@ -1,4 +1,10 @@
+# general
+use_wandb: False
 seed: 0
+gpus: 1
+cpus: 1
+num_sampels: 5
+data_dir: '~/data'
 dataset: 'prism_grid_dataset_224.hdf5'
 batch_size: 1
 val_batch_size: 1
@@ -8,17 +14,20 @@ check_val_every_n_epoch: 5
 checkpoint_hist: 1
 workers: 1
 pin_mem: False
-experiment: "koopman_GPT2_0"
+experiment: "koopman_GPT2_0_search"
 project: "v1"
-notes: "local"
-use_wandb: False
-strategy: ['GAN','AE']
+notes: "Staic field"
 
-model:
-  # swin
-  name: 'swin'
-  embbeding: 'koopman'
+autoregressive: 
+  name: "GPT2" 
   pretrained: False
+
+embedding:
+  name: 'koopman'
+  pretrained: False
+  tune: 
+    backbone: ['conv', 'attention']
+     
 
 opt:
   name: 'adamw'

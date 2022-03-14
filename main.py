@@ -1,15 +1,18 @@
-import re
+import os
 from collections import OrderedDict
 from pathlib import Path
 from telnetlib import GA
 from typing import List
+from unicodedata import name
 
 import hydra
 import pytorch_lightning as pl
 import torch
 import wandb
+from omegaconf import DictConfig
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+from ray.tune.integration.pytorch_lightning import TuneReportCallback
 from torch import R, nn, optim
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
@@ -22,6 +25,7 @@ from embeddings.embedding_model import EmbeddingTrainingHead
 from models.transformer.attention import Tensor
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
+from tests.koopman_git_2.utils.trainer import Trainer
 
 # Phys trainer pipeline
 # 1. Train embedding model
@@ -44,109 +48,59 @@ class PhysTrainer(pl.LightningModule):
             self.configure_dataset()
 
         # models
-        self.embedding_model = self.configure_trainer_embedding_model()
-        self.autoregressive_model = self.configure_trainer_autoregressive_model()
+        self.embedding_model = self.configure_embedding_model()
+        # self.autoregressive_model = self.configure_autoregressive_model()
 
     def generate(self, past_tokens, seq_len, **kwargs):
-
-        was_training = self.net.training
-        self.autoregressive_model.eval()
-        self.embedding_model.eval()
-
-        num_dims = len(past_tokens.shape)
-
-        if num_dims == 1:
-            past_tokens = past_tokens[None, :]
-
-        b, t = past_tokens.shape
-
-        out = self.embedding_model.embed(past_tokens)
-
-        # TODO
-        constants_seq = kwargs.pop('constants_seq', None)
-        input_mask = kwargs.pop('input_mask', None)
-
-        if input_mask is None:
-            input_mask = torch.full_like(
-                out, True, dtype=torch.bool, device=out.device)
-
-        for step in range(seq_len):
-
-            # Notify network of constant chagnes to rebase external
-            if constants_seq is not None:
-                constant_embeding = self.embedding_model.recover(
-                    constants_seq[step])
-                # fill attribute for transformer of constants
-
-            x = out[:, -self.max_seq_len:]
-            input_mask = input_mask[:, -self.max_seq_len:]
-
-            outputs = self.autoregressive_model(
-                x, input_mask=input_mask, **kwargs)
-            next_output = outputs[0][:, -1:]
-
-            out = torch.cat((out, next_output), dim=-1)
-
-            input_mask = F.pad(input_mask, (0, 1), value=True)
-
-        if num_dims == 1:
-            out = out.squeeze(0)
-
-        self.net.train(was_training)
-        return out
+        return self.autoregressive_model.generate(past_tokens, seq_len, kwargs)
 
     def forward(self, z):
         return self.autoregressive_model(z)
 
     def configure_dataset(self) -> PhysicalDataset:
+        cfg = self.hparams
+
+        os.path.expanduser(cfg.data_dir)
+
         dataset = MicroMagnetismDataset()
         train_size = int(0.8 * len(dataset))
         val_size = int(0.1 * len(dataset))
         test_size = len(dataset) - train_size - val_size
         return random_split(dataset, [train_size, val_size, test_size])
 
-    def configure_trainer_embedding_model(self) -> EmbeddingTrainingHead:
-        return LandauLifshitzGilbertEmbeddingTrainer()
+    def configure_embedding_model(self) -> EmbeddingTrainingHead:
+        cfg = self.hparams
+        return LandauLifshitzGilbertEmbeddingTrainer(
+            config=cfg.model,
+        )
 
-    def configure_trainer_autoregressive_model(self) -> PhysformerTrain:
+    def configure_autoregressive_model(self) -> PhysformerTrain:
+        cfg = self.hparams
         return PhysformerGPT2()
 
     def configure_optimizers(self):
         cfg = self.hparams
 
         if cfg.opt.name == 'adamw':
-            optimizer_g = optim.AdamW(self.generator.parameters(), lr=cfg.lr.lr,
-                                      betas=(cfg.opt.beta0,
-                                             cfg.opt.beta1), eps=cfg.opt.eps,
-                                      weight_decay=cfg.opt.weight_decay)
-
-            optimizer_d = optim.AdamW(self.discriminator.parameters(), lr=cfg.lr.lr,
-                                      betas=(cfg.opt.beta0,
-                                             cfg.opt.beta1), eps=cfg.opt.eps,
-                                      weight_decay=cfg.opt.weight_decay)
+            optimizer = optim.AdamW(self.generator.parameters(), lr=cfg.lr.lr,
+                                    betas=(cfg.opt.beta0,
+                                           cfg.opt.beta1), eps=cfg.opt.eps,
+                                    weight_decay=cfg.opt.weight_decay)
         else:
             raise NotImplementedError()
 
-        # setup learning rate schedule and starting epoch
         if cfg.lr.sched is not None:
             lr_scheduler = None
+
             if cfg.lr.sched == 'cosine':
                 lr_scheduler_g = optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer_g,
-                    T_max=cfg.lr.epochs,
-                )
-                lr_scheduler_d = optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer_d,
+                    optimizer,
                     T_max=cfg.lr.epochs,
                 )
             elif cfg.lr.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
-                    optimizer_g,
+                    optimizer,
                     milestones=cfg.lr.multistep_milestones
-                )
-                lr_scheduler_d = optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer_d,
-                    T_max=cfg.lr.epochs,
                 )
 
             start_epoch = 0
@@ -155,9 +109,9 @@ class PhysTrainer(pl.LightningModule):
             if lr_scheduler is not None and start_epoch > 0:
                 lr_scheduler.step(start_epoch)
 
-            return [optimizer_g, optimizer_d], [lr_scheduler_g, lr_scheduler_d]
+            return optimizer, lr_scheduler_g
         else:
-            return [optimizer_g, optimizer_d], []
+            return optimizer
 
     def train_dataloader(self):
         return DataLoader(
@@ -198,12 +152,12 @@ class PhysTrainer(pl.LightningModule):
     def test_step(self, batch, batch_idx, optimizer_idx):
         return self.step(batch=batch, batch_idx=batch_idx, mode='test', optimizer_idx=optimizer_idx)
 
-    def step(self, batch, batch_idx, mode, optimizer_idx):
-        x, _, y = batch
+    def step(self, batch, batch_idx, mode):
+        x = batch
+        self.embed_step(x)
 
-        self.embedding_model.train()
-        self.autoregressive_model.train()
-
+    def embed_step(self, x):
+        return self.embedding_model(x)
 
 def train(cfg):
 
@@ -216,34 +170,37 @@ def train(cfg):
             project=cfg.project,
             entity='transformers4physics',
             notes=cfg.notes,
-            config=cfg)
+            config=cfg
+        )
         logger = WandbLogger(log_model=True)
         logger.watch(model)
         wandb.config.update(cfg)
 
-    checkpoint_path = Path(cfg.checkpoint_path)
-
     trainer = pl.Trainer(
+        accumulate_grad_batches=1,
+        gradient_clip_val= 0.1,
         max_epochs=cfg.lr.epochs,
         gpus=1,
         num_nodes=1,
         logger=logger,
         callbacks=[
-            ModelCheckpoint(dirpath=checkpoint_path,
-                            monitor='loss/val', mode='min'),
+            ModelCheckpoint(dirpath=Path(cfg.checkpoint_path),
+             monitor='loss/val', mode='min')
         ],
         check_val_every_n_epoch=cfg.check_val_every_n_epoch,
     )
 
     trainer.fit(model)
-    run.finish()
 
+    if cfg.use_wandb:
+        run.finish()
 
 @hydra.main(config_path=".", config_name="train.yaml")
-def main(cfg):
+def main(cfg: DictConfig):
     pl.seed_everything(cfg.seed)
-    train(cfg)
 
 
 if __name__ == '__main__':
+    # sweep_id = ""
+    # wandb.agent(sweep_id, main, count=5, project="", entity="transformers4physics")
     main()

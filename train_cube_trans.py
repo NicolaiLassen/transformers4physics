@@ -1,5 +1,6 @@
 import argparse
 import ast
+import configparser
 import logging
 import sys
 
@@ -9,13 +10,16 @@ import torch
 from config.args import TrainingArguments
 from config.config_phys import PhysConfig
 from data_utils.dataset_magnet import MicroMagnetismDataset
-from magtense_micro_test.embed_config import read_config
 from magtense_micro_test.magtense_micro_test_embedding import \
     MicroMagnetEmbedding
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
 from tests.koopman_git_2.utils.trainer import Trainer
 
+def read_config(config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    return (config)
 
 from viz.viz_magnet import MicroMagViz
 

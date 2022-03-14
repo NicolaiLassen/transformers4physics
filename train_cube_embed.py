@@ -13,6 +13,7 @@ github: https://github.com/zabaras/transformer-physx
 
 import argparse
 import ast
+import configparser
 import logging
 import sys
 
@@ -23,12 +24,16 @@ from torch.optim.lr_scheduler import ExponentialLR
 
 from config.config_phys import PhysConfig
 from data_utils.enn_data_handler import LorenzDataHandler
-from magtense_micro_test import MicroMagnetEmbeddingTrainer
 import numpy as np
 import argparse
 
 from embeddings.enn_trainer import EmbeddingTrainer
-from magtense_micro_test.embed_config import read_config
+from embeddings.magtense_micro_test_embedding import MicroMagnetEmbeddingTrainer
+
+def read_config(config_path):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    return (config)
 
 
 logger = logging.getLogger(__name__)
