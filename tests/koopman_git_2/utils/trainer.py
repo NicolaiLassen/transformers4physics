@@ -16,11 +16,11 @@ import numpy as np
 
 from typing import Any, Dict, Tuple
 from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
-from transformer.phys_transformer_helpers import PhysformerTrain
+from tests.koopman_git_2.transformer.phys_transformer_helpers import PhysformerTrain
 from config.args import  TrainingArguments
-from data import DataCollator
+from tests.koopman_git_2.data import DataCollator
 from viz.viz_model import Viz
-from embedding.embedding_model import EmbeddingModel
+from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel
 from .metrics import Metrics
 
 logger = logging.getLogger(__name__)

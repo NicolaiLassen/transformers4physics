@@ -9,3 +9,8 @@ tests/koopman_git_2/lorenz_data_test.h5
 tests/run_time_v0/time_graph_v0_model.h5
 tests/run_time_v0/time_graph_v0_magtense.h5
 tests/run_time_v0/__pycache__/swin.cpython-38.pyc
+/checkpoints/**/*
+/magtense_micro_test/**/*.npy
+/magtense_micro_test/**/*.h5
+/log/**/*
+/plots/**/*

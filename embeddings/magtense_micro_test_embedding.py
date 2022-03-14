@@ -26,41 +26,29 @@ FloatTuple = Tuple[float]
 class Upscaler(nn.Module):
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2,
+        self.conv1 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2,
                                         padding=1, padding_mode='zeros')
-        self.bnorm1 = nn.BatchNorm2d(64)
-        self.conv2 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2,
+        self.bnorm1 = nn.BatchNorm2d(32)
+        self.conv2 = nn.ConvTranspose2d(32, 3, kernel_size=3, stride=2,
                                         padding=1, padding_mode='zeros')
-        self.bnorm2 = nn.BatchNorm2d(32)
-        self.conv3 = nn.ConvTranspose2d(32, 3, kernel_size=5, stride=2,
-                                        padding=2, padding_mode='zeros')
         self.act = nn.LeakyReLU(0.02, inplace=True)
 
     def forward(self, x):
-        x = self.conv1(x, output_size=(16, 16))
+        x = self.conv1(x, output_size=(18, 18))
         x = self.bnorm1(x)
         x = self.act(x)  
-        x = self.conv2(x, output_size=(32, 32))
-        x = self.bnorm2(x)
-        x = self.act(x)  
-        x = self.conv3(x, output_size=(64, 64))
+        x = self.conv2(x, output_size=(36, 36))
         return x
 
 
-class LandauLifshitzGilbertEmbedding(EmbeddingModel):
-    """Embedding Koopman model for the 2D flow around a cylinder system
-    Args:
-        config (PhysConfig): Configuration class with transformer/embedding parameters
-    """
-    model_name = "embedding_cylinder"
+class MicroMagnetEmbedding(EmbeddingModel):
+    """ Stable Koopman Embedding model for Landau Lifshitz Gilbert system """
 
     def __init__(self, config: PhysConfig) -> None:
         super().__init__(config)
 
-        X, Y = np.meshgrid(np.linspace(-2, 14, 128), np.linspace(-4, 4, 64))
-        self.mask = torch.tensor(np.sqrt(X**2 + Y**2) < 1, dtype=torch.bool)
+        self.obsdim = config.n_embd
 
-        # Encoder conv. net
         self.observableNet = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=5, stride=2,
                       padding=2, padding_mode='zeros'),
@@ -70,27 +58,19 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                       padding=1, padding_mode='zeros'),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.02, inplace=True),
-            nn.Conv2d(64, 128, kernel_size=3, stride=2,
-                      padding=1, padding_mode='zeros'),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.02, inplace=True),
         )
 
-        print(config.layer_norm_epsilon)
-
         self.observableNetFC = nn.Sequential(
-            nn.Linear(128*8*8, 8*8*8),
+            nn.Linear(64*9*9, 8*8*8),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(8*8*8, config.n_embd),
             nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon),
-            # nn.BatchNorm1d(config.n_embd, eps=config.layer_norm_epsilon),
-            nn.Dropout(config.embd_pdrop)
         )
 
         self.recoveryNetFC = nn.Sequential(
             nn.Linear(config.n_embd, 8*8*8),
             nn.LeakyReLU(1.0, inplace=True),
-            nn.Linear(8*8*8, 128*8*8),
+            nn.Linear(8*8*8, 64*9*9),
             nn.LeakyReLU(0.02, inplace=True),
         )
 
@@ -102,15 +82,14 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         # Off-diagonal indices
         xidx = []
         yidx = []
-        for i in range(1, 5):
-            yidx.append(np.arange(i, self.obsdim))
-            xidx.append(np.arange(0, self.obsdim-i))
+        for i in range(1, 10):
+            yidx.append(np.arange(i, self.config.n_embd))
+            xidx.append(np.arange(0, self.config.n_embd - i))
+
         self.xidx = torch.LongTensor(np.concatenate(xidx))
         self.yidx = torch.LongTensor(np.concatenate(yidx))
+        self.kMatrixUT = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
 
-        # The matrix here is a small NN since we need to make it dependent on the viscosity
-        self.kMatrixUT = nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
-        self.kMatrixLT = nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.tensor(0.))
         self.register_buffer('std', torch.tensor(1.))
@@ -118,30 +97,28 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     def forward(self, x: Tensor) -> TensorTuple:
         """Forward pass
         Args:
-            x (Tensor): [B, 3, H, W] Input feature tensor
-            visc (Tensor): [B] Viscosities of the fluid in the mini-batch
+            x (Tensor): [B, 2, H, W, D] Input feature tensor
         Returns:
-            (TensorTuple): Tuple containing:
+            TensorTuple: Tuple containing:
                 | (Tensor): [B, config.n_embd] Koopman observables
-                | (Tensor): [B, 3, H, W] Recovered feature tensor
+                | (Tensor): [B, 2, H, W, D] Recovered feature tensor
         """
+        # Encode
         x = self._normalize(x)
         g0 = self.observableNet(x)
         g = self.observableNetFC(g0.view(g0.size(0), -1))
         # Decode
-        out0 = self.recoveryNetFC(g).view(-1, 128, 8, 8)
+        out0 = self.recoveryNetFC(g).view(-1, 64, 9, 9)
         out = self.recoveryNet(out0)
         xhat = self._unnormalize(out)
-       
         return g, xhat
 
     def embed(self, x: Tensor) -> Tensor:
         """Embeds tensor of state variables to Koopman observables
         Args:
-            x (Tensor): [B, 3, H, W] Input feature tensor
-            visc (Tensor): [B] Viscosities of the fluid in the mini-batch
+            x (Tensor): [B, 2, H, W, D] Input feature tensor
         Returns:
-            (Tensor): [B, config.n_embd] Koopman observables
+            Tensor: [B, config.n_embd] Koopman observables
         """
         x = self._normalize(x)
         g0 = self.observableNet(x)
@@ -153,31 +130,28 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
         Returns:
-            (Tensor): [B, 3, H, W] Physical feature tensor
+            (Tensor): [B, 2, H, W, D] Physical feature tensor
         """
-        out = self.recoveryNetFC(g).view(-1, 128, 8, 8)
+        out = self.recoveryNetFC(g).view(-1, 64, 9, 9)
         out = self.recoveryNet(out)
         x = self._unnormalize(out)
         return x
 
-    def koopmanOperation(self, g: Tensor, visc: Tensor) -> Tensor:
+    def koopmanOperation(self, g: Tensor) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
-            visc (Tensor): [B] Viscosities of the fluid in the mini-batch
         Returns:
-            Tensor: [B, config.n_embd] Koopman observables at the next time-step
+            (Tensor): [B, config.n_embd] Koopman observables at the next time-step
         """
         # Koopman operator
         kMatrix = Variable(torch.zeros(
             g.size(0), self.config.n_embd, self.config.n_embd)).to(self.devices[0])
         # Populate the off diagonal terms
-        kMatrix[:,self.xidx, self.yidx] = self.kMatrixUT(100*visc)
-        kMatrix[:,self.yidx, self.xidx] = self.kMatrixLT(100*visc)
-
+        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT
+        kMatrix[:, self.yidx, self.xidx] = -self.kMatrixUT
         # Populate the diagonal
         ind = np.diag_indices(kMatrix.shape[1])
-        self.kMatrixDiag = self.kMatrixDiagNet(100*visc)
         kMatrix[:, ind[0], ind[1]] = self.kMatrixDiag
 
         # Apply Koopman operation
@@ -208,15 +182,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         return x
 
-    def _unnormalize(self, x: Tensor) -> Tensor:
-        return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)*x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-
-    @property
-    def koopmanDiag(self):
-        return self.kMatrixDiag
+    def _unnormalize(self, x):
+        return self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
 
-class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
+class MicroMagnetEmbeddingTrainer(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
     Args:
         config (PhysConfig): Configuration class with transformer/embedding parameters
@@ -226,7 +196,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         """Constructor method
         """
         super().__init__()
-        self.embedding_model = LandauLifshitzGilbertEmbedding(config)
+        self.embedding_model = MicroMagnetEmbedding(config)
 
     def forward(self, states: Tensor) -> FloatTuple:
         """Trains model for a single epoch

@@ -8,16 +8,16 @@ github: https://github.com/zabaras/transformer-physx
 =====
 """
 import logging
+
 import h5py
 import torch
-from typing import Optional
 from tests.koopman_git_2.data.dataset_phys import PhysicalDataset
 from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel
 
 logger = logging.getLogger(__name__)
 
-class LorenzDataset(PhysicalDataset):
-    """Dataset for the Lorenz numerical example
+class MicroMagnetismDataset(PhysicalDataset):
+    """Dataset for the 
     """
     def embed_data(self, h5_file: h5py.File, embedder: EmbeddingModel) -> None:
         """Embeds lorenz data into a 1D vector representation for the transformer.
@@ -28,9 +28,8 @@ class LorenzDataset(PhysicalDataset):
         # Iterate through stored time-series
         samples = 0
         for key in h5_file.keys():
-            data_series = torch.Tensor(h5_file[key]).to(embedder.devices[0]).view([-1] + embedder.input_dims)
+            data_series = torch.Tensor(h5_file[key]).to(embedder.devices[0])
             with torch.no_grad():
-                print(data_series.shape)
                 embedded_series = embedder.embed(data_series).cpu()
 
             # Stride over time-series
