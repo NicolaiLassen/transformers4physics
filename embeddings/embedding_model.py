@@ -7,12 +7,14 @@ doi:
 github: https://github.com/zabaras/transformer-physx
 =====
 """
-import os
 import logging
+import os
+from abc import abstractmethod
+
 import torch
 import torch.nn as nn
-from abc import abstractmethod
 from config.config_phys import PhysConfig
+from this import d
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +30,10 @@ class EmbeddingModel(nn.Module):
     def __init__(self, config: PhysConfig):
         super().__init__()
         self.config = config
+
+    def rebase_external(self, c):
+        """ Used to map some known functional change to the embed"""
+        raise NotImplementedError("rebase_external function has not been properly overridden")
 
     @abstractmethod
     def embed(self, x):

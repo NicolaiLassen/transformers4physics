@@ -4,7 +4,6 @@ import logging
 import sys
 
 import numpy as np
-from pytorch_lightning import Trainer
 import torch
 
 from config.args import TrainingArguments
@@ -15,6 +14,7 @@ from magtense_micro_test.magtense_micro_test_embedding import \
     MicroMagnetEmbedding
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
+from tests.koopman_git_2.utils.trainer import Trainer
 
 
 from viz.viz_magnet import MicroMagViz

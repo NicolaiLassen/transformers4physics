@@ -1,3 +1,4 @@
+from tkinter import N
 from torch import Tensor, nn
 import torch
 import numpy as np
@@ -111,6 +112,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         # The matrix here is a small NN since we need to make it dependent on the viscosity
         self.kMatrixUT = nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
         self.kMatrixLT = nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
+
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.tensor(0.))
         self.register_buffer('std', torch.tensor(1.))
@@ -119,7 +121,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         """Forward pass
         Args:
             x (Tensor): [B, 3, H, W] Input feature tensor
-            visc (Tensor): [B] Viscosities of the fluid in the mini-batch
+            field (Tensor): [B] the current external field
         Returns:
             (TensorTuple): Tuple containing:
                 | (Tensor): [B, config.n_embd] Koopman observables
@@ -139,7 +141,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         """Embeds tensor of state variables to Koopman observables
         Args:
             x (Tensor): [B, 3, H, W] Input feature tensor
-            visc (Tensor): [B] Viscosities of the fluid in the mini-batch
         Returns:
             (Tensor): [B, config.n_embd] Koopman observables
         """
@@ -164,7 +165,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
-            visc (Tensor): [B] Viscosities of the fluid in the mini-batch
         Returns:
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
@@ -185,6 +185,13 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.kMatrix = kMatrix
 
         return gnext.squeeze(-1)  # Squeeze empty dim from bmm
+
+    def rebase_external(self, c) -> None:
+        """ Rebase current external variables
+            args:
+                c (Tensor): [B, field] 
+        """
+        return super().rebase_external(c)
 
     @property
     def koopmanOperator(self, requires_grad: bool = True) -> Tensor:
@@ -253,6 +260,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         loss_reconstruct = loss_reconstruct + mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
+        
         # Loop through time-series
         for t0 in range(1, states.shape[1]):
             xin0 = states[:, t0, :, :].to(device)  # Next time-step
