@@ -26,9 +26,3 @@ model = TwinsSVT(
     peg_kernel_size = 3,      # positional encoding generator kernel size
     dropout = 0.              # dropout
 )
-
-img = torch.randn(1, 3, 224, 224)
-
-pred = model(img) # (1, 1000)
-
-print(pred)

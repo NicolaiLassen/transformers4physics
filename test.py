@@ -26,6 +26,7 @@ from embeddings.embedding_model import EmbeddingTrainingHead
 import numpy as np
 
 from embeddings.enn_trainer import EmbeddingTrainer
+from vit_pytorch.twins_svt import TwinsSVT
 
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,43 @@ if __name__ == '__main__':
     lr = 1e-3
     epochs = 200
     embed = 32
+
+    data = np.load("./data/cube36_2d.npy").squeeze()
+    data = data.swapaxes(1,2).reshape(500,3,36,36)
+    data = data.swapaxes(2,3)
+    print(data.shape)
+
+    model = TwinsSVT(
+        num_classes = 1000,       # number of output classes
+        s1_emb_dim = 64,          # stage 1 - patch embedding projected dimension
+        s1_patch_size = 3,        # stage 1 - patch size for patch embedding
+        s1_local_patch_size = 3,  # stage 1 - patch size for local attention
+        s1_global_k = 3,          # stage 1 - global attention key / value reduction factor, defaults to 7 as specified in paper
+        s1_depth = 1,             # stage 1 - number of transformer blocks (local attn -> ff -> global attn -> ff)
+        s2_emb_dim = 128,         # stage 2 (same as above)
+        s2_patch_size = 2,
+        s2_local_patch_size = 3,
+        s2_global_k = 3,
+        s2_depth = 1,
+        s3_emb_dim = 256,         # stage 3 (same as above)
+        s3_patch_size = 1,
+        s3_local_patch_size = 1,
+        s3_global_k = 1,
+        s3_depth = 5,
+        s4_emb_dim = 512,         # stage 4 (same as above)
+        s4_patch_size = 2,
+        s4_local_patch_size = 1,
+        s4_global_k = 1,
+        s4_depth = 4,
+        peg_kernel_size = 3,      # positional encoding generator kernel size
+        dropout = 0.              # dropout
+    )
+
+    td = torch.from_numpy(data).float()
+
+    model(td)
+
+    exit(0)
 
     # Setup logging
     logging.basicConfig(
