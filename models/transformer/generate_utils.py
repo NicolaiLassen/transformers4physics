@@ -144,7 +144,7 @@ class GenerationMixin:
             )
 
             outputs = self.forward(**model_inputs)
-
+            
             next_output = outputs[0][:,-1:]
 
             if self._use_cache(outputs, use_cache):

@@ -1,53 +1,81 @@
-from collections import OrderedDict
 import re
-from telnetlib import GA
-import wandb
+from collections import OrderedDict
 from pathlib import Path
-import hydra
+from telnetlib import GA
 
-from torch import optim
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
-from torch.utils.data import random_split
+import hydra
 import pytorch_lightning as pl
 import torch
-from example_code.plot import sample_check
-from models.swin_transformer import SwinTransformer
-from util.magtense.prism_grid import PrismGridDataset, create_dataset
-
+import wandb
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from torch import nn
+from torch import nn, optim
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, random_split
 
 
-class Moment2Field(pl.LightningModule):
+class PhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
         self.save_hyperparameters(cfg)
-
-        # TODO Select strat
         cfg.strategy
-
-        dataset = PrismGridDataset()
-        dataset.open_hdf5(
-            "\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset_224.hdf5")
 
         train_size = int(0.8 * len(dataset))
         val_size = int(0.1 * len(dataset))
         test_size = len(dataset) - train_size - val_size
 
+        self.embedding_model = func()
+        self.autoregressive_model = func()
+
         self.train_dataset, self.val_dataset, self.test_dataset = \
             random_split(dataset, [train_size, val_size, test_size])
 
-        self.discriminator = SwinTransformer(in_chans=4, depths=[2, 2], num_heads=[1, 2], num_classes=4*224*244)
-        self.generator = SwinTransformer(in_chans=4, depths=[2, 2], num_heads=[1, 2], num_classes=1)
+    def generate(self, past_tokens, seq_len, **kwargs):
+        was_training = self.net.training
 
-    def adversarial_loss(self, y_hat, y):
-        return F.binary_cross_entropy(y_hat, y)
+        num_dims = len(past_tokens.shape)
+
+        if num_dims == 1:
+            past_tokens = past_tokens[None, :]
+
+        b, t = past_tokens.shape
+
+        self.autoregressive_model.eval()
+
+        out = past_tokens
+
+        input_mask = kwargs.pop('input_mask', None)
+
+        if input_mask is None:
+            input_mask = torch.full_like(out, True, dtype=torch.bool, device=out.device)
+
+        for _ in range(seq_len):
+            x = out[:, -self.max_seq_len:]
+            input_mask = input_mask[:, -self.max_seq_len:]
+
+            outputs = self.autoregressive_model(x, input_mask=input_mask, **kwargs)
+            next_output = outputs[0][:,-1:]
+
+            out = torch.cat((out, next_output), dim=-1)
+
+            input_mask = F.pad(input_mask, (0, 1), value=True)
+
+        out = out[:, t:]
+
+        if num_dims == 1:
+            out = out.squeeze(0)
+
+        self.net.train(was_training)
+        return out
+
+    ## train embed
+
+    ## train auto regressive
+
 
     def forward(self, z):
-        return self.generator(z)
+        return self.autoregressive_model(z)
 
     def configure_optimizers(self):
         cfg = self.hparams
@@ -135,48 +163,12 @@ class Moment2Field(pl.LightningModule):
         return self.step(batch=batch, batch_idx=batch_idx, mode='test', optimizer_idx=optimizer_idx)
 
     def step(self, batch, batch_idx, mode, optimizer_idx):
-
+        
         x, _, y = batch
-
-        if optimizer_idx == 0:
-
-            # generate images
-            y_hat = self(x)
-
-            # ground truth result (ie: all fake)
-            # put on GPU because we created this tensor inside training_loop
-            valid = torch.ones(y.size(0), 1)
-
-            # adversarial loss is binary cross-entropy
-            g_loss = self.adversarial_loss(self.discriminator(self(y_hat)), valid)
-            tqdm_dict = {"g_loss": g_loss}
-            output = OrderedDict({"loss": g_loss, "progress_bar": tqdm_dict, "log": tqdm_dict})
-
-            return output
-    
-        if optimizer_idx == 1:
-            # Measure discriminator's ability to classify real from generated samples
-
-            # how well can it label as real?
-            valid = torch.ones(y.size(0), 1)
-
-            real_loss = self.adversarial_loss(self.discriminator(y), valid)
-
-            # how well can it label as fake?
-            fake = torch.zeros(y.size(0), 1)
-
-            fake_loss = self.adversarial_loss(self.discriminator(self(x).detach()), fake)
-
-            # discriminator loss is the average of these
-            d_loss = (real_loss + fake_loss) / 2
-            tqdm_dict = {"d_loss": d_loss}
-            output = OrderedDict({"loss": d_loss, "progress_bar": tqdm_dict, "log": tqdm_dict})
-
-            return output
   
 def train(cfg):
 
-    model = Moment2Field(cfg)
+    model = PhysTrainer(cfg)
 
     logger = None
     if cfg.use_wandb:
@@ -209,32 +201,9 @@ def train(cfg):
 
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg):
-    print(cfg)
     pl.seed_everything(cfg.seed)
+    train(cfg)
 
-    net = N2H(cfg)
-
-    dataset = PrismGridDataset()
-    dataset.open_hdf5(
-            "\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\data\\prism_grid_dataset_224.hdf5")
-
-    net(dataset.x[:2])
-    pytorch_total_params = sum(p.numel() for p in net.parameters())
-    print(pytorch_total_params)
-
-    # train(cfg)
-
-
-from matplotlib import pyplot as plt
-import seaborn as sns; sns.set_theme()
-def showNorm(imageOut):
-    ax = sns.heatmap(imageOut[3], cmap="mako")
-    ax.invert_yaxis()
-    plt.show()
-
-
-## SETUP TRAINER HERE
 
 if __name__ == '__main__':
     main()
-    # create_dataset(rows=[4,7,8,14], square_grid=True, res=224)

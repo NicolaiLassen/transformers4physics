@@ -8,8 +8,8 @@ check_val_every_n_epoch: 5
 checkpoint_hist: 1
 workers: 1
 pin_mem: False
-experiment: "plain_swin_0.0.1"
-project: "v0"
+experiment: "koopman_GPT2_0"
+project: "v1"
 notes: "local"
 use_wandb: False
 strategy: ['GAN','AE']
