@@ -91,8 +91,8 @@ class MicroMagnetEmbedding(EmbeddingModel):
         self.kMatrixUT = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
 
         # Normalization occurs inside the model
-        self.register_buffer('mu', torch.tensor(0.))
-        self.register_buffer('std', torch.tensor(1.))
+        self.register_buffer('mu', torch.zeros(3))
+        self.register_buffer('std', torch.ones(3))
 
     def forward(self, x: Tensor) -> TensorTuple:
         """Forward pass
