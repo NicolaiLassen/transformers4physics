@@ -1,20 +1,12 @@
 import os
-from collections import OrderedDict
 from pathlib import Path
-from telnetlib import GA
-from typing import List
-from unicodedata import name
 
 import hydra
 import pytorch_lightning as pl
-import torch
 import wandb
 from omegaconf import DictConfig
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from ray.tune.integration.pytorch_lightning import TuneReportCallback
-from torch import R, nn, optim
-from torch.nn import functional as F
 from torch.utils.data import DataLoader, random_split
 
 from data_utils.dataset_magnet import MicroMagnetismDataset
@@ -159,6 +151,7 @@ class PhysTrainer(pl.LightningModule):
     def embed_step(self, x):
         return self.embedding_model(x)
 
+
 def train(cfg):
 
     model = PhysTrainer(cfg)
@@ -178,14 +171,14 @@ def train(cfg):
 
     trainer = pl.Trainer(
         accumulate_grad_batches=1,
-        gradient_clip_val= 0.1,
+        gradient_clip_val=0.1,
         max_epochs=cfg.lr.epochs,
         gpus=1,
         num_nodes=1,
         logger=logger,
         callbacks=[
             ModelCheckpoint(dirpath=Path(cfg.checkpoint_path),
-             monitor='loss/val', mode='min')
+                            monitor='loss/val', mode='min')
         ],
         check_val_every_n_epoch=cfg.check_val_every_n_epoch,
     )
@@ -194,6 +187,7 @@ def train(cfg):
 
     if cfg.use_wandb:
         run.finish()
+
 
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):

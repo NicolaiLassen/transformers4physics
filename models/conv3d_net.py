@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
-from models.swish import Swish
+
+import torch.nn.functional as F
 
 class ConvMToH(nn.Module):
-    def __init__(self, res=224, in_channels=4, hidden_channels=[16, 32, 64], kernel_size=[4,4,3]):
+    def __init__(self, res=224, in_channels=4, hidden_channels=[16, 32, 64], kernel_size=[4, 4, 3]):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Conv3d(
@@ -11,19 +12,19 @@ class ConvMToH(nn.Module):
                 out_channels=hidden_channels[0],
                 kernel_size=kernel_size[0],
             ),
-            Swish(),
+            F.silu,
             nn.Conv3d(
                 in_channels=hidden_channels[0],
                 out_channels=hidden_channels[1],
                 kernel_size=kernel_size[1],
             ),
-            Swish(),
+            F.silu,
             nn.Conv3d(
                 in_channels=hidden_channels[1],
                 out_channels=hidden_channels[2],
                 kernel_size=kernel_size[2],
             ),
-            Swish(),
+            F.silu,
         )
         self.decoder = nn.Sequential(
             nn.ConvTranspose3d(
@@ -31,13 +32,13 @@ class ConvMToH(nn.Module):
                 out_channels=hidden_channels[1],
                 kernel_size=kernel_size[2],
             ),
-            Swish(),
+            F.silu,
             nn.ConvTranspose3d(
                 in_channels=hidden_channels[1],
                 out_channels=hidden_channels[0],
                 kernel_size=kernel_size[1],
             ),
-            Swish(),
+            F.silu,
             nn.ConvTranspose3d(
                 in_channels=hidden_channels[0],
                 out_channels=in_channels,

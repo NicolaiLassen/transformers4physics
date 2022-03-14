@@ -25,9 +25,7 @@ import torch
 
 mpl.use('agg')
 
-
 Tensor = torch.Tensor
-
 
 class MicroMagViz(Viz):
     def __init__(self, plot_dir: str = None) -> None:

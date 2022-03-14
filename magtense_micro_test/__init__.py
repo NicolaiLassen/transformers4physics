@@ -1,1 +1,0 @@
-from .magtense_micro_test_embedding import MicroMagnetEmbedding, MicroMagnetEmbeddingTrainer
