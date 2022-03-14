@@ -11,14 +11,17 @@ import logging
 
 import h5py
 import torch
-from tests.koopman_git_2.data.dataset_phys import PhysicalDataset
-from tests.koopman_git_2.embedding.embedding_model import EmbeddingModel
+from embeddings.embedding_model import EmbeddingModel
+
+from data_utils.dataset_phys import PhysicalDataset
 
 logger = logging.getLogger(__name__)
+
 
 class MicroMagnetismDataset(PhysicalDataset):
     """Dataset for the 
     """
+
     def embed_data(self, h5_file: h5py.File, embedder: EmbeddingModel) -> None:
         """Embeds lorenz data into a 1D vector representation for the transformer.
         Args:
@@ -40,12 +43,15 @@ class MicroMagnetismDataset(PhysicalDataset):
                 self.examples.append(data_series0)
 
                 if self.eval:
-                    self.states.append(data_series[i: i + self.block_size].cpu())
+                    self.states.append(
+                        data_series[i: i + self.block_size].cpu())
 
             samples = samples + 1
-            if (self.ndata > 0 and samples >= self.ndata):  # If we have enough time-series samples break loop
+            # If we have enough time-series samples break loop
+            if (self.ndata > 0 and samples >= self.ndata):
                 break
 
         logger.info(
-            'Collected {:d} time-series from hdf5 file. Total of {:d} time-series.'.format(samples, len(self.examples))
-            )
+            'Collected {:d} time-series from hdf5 file. Total of {:d} time-series.'.format(
+                samples, len(self.examples))
+        )

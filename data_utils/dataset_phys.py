@@ -11,14 +11,14 @@ import logging
 import os
 import pickle
 import time
-import h5py
-
-import torch
-from typing import Dict
 from abc import abstractmethod
+from typing import Dict
+
+import h5py
+import torch
+from embeddings.embedding_model import EmbeddingModel
 from filelock import FileLock
 from torch.utils.data.dataset import Dataset
-from ..embedding.embedding_model import EmbeddingModel
 
 logger = logging.getLogger(__name__)
 
