@@ -39,10 +39,29 @@ class MicroMagViz(Viz):
         b = b.swapaxes(0, 1).reshape(3, 36, 36).swapaxes(1, 2)
         self.coords = b
 
-    def plotPrediction(self,
+    def plotPrediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
+        def _plot(y, seq_len, title):
+            plt.clf()
+            plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,0,:,:].reshape(seq_len,-1), axis=1), 'rx')
+            plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,1,:,:].reshape(seq_len,-1), axis=1), 'gx')
+            plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,2,:,:].reshape(seq_len,-1), axis=1), 'bx')
+            plt.title(title)
+            plt.grid()
+            plt.show()
+
+        timescale = 1 if kwargs['timescale'] is None else kwargs['timescale']
+        # Convert to numpy array
+        y_pred = y_pred.detach().cpu().numpy()
+        y_target = y_target.detach().cpu().numpy()
+        res = y_pred.shape[2]*y_pred.shape[3]
+        seq_len = y_pred.shape[0]
+
+        _plot(y_target, seq_len, 'Target')
+        _plot(y_pred, seq_len, 'Pred')
+
+    def makeGif(self,
                        y_pred: Tensor,
-                       y_target: Tensor,
-                       plot_dir: str = None,
+                       plot_name: str = None,
                        epoch: int = None,
                        pid: int = 0
                        ) -> None:
@@ -51,7 +70,6 @@ class MicroMagViz(Viz):
         Y = self.coords[1]
         # Convert to numpy array
         y_pred = y_pred.detach().cpu().numpy()
-        y_target = y_target.detach().cpu().numpy()
 
         plt.close('all')
         mpl.rcParams['font.family'] = ['serif']  # default is sans-serif
@@ -78,11 +96,7 @@ class MicroMagViz(Viz):
         else:
             file_name = 'microMagPredict{:d}.gif'.format(pid)
 
-        if plot_dir is None:
-            plot_dir = self.plot_dir
-            f = '{}/{}'.format(plot_dir, file_name)
-        else:
-            f = '{}/{}'.format(self.plot_dir, plot_dir)
+        f = '{}/{}'.format(self.plot_dir, plot_name)
         writergif = animation.PillowWriter(fps=30)
         anim.save(f, writer=writergif)
 

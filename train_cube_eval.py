@@ -15,9 +15,7 @@ import torch.optim as optim
 
 from config.config_phys import PhysConfig
 from embeddings.embed_config import read_config
-from embeddings.magtense_micro_test_embedding import \
-    MicroMagnetEmbeddingTrainer
-
+from embeddings.magtense_micro_test_embedding import MicroMagnetEmbedding
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 
 from viz.viz_magnet import MicroMagViz
@@ -48,7 +46,7 @@ if __name__ == '__main__':
         activation_function=cfg_tsf['activation_function'],
         initializer_range=cfg_tsf.getfloat('initializer_range'),
     )
-    model = MicroMagnetEmbeddingTrainer(
+    model = MicroMagnetEmbedding(
         config
     )
     model.load_model(
@@ -61,7 +59,7 @@ if __name__ == '__main__':
     transformer.load_model(cfg_eval['transformer_model_path'])
 
     viz = MicroMagViz(plot_dir=cfg_tsf['plot_dir'])
-    viz.setCoords(cfg_tsf['viz_coords_path'])
+    # viz.setCoords(cfg_tsf['viz_coords_path'])
 
     f = h5py.File(cfg_eval['data'], 'r')
     data = f['dataset_1']
@@ -70,6 +68,7 @@ if __name__ == '__main__':
         model = model.to(device)
         asd = len(data)
         data = torch.tensor(data, dtype=torch.float).cuda()
+
 
         Z = model.embed(data)
         Z_trans_in = Z[0:init_embeds].unsqueeze(0)
@@ -80,9 +79,11 @@ if __name__ == '__main__':
         test_transform = model.recover(Z_trans)
         test_recon = model.recover(model.embed(data))
 
-        viz.plotPrediction(test_transform.clone().detach(), data.clone(
-        ).detach(), plot_dir='pred_init_embeds_{}.gif'.format(init_embeds))
-        viz.plotPrediction(data.clone().detach(),
-                           data.clone().detach(), plot_dir='target.gif')
-        viz.plotPrediction(test_recon.clone().detach(), data.clone(
-        ).detach(), plot_dir='recon.gif'.format(init_embeds))
+        # viz.plotPrediction(test_transform.clone().detach(), data.clone(
+        # ).detach(), plot_dir='pred_init_embeds_{}.gif'.format(init_embeds))
+        # viz.plotPrediction(data.clone().detach(),
+        #                    data.clone().detach(), plot_dir='target.gif')
+        # viz.plotPrediction(test_recon.clone().detach(), data.clone(
+        # ).detach(), plot_dir='recon.gif'.format(init_embeds))
+        viz.plotPrediction(test_transform.clone().detach(),
+                           data.clone().detach(), timescale=2e-9)

@@ -14,3 +14,5 @@ tests/run_time_v0/__pycache__/swin.cpython-38.pyc
 /magtense_micro_test/**/*.h5
 /log/**/*
 /plots/**/*
+*.pyc
+**/__pycache__
