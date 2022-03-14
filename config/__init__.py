@@ -1,3 +1,3 @@
 __all__ = ['args']
 
-from .config_emmbeding import Emmbeding
+from .config_emmbeding import EmmbedingConfig

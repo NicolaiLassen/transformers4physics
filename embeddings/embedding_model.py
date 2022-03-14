@@ -13,7 +13,7 @@ from abc import abstractmethod
 
 import torch
 import torch.nn as nn
-from config.config_emmbeding import Emmbeding
+from config.config_emmbeding import EmmbedingConfig
 from this import d
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ class EmbeddingModel(nn.Module):
     model_name: str = "embedding_model"
 
     # Init config
-    def __init__(self, config: Emmbeding):
+    def __init__(self, config: EmmbedingConfig):
         super().__init__()
         self.config = config
 

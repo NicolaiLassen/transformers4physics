@@ -11,7 +11,8 @@ import logging
 from typing import Dict, List, Tuple, Union
 
 import torch
-from config.config_emmbeding import Emmbeding
+from config.config_autoregressive import AutoregressiveConfig
+from config.config_emmbeding import EmmbedingConfig
 from torch import nn
 
 from .phys_transformer_base import PhysformerBase
@@ -28,7 +29,7 @@ class PhysformerTrain(PhysformerBase):
         transformer_model (PhysformerBase): Initialized transformer model
     """
 
-    def __init__(self, config: Emmbeding, transformer_model: PhysformerBase = None) -> None:
+    def __init__(self, config: AutoregressiveConfig, transformer_model: PhysformerBase = None) -> None:
         """Constructor
         """
         super().__init__(config)

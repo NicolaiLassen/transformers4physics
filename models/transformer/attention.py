@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 from typing import List
 from .utils import Conv1D
-from config.config_emmbeding import Emmbeding
+from config.config_emmbeding import EmmbedingConfig
 
 Tensor = torch.Tensor
 
@@ -31,7 +31,7 @@ class MaskedAttention(nn.Module):
         self, 
         nx: int, 
         n_ctx: int, 
-        config: Emmbeding, 
+        config: EmmbedingConfig, 
         scale: bool  = False, 
         mask: str = 'tril'
     ) -> None:

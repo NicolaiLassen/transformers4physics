@@ -1,6 +1,8 @@
+import imp
 import os
 from pathlib import Path
 
+from torch import optim
 import hydra
 import pytorch_lightning as pl
 import wandb
@@ -14,10 +16,8 @@ from data_utils.dataset_phys import PhysicalDataset
 from embeddings.embedding_landau_lifshitz_gilbert import \
     LandauLifshitzGilbertEmbeddingTrainer
 from embeddings.embedding_model import EmbeddingTrainingHead
-from models.transformer.attention import Tensor
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
-from tests.koopman_git_2.utils.trainer import Trainer
 
 # Phys trainer pipeline
 # 1. Train embedding model

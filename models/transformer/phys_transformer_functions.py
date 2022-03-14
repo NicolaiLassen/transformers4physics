@@ -7,11 +7,12 @@ doi:
 github: https://github.com/zabaras/transformer-physx
 =====
 """
-import math
 import logging
+import math
+from typing import Callable
+
 import torch
 import torch.nn.functional as F
-from typing import Callable
 from torch import nn
 
 logger = logging.getLogger(__name__)
@@ -55,12 +56,10 @@ def gelu_new(x: Tensor) -> Tensor:
     """
     return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
-
 def gelu_fast(x):
     """ Faster approximate form of GELU activation function
     """
     return 0.5 * x * (1.0 + torch.tanh(x * 0.7978845608 * (1.0 + 0.044715 * x * x)))
-
 
 def mish(x: Tensor) -> Tensor:
     """Mish activation function

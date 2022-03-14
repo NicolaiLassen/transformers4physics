@@ -2,7 +2,7 @@ from typing import List, Tuple
 
 import numpy as np
 import torch
-from config.config_emmbeding import Emmbeding
+from config.config_emmbeding import EmmbedingConfig
 from torch import Tensor, nn
 from torch.autograd import Variable
 
@@ -20,7 +20,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     """
     model_name = "embedding_landau-lifshitz-gilbert"
 
-    def __init__(self, config: Emmbeding) -> None:
+    def __init__(self, config: EmmbedingConfig) -> None:
         super().__init__(config)
 
         X, Y = np.meshgrid(np.linspace(-2, 14, 128), np.linspace(-4, 4, 64))
@@ -192,7 +192,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         config (PhysConfig): Configuration class with transformer/embedding parameters
     """
 
-    def __init__(self, config: Emmbeding):
+    def __init__(self, config: EmmbedingConfig):
         """Constructor method
         """
         super().__init__()

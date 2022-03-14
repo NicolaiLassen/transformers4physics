@@ -9,14 +9,16 @@ github: https://github.com/zabaras/transformer-physx
 """
 import logging
 from typing import List
+
 import torch
+from config.config_autoregressive import AutoregressiveConfig
+from config.config_emmbeding import EmmbedingConfig
 from torch import nn
 
 from .attention import MaskedAttention
-from .utils import Conv1D, ACT2FN
-from .phys_transformer_base import PhysformerBase
 from .generate_utils import GenerationMixin
-from config.config_emmbeding import Emmbeding
+from .phys_transformer_base import PhysformerBase
+from .phys_transformer_functions import ACT2FN, Conv1D
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class MLP(nn.Module):
         n_state (int): dimensionality of input features
         config (PhysConfig): Phys-transformer config object
     """
-    def __init__(self, n_state: int, config: Emmbeding) -> None:
+    def __init__(self, n_state: int, config: EmmbedingConfig) -> None:
         """Constructor 
         """
         super().__init__()
@@ -60,7 +62,7 @@ class Block(nn.Module):
         config (PhysConfig): Phys-transformer config object
         scale (bool, optional): Scaled self-attention calculation. Defaults to False.
     """
-    def __init__(self, n_ctx: int, config: Emmbeding, scale: bool = False) -> None:
+    def __init__(self, n_ctx: int, config: EmmbedingConfig, scale: bool = False) -> None:
         """Constructor
         """
         super().__init__()
@@ -117,7 +119,7 @@ class PhysformerGPT2(GenerationMixin, PhysformerBase): # Mixins come first befor
             config (PhysConfig): Phys-transformer config object
             model_name (str, optional): Model name. Defaults to None.
     """
-    def __init__(self, config: Emmbeding, model_name: str = None) -> None:
+    def __init__(self, config: AutoregressiveConfig, model_name: str = None) -> None:
         """Constructor        
         """
         PhysformerBase.__init__(self, config)
