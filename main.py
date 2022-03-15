@@ -1,15 +1,16 @@
-from distutils.command.config import config
+from msilib.schema import Error
 import os
+from distutils.command.config import config
 from pathlib import Path
 
 import hydra
 import pytorch_lightning as pl
-import wandb
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 
+import wandb
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from data_utils.dataset_magnet import MicroMagnetismDataset
@@ -22,12 +23,13 @@ from models.transformer.phys_transformer_helpers import PhysformerTrain
 
 # Phys trainer pipeline
 # 1. Train embedding model
-# 2. Train transformer model
+# 2. Load embedding model & Train transformer model
 
 # Phys gen pipeline
 # 1. load embedding model & transformer
 # 2. feed transformer with past tokens and set of constants c_1, c_2 ... c_N , N = max_seq_len
 
+EMBED_TRANING_ERROR = Error("Cannot use autoregressive model when traning embed")
 
 class PhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
@@ -42,12 +44,20 @@ class PhysTrainer(pl.LightningModule):
 
         # models
         self.embedding_model = self.configure_embedding_model()
-        # self.autoregressive_model = self.configure_autoregressive_model()
+
+        if not cfg["train_embed"]:
+            self.autoregressive_model = self.configure_autoregressive_model()
 
     def generate(self, past_tokens, seq_len, **kwargs):
+        if not self.hparams["train_embed"]:
+            raise EMBED_TRANING_ERROR
+
         return self.autoregressive_model.generate(past_tokens, seq_len, kwargs)
 
     def forward(self, z):
+        if not self.hparams["train_embed"]:
+            raise EMBED_TRANING_ERROR
+
         return self.autoregressive_model(z)
 
     def configure_dataset(self) -> PhysicalDataset:
@@ -63,14 +73,16 @@ class PhysTrainer(pl.LightningModule):
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
+        ## TODO
         return LandauLifshitzGilbertEmbeddingTrainer(
-            EmmbedingConfig(cfg.parameters)
+            EmmbedingConfig(cfg.wfewfwe)
         )
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
+        ## TODO
         return PhysformerGPT2(
-            AutoregressiveConfig(cfg.parameters)
+            AutoregressiveConfig(cfg.wfewf)
         )
 
     def configure_optimizers(self):
@@ -149,10 +161,16 @@ class PhysTrainer(pl.LightningModule):
 
     def step(self, batch, batch_idx, mode):
         x = batch
-        self.embed_step(x, mode)
+        if self.hparams["train_embed"]:
+            return self.embed_step(x, mode)
+        else:
+            return self.autoregressive_step(x, mode)
+
+    def autoregressive_step():
+        print
+        return 0
 
     def embed_step(self, x, mode):
-
         loss, loss_reconstruct = self.embedding_model(x)
         self.log_dict({
             f'loss/{mode}': loss.item(),
@@ -204,9 +222,10 @@ def sweep_embedding(cfg):
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
+        cfg["train_embed"] = True
 
         # TODO SET PARAMS FROM SWEEP
-        cfg
+        train(cfg)
 
 
 def sweep_autoregressive(cfg):
@@ -225,11 +244,14 @@ def sweep_autoregressive(cfg):
 def main(cfg):
 
     if cfg.use_sweep:
-        for sweep in [{"id": "", "func": sweep_embedding}, {"id": "", "func": sweep_autoregressive}]:
-            wandb.agent(sweep["id"], sweep["func"], count=10,
-                        project="v1", entity="transformers4physics")
+        # sweep_embedding
+        wandb.agent("", sweep_embedding, count=100,
+                    project="v1", entity="transformers4physics")
+        # sweep_autoregressive
+        # TODO
     else:
         train(cfg)
+
 
 if __name__ == '__main__':
     # wandb sweep sweep_embed.yaml
