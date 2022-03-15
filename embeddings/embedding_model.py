@@ -14,7 +14,6 @@ from abc import abstractmethod
 import torch
 import torch.nn as nn
 from config.config_phys import PhysConfig
-from this import d
 
 logger = logging.getLogger(__name__)
 

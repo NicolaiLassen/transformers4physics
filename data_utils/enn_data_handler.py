@@ -111,7 +111,7 @@ class LorenzDataHandler(EmbeddingDataHandler):
             # Iterate through stored time-series
             samples = 0
             for key in f.keys():
-                data_series = torch.Tensor(f[key])
+                data_series = torch.Tensor(np.array(f[key]))
                 # Stride over time-series
                 for i in range(0,  data_series.size(0) - block_size + 1, stride):  # Truncate in block of block_size
                     examples.append(data_series[i : i + block_size].unsqueeze(0))
@@ -165,7 +165,7 @@ class LorenzDataHandler(EmbeddingDataHandler):
             # Iterate through stored time-series
             samples = 0
             for key in f.keys():
-                data_series = torch.Tensor(f[key])
+                data_series = torch.Tensor(np.array(f[key]))
                 # Stride over time-series
                 for i in range(0,  data_series.size(0) - block_size + 1, block_size):  # Truncate in block of block_size
                     examples.append(data_series[i : i + block_size].unsqueeze(0))
