@@ -14,7 +14,6 @@ from abc import abstractmethod
 import torch
 import torch.nn as nn
 from config.config_emmbeding import EmmbedingConfig
-from this import d
 
 logger = logging.getLogger(__name__)
 

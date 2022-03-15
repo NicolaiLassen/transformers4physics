@@ -8,12 +8,13 @@ github: https://github.com/zabaras/transformer-physx
 =====
 """
 import logging
-import os, sys
+import os
+import sys
 from abc import abstractmethod
 
 import torch
+from models.transformer.phys_transformer_functions import Conv1D
 from torch import nn
-from .utils import  Conv1D
 
 logger = logging.getLogger(__name__)
 

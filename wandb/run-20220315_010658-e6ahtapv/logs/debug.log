@@ -1,0 +1,145 @@
+2022-03-15 01:06:58,458 INFO    Thread-19 :3976 [wandb_setup.py:_flush():75] Loading settings from C:\Users\nicol\.config\wandb\settings
+2022-03-15 01:06:58,458 INFO    Thread-19 :3976 [wandb_setup.py:_flush():75] Loading settings from wandb\settings
+2022-03-15 01:06:58,458 INFO    Thread-19 :3976 [wandb_setup.py:_flush():75] Loading settings from environment variables: {'root_dir': 'C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics', 'entity': 'transformers4physics', 'project': 'v1', 'run_id': 'e6ahtapv', 'sweep_param_path': 'C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\wandb\\sweep-bqztx6il\\config-e6ahtapv.yaml', 'sweep_id': 'bqztx6il'}
+2022-03-15 01:06:58,458 INFO    Thread-19 :3976 [wandb_setup.py:_flush():75] Inferring run settings from compute environment: {'program_relpath': 'main.py', 'program': 'c:/Users/nicol/OneDrive/Desktop/master/transformers4physics/main.py'}
+2022-03-15 01:06:58,459 INFO    Thread-19 :3976 [wandb_init.py:_log_setup():386] Logging user logs to C:\Users\nicol\OneDrive\Desktop\master\transformers4physics\wandb\run-20220315_010658-e6ahtapv\logs\debug.log
+2022-03-15 01:06:58,459 INFO    Thread-19 :3976 [wandb_init.py:_log_setup():387] Logging internal logs to C:\Users\nicol\OneDrive\Desktop\master\transformers4physics\wandb\run-20220315_010658-e6ahtapv\logs\debug-internal.log
+2022-03-15 01:06:58,459 INFO    Thread-19 :3976 [wandb_init.py:init():420] calling init triggers
+2022-03-15 01:06:58,459 INFO    Thread-19 :3976 [wandb_init.py:init():425] wandb.init called with sweep_config: {'dataset': 'cifar10'}
+config: {}
+2022-03-15 01:06:58,459 INFO    Thread-19 :3976 [wandb_init.py:init():471] starting backend
+2022-03-15 01:06:58,459 INFO    Thread-19 :3976 [backend.py:_multiprocessing_setup():99] multiprocessing start_methods=spawn, using: spawn
+2022-03-15 01:06:58,461 INFO    Thread-19 :3976 [backend.py:ensure_launched():219] starting backend process...
+2022-03-15 01:06:58,543 INFO    Thread-19 :3976 [backend.py:ensure_launched():224] started backend process with pid: 12752
+2022-03-15 01:06:58,544 INFO    Thread-19 :3976 [wandb_init.py:init():480] backend started and connected
+2022-03-15 01:06:58,544 INFO    Thread-19 :3976 [wandb_run.py:_config_callback():966] config_cb None None {'dataset': 'cifar10'}
+2022-03-15 01:06:58,545 INFO    Thread-19 :3976 [wandb_init.py:init():550] updated telemetry
+2022-03-15 01:06:58,591 INFO    Thread-19 :3976 [wandb_init.py:init():581] communicating current version
+2022-03-15 01:07:00,347 INFO    Thread-19 :3976 [wandb_init.py:init():586] got version response upgrade_message: "wandb version 0.12.11 is available!  To upgrade, please run:\n $ pip install wandb --upgrade"
+
+2022-03-15 01:07:00,349 INFO    Thread-19 :3976 [wandb_init.py:init():596] communicating run to backend with 30 second timeout
+2022-03-15 01:07:00,594 INFO    Thread-19 :3976 [wandb_init.py:init():624] starting run threads in backend
+2022-03-15 01:07:05,620 INFO    Thread-19 :3976 [wandb_run.py:_console_start():1827] atexit reg
+2022-03-15 01:07:05,620 INFO    Thread-19 :3976 [wandb_run.py:_redirect():1701] redirect: SettingsConsole.WRAP
+2022-03-15 01:07:05,620 INFO    Thread-19 :3976 [wandb_run.py:_redirect():1738] Wrapping output streams.
+2022-03-15 01:07:05,622 INFO    Thread-19 :3976 [wandb_run.py:_redirect():1762] Redirects installed.
+2022-03-15 01:07:05,622 INFO    Thread-19 :3976 [wandb_init.py:init():651] run started, returning control to user process
+2022-03-15 01:07:05,623 INFO    Thread-19 :3976 [wandb_run.py:finish():1468] finishing run transformers4physics/v1/e6ahtapv
+2022-03-15 01:07:05,623 INFO    Thread-19 :3976 [wandb_run.py:_atexit_cleanup():1797] got exitcode: 0
+2022-03-15 01:07:05,623 INFO    Thread-19 :3976 [wandb_run.py:_restore():1769] restore
+2022-03-15 01:07:08,329 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+}
+pusher_stats {
+}
+
+2022-03-15 01:07:08,939 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 1
+}
+pusher_stats {
+  uploaded_bytes: 854
+  total_bytes: 854
+}
+
+2022-03-15 01:07:09,646 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 1
+}
+pusher_stats {
+  uploaded_bytes: 854
+  total_bytes: 854
+}
+
+2022-03-15 01:07:09,757 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 854
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:09,866 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 854
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:09,976 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13807
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,086 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,195 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,304 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,415 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,523 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,631 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:10,947 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+
+2022-03-15 01:07:11,448 INFO    Thread-19 :3976 [wandb_run.py:_wait_for_finish():1929] got exit ret: done: true
+exit_result {
+}
+file_counts {
+  wandb_count: 6
+}
+pusher_stats {
+  uploaded_bytes: 13856
+  total_bytes: 13856
+}
+local_info {
+}
+
+2022-03-15 01:14:11,566 ERROR   Thread-7  :3976 [internal_api.py:execute():143] 404 response executing GraphQL.
+2022-03-15 01:14:11,566 ERROR   Thread-7  :3976 [internal_api.py:execute():144] {"errors":[{"message":"could not find agent uen4rfke during agentHeartbeat","path":["agentHeartbeat"]}],"data":{"agentHeartbeat":null}}

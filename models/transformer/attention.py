@@ -9,9 +9,9 @@ github: https://github.com/zabaras/transformer-physx
 """
 import torch
 import torch.nn as nn
-from typing import List
-from .utils import Conv1D
 from config.config_emmbeding import EmmbedingConfig
+from models.transformer.phys_transformer_functions import Conv1D
+from typing import List
 
 Tensor = torch.Tensor
 

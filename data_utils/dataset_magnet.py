@@ -23,11 +23,12 @@ class MicroMagnetismDataset(PhysicalDataset):
     """
 
     def embed_data(self, h5_file: h5py.File, embedder: EmbeddingModel) -> None:
-        """Embeds lorenz data into a 1D vector representation for the transformer.
+        """Embeds micro magnet data into a 1D vector representation for the transformer.
         Args:
             h5_file (h5py.File): HDF5 file object of raw data
             embedder (EmbeddingModel): Embedding neural network
         """
+        
         # Iterate through stored time-series
         samples = 0
         for key in h5_file.keys():

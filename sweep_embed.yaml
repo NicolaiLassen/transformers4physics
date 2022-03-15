@@ -1,10 +1,32 @@
 program: train.py
+name: embedding_sweep
+entity: transformers4physics
+project: v1
 method: random
 metric:
-  goal: maximize
-  name: val_accuracy
+  goal: minimize
+  name: loss/val
 parameters:
-    distribution: q_int_uniform
-    q: 1
-    max: 128
-    min: 32
+  backbone: 
+    values: ['conv', 'attention']
+  
+
+#
+ndata_train: -1
+batch_size_train: 64
+block_size_train: 4
+stride_train: 4
+
+ndata_eval: 6
+batch_size_eval: 16
+block_size_eval: 32
+
+epochs: 300
+lr: 1e-3
+seed: 2
+epoch_start: 0
+save_steps: 50
+
+
+command:
+  - ${args_no_hyphens}

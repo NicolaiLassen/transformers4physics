@@ -1,16 +1,17 @@
-import imp
+from distutils.command.config import config
 import os
 from pathlib import Path
 
-from torch import optim
 import hydra
 import pytorch_lightning as pl
 import wandb
-from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+from torch import optim
 from torch.utils.data import DataLoader, random_split
 
+from config.config_autoregressive import AutoregressiveConfig
+from config.config_emmbeding import EmmbedingConfig
 from data_utils.dataset_magnet import MicroMagnetismDataset
 from data_utils.dataset_phys import PhysicalDataset
 from embeddings.embedding_landau_lifshitz_gilbert import \
@@ -63,12 +64,14 @@ class PhysTrainer(pl.LightningModule):
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
         return LandauLifshitzGilbertEmbeddingTrainer(
-            config=cfg.model,
+            EmmbedingConfig(cfg.parameters)
         )
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
-        return PhysformerGPT2()
+        return PhysformerGPT2(
+            AutoregressiveConfig(cfg.parameters)
+        )
 
     def configure_optimizers(self):
         cfg = self.hparams
@@ -101,7 +104,7 @@ class PhysTrainer(pl.LightningModule):
             if lr_scheduler is not None and start_epoch > 0:
                 lr_scheduler.step(start_epoch)
 
-            return optimizer, lr_scheduler_g
+            return [optimizer], [lr_scheduler_g]
         else:
             return optimizer
 
@@ -146,14 +149,21 @@ class PhysTrainer(pl.LightningModule):
 
     def step(self, batch, batch_idx, mode):
         x = batch
-        self.embed_step(x)
+        self.embed_step(x, mode)
 
-    def embed_step(self, x):
-        return self.embedding_model(x)
+    def embed_step(self, x, mode):
+
+        loss, loss_reconstruct = self.embedding_model(x)
+        self.log_dict({
+            f'loss/{mode}': loss.item(),
+            f'err/{mode}': err.item(),
+        })
+        return loss
 
 
 def train(cfg):
 
+    pl.seed_everything(cfg.seed)
     model = PhysTrainer(cfg)
 
     logger = None
@@ -189,12 +199,39 @@ def train(cfg):
         run.finish()
 
 
-@hydra.main(config_path=".", config_name="train.yaml")
-def main(cfg: DictConfig):
-    pl.seed_everything(cfg.seed)
+def sweep_embedding(cfg):
+    # wandb sweep sweep_embed.yaml
+    sweep = None
+    with wandb.init(config=sweep):
+        sweep = wandb.config
 
+        # TODO SET PARAMS FROM SWEEP
+        cfg
+
+
+def sweep_autoregressive(cfg):
+    # wandb sweep autoregressive.yaml
+    sweep = None
+    with wandb.init(config=sweep):
+        sweep = wandb.config
+
+        # use best embedding model
+        # TOOD SET PARAMS FROM SWEEP
+        # overwrite standard params
+        cfg
+
+
+@hydra.main(config_path=".", config_name="train.yaml")
+def main(cfg):
+
+    if cfg.use_sweep:
+        for sweep in [{"id": "", "func": sweep_embedding}, {"id": "", "func": sweep_autoregressive}]:
+            wandb.agent(sweep["id"], sweep["func"], count=10,
+                        project="v1", entity="transformers4physics")
+    else:
+        train(cfg)
 
 if __name__ == '__main__':
-    # sweep_id = ""
-    # wandb.agent(sweep_id, main, count=5, project="", entity="transformers4physics")
+    # wandb sweep sweep_embed.yaml
+    # wandb sweep autoregressive.yaml
     main()
