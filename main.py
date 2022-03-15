@@ -1,7 +1,9 @@
-from msilib.schema import Error
 import os
 from distutils.command.config import config
+from msilib.schema import Error
 from pathlib import Path
+
+from omegaconf import DictConfig
 
 import hydra
 import pytorch_lightning as pl
@@ -20,6 +22,7 @@ from embeddings.embedding_landau_lifshitz_gilbert import \
 from embeddings.embedding_model import EmbeddingTrainingHead
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
+from util.config_formater import sweep_decorate_config
 
 # Phys trainer pipeline
 # 1. Train embedding model
@@ -29,7 +32,9 @@ from models.transformer.phys_transformer_helpers import PhysformerTrain
 # 1. load embedding model & transformer
 # 2. feed transformer with past tokens and set of constants c_1, c_2 ... c_N , N = max_seq_len
 
-EMBED_TRANING_ERROR = Error("Cannot use autoregressive model when traning embed")
+EMBED_TRANING_ERROR = Error(
+    "Cannot use autoregressive model when traning embed")
+
 
 class PhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
@@ -37,6 +42,7 @@ class PhysTrainer(pl.LightningModule):
 
         # hyper
         self.save_hyperparameters(cfg)
+        self.train_embed = cfg.train_embed
 
         # dataset
         self.train_dataset, self.val_dataset, self.test_dataset = \
@@ -45,19 +51,18 @@ class PhysTrainer(pl.LightningModule):
         # models
         self.embedding_model = self.configure_embedding_model()
 
-        if not cfg["train_embed"]:
+        if not self.train_embed:
             self.autoregressive_model = self.configure_autoregressive_model()
 
     def generate(self, past_tokens, seq_len, **kwargs):
-        if not self.hparams["train_embed"]:
+        if self.train_embed:
             raise EMBED_TRANING_ERROR
 
         return self.autoregressive_model.generate(past_tokens, seq_len, kwargs)
 
     def forward(self, z):
-        if not self.hparams["train_embed"]:
+        if self.train_embed:
             raise EMBED_TRANING_ERROR
-
         return self.autoregressive_model(z)
 
     def configure_dataset(self) -> PhysicalDataset:
@@ -73,14 +78,14 @@ class PhysTrainer(pl.LightningModule):
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
-        ## TODO
+        # TODO
         return LandauLifshitzGilbertEmbeddingTrainer(
             EmmbedingConfig(cfg.wfewfwe)
         )
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
-        ## TODO
+        # TODO
         return PhysformerGPT2(
             AutoregressiveConfig(cfg.wfewf)
         )
@@ -88,8 +93,13 @@ class PhysTrainer(pl.LightningModule):
     def configure_optimizers(self):
         cfg = self.hparams
 
+        model_parameters = self.embedding_model.parameters() if self.train_embed \
+            else self.autoregressive_model
+
+        if cfg.opt.name == 'admin':
+            optimizer = optim.Adam(model_parameters, lr=cfg.lr.lr)
         if cfg.opt.name == 'adamw':
-            optimizer = optim.AdamW(self.generator.parameters(), lr=cfg.lr.lr,
+            optimizer = optim.AdamW(model_parameters, lr=cfg.lr.lr,
                                     betas=(cfg.opt.beta0,
                                            cfg.opt.beta1), eps=cfg.opt.eps,
                                     weight_decay=cfg.opt.weight_decay)
@@ -107,7 +117,7 @@ class PhysTrainer(pl.LightningModule):
             elif cfg.lr.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
                     optimizer,
-                    milestones=cfg.lr.multistep_milestones
+                    milestones=cfg.lr.multistep_milestones,
                 )
 
             start_epoch = 0
@@ -217,31 +227,26 @@ def train(cfg):
         run.finish()
 
 
-def sweep_embedding(cfg):
-    # wandb sweep sweep_embed.yaml
-    sweep = None
-    with wandb.init(config=sweep):
-        sweep = wandb.config
-        cfg["train_embed"] = True
-
-        # TODO SET PARAMS FROM SWEEP
-        train(cfg)
-
-
-def sweep_autoregressive(cfg):
+def sweep_autoregressive(cfg: DictConfig):
     # wandb sweep autoregressive.yaml
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
+        cfg = sweep_decorate_config(cfg, sweep)
+        train(cfg)
 
-        # use best embedding model
-        # TOOD SET PARAMS FROM SWEEP
-        # overwrite standard params
-        cfg
+def sweep_embedding(cfg: DictConfig):
+    # wandb sweep sweep_embed.yaml
+    sweep = None
+    with wandb.init(config=sweep):
+        sweep = wandb.config
+        cfg.train_embed = True
+        cfg = sweep_decorate_config(cfg, sweep)
+        train(cfg)
 
 
 @hydra.main(config_path=".", config_name="train.yaml")
-def main(cfg):
+def main(cfg: DictConfig):
 
     if cfg.use_sweep:
         # sweep_embedding

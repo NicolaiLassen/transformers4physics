@@ -25,10 +25,13 @@ class EmbeddingModel(nn.Module):
     """
     model_name: str = "embedding_model"
 
-    # Init config
     def __init__(self, config: EmmbedingConfig):
         super().__init__()
         self.config = config
+        
+        """ If model is pretrained load the model and parameters """
+        if (self.config.pretrained):
+            self.load_model(self.config.ckpt_path)
 
     def rebase_external(self, c):
         """ Used to map some known functional change to the embed"""
@@ -111,13 +114,19 @@ class EmbeddingModel(nn.Module):
         Raises:
             FileNotFoundError: If provided file or directory could not be found.
         """
+    
         if os.path.isfile(file_or_path_directory):
             logger.info('Loading embedding model from file: {}'.format(file_or_path_directory))
             self.load_state_dict(torch.load(file_or_path_directory, map_location=lambda storage, loc: storage))
+            self.config["parameters"] = {}
+            logger.info('Embedding model parameters: {}'.format(self.config["parameters"]))
         elif  os.path.isdir(file_or_path_directory):
             file_path = os.path.join(file_or_path_directory, "{}{:d}.pth".format(self.model_name, epoch))
             logger.info('Loading embedding model from file: {}'.format(file_path))
             self.load_state_dict(torch.load(file_path, map_location=lambda storage, loc: storage))
+            self.config["parameters"] = {}
+            logger.info('Embedding model parameters: {}'.format(self.config["parameters"]))
+        
         else:
             raise FileNotFoundError("Provided path or file ({}) does not exist".format(file_or_path_directory))
 

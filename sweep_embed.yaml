@@ -7,26 +7,20 @@ metric:
   goal: minimize
   name: loss/val
 parameters:
-  backbone: 
-    values: ['conv', 'attention']
+  embedding__backbone: 
+    values: ['conv', 'att']
+  embedding__observable_net:
+    values: ["()", "()"]
+  embedding__recovery_net:
+    values: ["()", "()"]
   
-
-#
-ndata_train: -1
-batch_size_train: 64
-block_size_train: 4
-stride_train: 4
-
-ndata_eval: 6
-batch_size_eval: 16
-block_size_eval: 32
-
-epochs: 300
-lr: 1e-3
-seed: 2
-epoch_start: 0
-save_steps: 50
-
-
+  learning__sched: 
+    values: ['multistep', 'cosine']
+  learning__learning_rate: 
+    min: 0.00001
+    max: 0.01
+  opt__name:
+    values: ["adamw"]
+  
 command:
   - ${args_no_hyphens}

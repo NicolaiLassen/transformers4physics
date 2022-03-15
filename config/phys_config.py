@@ -1,7 +1,7 @@
-import os
+import copy
 import json
 import logging
-import copy
+import os
 from re import S
 from typing import Dict, Tuple
 
@@ -21,8 +21,11 @@ class PhysConfig(object):
     def __init__(self, **kwargs) -> None:
         print(kwargs)
         self.config_name = kwargs.pop("config_name", "")
+        self.pretrained = kwargs.pop("pretrained", False)
+        self.ckpt_path = kwargs.pop("ckpt_path", "")
 
         # Additional attributes without default values
+
         self.check_configs(kwargs)
     
     def check_configs(self, **kwargs):

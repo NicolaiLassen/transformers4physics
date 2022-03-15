@@ -19,12 +19,19 @@ experiment: "koopman_GPT2_0_search"
 project: "v1"
 notes: "Staic field"
 
-autoregressive: 
-  name: "GPT2" 
-
 embedding:
   name: 'koopman'
   pretrained: False
+  ckpt_path: ""
+  backbone: "att"
+  observable_net: "<conv>"
+  recovery_net: "<conv>"
+
+autoregressive: 
+  name: "GPT2" 
+  pretrained: False
+  ckpt_path: ""
+  model: []
 
 opt:
   name: 'adamw'
@@ -36,9 +43,9 @@ opt:
   clip_grad: null
   clip_mode: 'norm'
 
-lr:
+learning:
   sched: 'cosine'
-  lr: 1e-3
+  learning_rate: 1e-3
   noise: null
   noise_pct: 0.67
   noise_std: 1.0
