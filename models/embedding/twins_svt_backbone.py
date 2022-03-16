@@ -6,6 +6,8 @@ from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 from torch import einsum, nn
 
+from models.embedding.embedding_backbone import EmbeddingBackbone
+
 # helper methods
 
 def group_dict_by_key(cond, d):
@@ -183,7 +185,7 @@ class Transformer(nn.Module):
             x = ff2(x)
         return x
 
-class ParameterizedTwinsSVT(nn.Module):
+class TwinsSVTBackbone(EmbeddingBackbone):
     def __init__(
         self,
         peg_kernel_size = 3,
@@ -219,10 +221,10 @@ class ParameterizedTwinsSVT(nn.Module):
             nn.Linear(dim, num_classes)
         )
 
-    def down(self, x):
+    def observableNet(self, x):
         return self.layers(x)
 
-    def down(self, x):
+    def recoveryNet(self, x):
          return self.layers(x)
 
     def forward(self, x):

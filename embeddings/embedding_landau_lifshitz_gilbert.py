@@ -1,11 +1,15 @@
 from re import S
-from typing import List, Tuple
+from turtle import st
+from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
-from models.parameterized import (conv_down, conv_up, swin_down, swin_up,
-                                  twinSVT_down, twinSVT_up, vit_down, vit_up)
+from models.embedding.conv_backbone import ConvBackbone
+from models.embedding.embedding_backbone import EmbeddingBackbone
+from models.embedding.swin_backbone import SwinBackbone
+from models.embedding.twins_svt_backbone import TwinsSVTBackbone
+from models.embedding.vit_backbone import ViTBackbone
 from torch import Tensor, nn
 from torch.autograd import Variable
 
@@ -16,18 +20,11 @@ Tensor = torch.Tensor
 TensorTuple = Tuple[torch.Tensor]
 FloatTuple = Tuple[float]
 
-parameterized_observable_net = {
-    "conv": conv_down,
-    "swin": swin_down,
-    "twinSWT": twinSVT_down,
-    "vit": vit_down
-}
-
-parameterized_recovery_net = {
-    "conv": conv_up,
-    "swin": swin_up,
-    "twinSWT": twinSVT_up,
-    "vit": vit_up
+backbone_models: Dict[str, EmbeddingBackbone] = {
+    "conv": ConvBackbone,
+    "swin": SwinBackbone,
+    "twinSWT": TwinsSVTBackbone,
+    "vit": ViTBackbone
 }
 
 
@@ -41,19 +38,13 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     def __init__(self, config: EmmbedingConfig) -> None:
         super().__init__(config)
 
-        if config.backbone not in parameterized_observable_net.keys:
+        if config.backbone not in backbone_models.keys:
             raise NotImplementedError(
                 "The {} backbone is not suppported".format(config.backbone))
 
-        self.observableNet = parameterized_observable_net[config.backbone](config.image_dim, config.unet_dim)
-        # calc obs
-        self.observableNetFC = nn.Sequential()
+        self.backbone: EmbeddingBackbone = backbone_models[config.backbone](
+            config.image_dim, config.unet_dim)
 
-        # calc fc from u down
-        self.recoveryNetFC = nn.Sequential()
-
-        self.recoveryNet = parameterized_recovery_net[config.backbone](config.image_dim, config.unet_dim)
-        
         # Learned Koopman operator
         self.kMatrixDiag = nn.Parameter(torch.ones(config.n_embd))
 
@@ -87,11 +78,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 | (Tensor): [B, 3, H, W] Recovered feature tensor
         """
         x = self._normalize(x)
-        g0 = self.observableNet(x)
-        g = self.observableNetFC(g0.view(g0.size(0), -1))
+        g0 = self.backbone.observableNet(x)
+        g = self.backbone.observableNetFC(g0.view(g0.size(0), -1))
         # Decode
-        out0 = self.recoveryNetFC(g)
-        out = self.recoveryNet(out0)
+        out0 = self.backbone.recoveryNetFC(g)
+        out = self.backbone.recoveryNet(out0)
         xhat = self._unnormalize(out)
 
         return g, xhat
@@ -104,8 +95,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             (Tensor): [B, config.n_embd] Koopman observables
         """
         x = self._normalize(x)
-        g0 = self.observableNet(x)
-        g = self.observableNetFC(g0.view(g0.size(0), -1))
+        g0 = self.backbone.observableNet(x)
+        g = self.backbone.observableNetFC(g0)
         return g
 
     def recover(self, g: Tensor) -> Tensor:
@@ -115,12 +106,12 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             (Tensor): [B, 3, H, W] Physical feature tensor
         """
-        out = self.recoveryNetFC(g).view(-1, 128, 8, 8)
-        out = self.recoveryNet(out)
+        out = self.backbone.recoveryNetFC(g)
+        out = self.backbone.observableNet(x)
         x = self._unnormalize(out)
         return x
 
-    def koopmanOperation(self, g: Tensor, visc: Tensor) -> Tensor:
+    def koopmanOperation(self, g: Tensor) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
@@ -131,12 +122,12 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         kMatrix = Variable(torch.zeros(
             g.size(0), self.config.n_embd, self.config.n_embd)).to(self.devices[0])
         # Populate the off diagonal terms
-        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT(100*visc)
-        kMatrix[:, self.yidx, self.xidx] = self.kMatrixLT(100*visc)
+        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT(100)
+        kMatrix[:, self.yidx, self.xidx] = self.kMatrixLT(100)
 
         # Populate the diagonal
         ind = np.diag_indices(kMatrix.shape[1])
-        self.kMatrixDiag = self.kMatrixDiagNet(100*visc)
+        self.kMatrixDiag = self.kMatrixDiagNet(100)
         kMatrix[:, ind[0], ind[1]] = self.kMatrixDiag
 
         # Apply Koopman operation
