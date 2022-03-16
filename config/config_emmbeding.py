@@ -14,4 +14,7 @@ class EmmbedingConfig(PhysConfig):
     model_type: str = ""
 
     def __init__(self, **kwargs) -> None:
-        print(kwargs)
+        self.image_dim = kwargs.pop("image_dim", (32, 32))
+        self.backbone = kwargs.pop("backbone", "conv")
+        self.unet_dim = kwargs.pop("unet_dim", 128)
+        self.embed_dim = kwargs.pop("embed_dim", 128)  

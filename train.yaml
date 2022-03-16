@@ -23,15 +23,15 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: ""
-  backbone: "att"
-  observable_net: "<conv>"
-  recovery_net: "<conv>"
+  backbone: "conv"
+  ae_dim: 128
+  embed_dim: 128
 
 autoregressive: 
   name: "GPT2" 
   pretrained: False
   ckpt_path: ""
-  model: []
+
 
 opt:
   name: 'adamw'

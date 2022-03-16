@@ -35,7 +35,6 @@ from util.config_formater import sweep_decorate_config
 EMBED_TRANING_ERROR = Error(
     "Cannot use autoregressive model when traning embed")
 
-
 class PhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
@@ -80,14 +79,14 @@ class PhysTrainer(pl.LightningModule):
         cfg = self.hparams
         # TODO
         return LandauLifshitzGilbertEmbeddingTrainer(
-            EmmbedingConfig(cfg.wfewfwe)
+            EmmbedingConfig(cfg.embedding)
         )
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
         # TODO
         return PhysformerGPT2(
-            AutoregressiveConfig(cfg.wfewf)
+            AutoregressiveConfig(cfg.autoregressive)
         )
 
     def configure_optimizers(self):

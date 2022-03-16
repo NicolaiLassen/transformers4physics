@@ -1,8 +1,11 @@
+from re import S
 from typing import List, Tuple
 
 import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
+from models.parameterized import (conv_down, conv_up, swin_down, swin_up,
+                                  twinSVT_down, twinSVT_up, vit_down, vit_up)
 from torch import Tensor, nn
 from torch.autograd import Variable
 
@@ -12,6 +15,21 @@ from embeddings.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 Tensor = torch.Tensor
 TensorTuple = Tuple[torch.Tensor]
 FloatTuple = Tuple[float]
+
+parameterized_observable_net = {
+    "conv": conv_down,
+    "swin": swin_down,
+    "twinSWT": twinSVT_down,
+    "vit": vit_down
+}
+
+parameterized_recovery_net = {
+    "conv": conv_up,
+    "swin": swin_up,
+    "twinSWT": twinSVT_up,
+    "vit": vit_up
+}
+
 
 class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     """Embedding Koopman model for Landau-Lifshitz-Gilbert
@@ -23,43 +41,19 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     def __init__(self, config: EmmbedingConfig) -> None:
         super().__init__(config)
 
-        X, Y = np.meshgrid(np.linspace(-2, 14, 128), np.linspace(-4, 4, 64))
-        self.mask = torch.tensor(np.sqrt(X**2 + Y**2) < 1, dtype=torch.bool)
+        if config.backbone not in parameterized_observable_net.keys:
+            raise NotImplementedError(
+                "The {} backbone is not suppported".format(config.backbone))
 
-        # Encoder conv. net
-        self.observableNet = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=5, stride=2,
-                      padding=2, padding_mode='zeros'),
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(0.02, inplace=True),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2,
-                      padding=1, padding_mode='zeros'),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.02, inplace=True),
-            nn.Conv2d(64, 128, kernel_size=3, stride=2,
-                      padding=1, padding_mode='zeros'),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.02, inplace=True),
-        )
+        self.observableNet = parameterized_observable_net[config.backbone](config.image_dim, config.unet_dim)
+        # calc obs
+        self.observableNetFC = nn.Sequential()
 
-        self.observableNetFC = nn.Sequential(
-            nn.Linear(128*8*8, 8*8*8),
-            nn.LeakyReLU(0.02, inplace=True),
-            nn.Linear(8*8*8, config.n_embd),
-            nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon),
-            # nn.BatchNorm1d(config.n_embd, eps=config.layer_norm_epsilon),
-            nn.Dropout(config.embd_pdrop)
-        )
+        # calc fc from u down
+        self.recoveryNetFC = nn.Sequential()
 
-        self.recoveryNetFC = nn.Sequential(
-            nn.Linear(config.n_embd, 8*8*8),
-            nn.LeakyReLU(1.0, inplace=True),
-            nn.Linear(8*8*8, 128*8*8),
-            nn.LeakyReLU(0.02, inplace=True),
-        )
-
-        self.recoveryNet = nn.Sequential()
-
+        self.recoveryNet = parameterized_recovery_net[config.backbone](config.image_dim, config.unet_dim)
+        
         # Learned Koopman operator
         self.kMatrixDiag = nn.Parameter(torch.ones(config.n_embd))
 
@@ -72,13 +66,15 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.xidx = torch.LongTensor(np.concatenate(xidx))
         self.yidx = torch.LongTensor(np.concatenate(yidx))
 
-        # The matrix here is a small NN since we need to make it dependent on the viscosity
-        self.kMatrixUT = nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
-        self.kMatrixLT = nn.Sequential(nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
+        # The matrix here is a small NN since we need to make it dependent on external vars
+        self.kMatrixUT = nn.Sequential(
+            nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
+        self.kMatrixLT = nn.Sequential(
+            nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
 
         # Normalization occurs inside the model
-        self.register_buffer('mu', torch.tensor(0.))
-        self.register_buffer('std', torch.tensor(1.))
+        self.register_buffer('mu', torch.zeros(3))
+        self.register_buffer('std', torch.ones(1))
 
     def forward(self, x: Tensor) -> TensorTuple:
         """Forward pass
@@ -94,10 +90,10 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         g0 = self.observableNet(x)
         g = self.observableNetFC(g0.view(g0.size(0), -1))
         # Decode
-        out0 = self.recoveryNetFC(g).view(-1, 128, 8, 8)
+        out0 = self.recoveryNetFC(g)
         out = self.recoveryNet(out0)
         xhat = self._unnormalize(out)
-       
+
         return g, xhat
 
     def embed(self, x: Tensor) -> Tensor:
@@ -135,8 +131,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         kMatrix = Variable(torch.zeros(
             g.size(0), self.config.n_embd, self.config.n_embd)).to(self.devices[0])
         # Populate the off diagonal terms
-        kMatrix[:,self.xidx, self.yidx] = self.kMatrixUT(100*visc)
-        kMatrix[:,self.yidx, self.xidx] = self.kMatrixLT(100*visc)
+        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT(100*visc)
+        kMatrix[:, self.yidx, self.xidx] = self.kMatrixLT(100*visc)
 
         # Populate the diagonal
         ind = np.diag_indices(kMatrix.shape[1])
@@ -179,7 +175,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return x
 
     def _unnormalize(self, x: Tensor) -> Tensor:
-        return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)*x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)*x +\
+            self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
     @property
     def koopmanDiag(self):
@@ -223,7 +220,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         loss_reconstruct = loss_reconstruct + mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
-        
+
         # Loop through time-series
         for t0 in range(1, states.shape[1]):
             xin0 = states[:, t0, :, :].to(device)  # Next time-step

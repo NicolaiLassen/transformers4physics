@@ -8,19 +8,23 @@ metric:
   name: loss/val
 parameters:
   embedding__backbone: 
-    values: ['conv', 'att']
-  embedding__observable_net:
-    values: ["()", "()"]
-  embedding__recovery_net:
-    values: ["()", "()"]
-  
+    values: ['conv', vit, 'twinSVT', 'swin']
+  embedding__ae_dim:
+    values: [64, 128, 256]
+  embedding__embed_dim:
+    values: [64, 128, 256]
   learning__sched: 
     values: ['multistep', 'cosine']
   learning__learning_rate: 
+    distribution: 'uniform'
     min: 0.00001
     max: 0.01
   opt__name:
-    values: ["adamw"]
+    values: ["adam","adamw"]
+  batch_size:
+    distribution: 'q_uniform'
+    min: 32
+    max: 256
   
 command:
   - ${args_no_hyphens}
