@@ -22,3 +22,11 @@ class EmbeddingBackbone(nn.Module):
     @abstractmethod
     def recovery_net_fc(self, **kwargs):
         pass
+    
+    @abstractmethod
+    def embed(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def recover(self, **kwargs):
+        pass

@@ -33,7 +33,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     Args:
         config (EmbeddingConfig): Configuration class
     """
-    
+
     model_name = "embedding_landau-lifshitz-gilbert"
 
     def __init__(self, config: EmmbedingConfig) -> None:
@@ -79,13 +79,10 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 | (Tensor): [B, 3, H, W] Recovered feature tensor
         """
         x = self._normalize(x)
-        g0 = self.backbone.observable_net(x)
-        g = self.backbone.observable_net_fc(g0.view(g0.size(0), -1))
+        g = self.backbone.embed(x)
         # Decode
-        out0 = self.backbone.recovery_net_fc(g)
-        out = self.backbone.recovery_net(out0)
+        out = self.backbone.recover(g)
         xhat = self._unnormalize(out)
-
         return g, xhat
 
     def embed(self, x: Tensor) -> Tensor:
@@ -96,8 +93,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             (Tensor): [B, config.n_embd] Koopman observables
         """
         x = self._normalize(x)
-        g0 = self.backbone.observable_net(x)
-        g = self.backbone.observable_net_fc(g0)
+        g = self.backbone.embed(x)
         return g
 
     def recover(self, g: Tensor) -> Tensor:
@@ -107,8 +103,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             (Tensor): [B, 3, H, W] Physical feature tensor
         """
-        out = self.backbone.recovery_net_fc(g)
-        out = self.backbone.observable_net(x)
+        out = self.backbone.recover(g)
         x = self._unnormalize(out)
         return x
 
@@ -136,13 +131,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.kMatrix = kMatrix
 
         return gnext.squeeze(-1)  # Squeeze empty dim from bmm
-
-    def rebase_external(self, c) -> None:
-        """ Rebase current external variables
-            args:
-                c (Tensor): [B, field] 
-        """
-        return super().rebase_external(c)
 
     @property
     def koopman_operator(self, requires_grad: bool = True) -> Tensor:

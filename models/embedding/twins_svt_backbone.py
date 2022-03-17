@@ -218,14 +218,16 @@ class TwinsSVTBackbone(nn.Module):
     def __init__(
         self,
         channels=3,
+        img_dim=32,
         embedding_dim=128,
         fc_layer=512
     ):
         super().__init__()
         
-        ## fc_dim
-        fc_in = (embedding_dim / 4)**2
-        
+        final_patch_size = int(img_dim / 4)
+        self.final_patch_size = final_patch_size
+        self.embedding_dim = embedding_dim
+
         # Observable net
         observable_net_fc_layers = []
         observable_net_fc_layers.append(nn.Sequential(
@@ -236,7 +238,7 @@ class TwinsSVTBackbone(nn.Module):
         ))
 
         self.observable_net_fc_layers = nn.Sequential(
-            nn.Linear(embedding_dim*8**2, fc_layer),
+            nn.Linear(embedding_dim*final_patch_size**2, fc_layer),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(fc_layer, embedding_dim),
         )
@@ -247,7 +249,7 @@ class TwinsSVTBackbone(nn.Module):
         self.recovery_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim, fc_layer),
             nn.LeakyReLU(0.02, inplace=True),
-            nn.Linear(fc_layer, embedding_dim*8**2),
+            nn.Linear(fc_layer, embedding_dim*final_patch_size**2),
         )
         
         recovery_net_layers = []
@@ -272,13 +274,23 @@ class TwinsSVTBackbone(nn.Module):
     def recovery_net_fc(self, x):
         return self.recovery_net_fc_layers(x)
 
-    def forward(self, x):
+    def embed(self, x):
         out = self.observable_net(x)
-        out = out.view(-1, 128*8**2)
+        print(out.shape)
+        exit(0)
+        out = out.view(-1, self.embedding_dim*self.final_patch_size**2)
         out = self.observable_net_fc(out)
-        out = self.recovery_net_fc(out)
-        out = out.view(-1, 128, 8 ,8)
+        return out
+
+    def recover(self, x):
+        out = self.recovery_net_fc(x)
+        out = out.view(-1, self.embedding_dim, self.final_patch_size, self.final_patch_size)
         out = self.recovery_net(out)
+        return out
+
+    def forward(self, x):
+        out = self.embed(x)
+        out = self.recover(out)
         return out
 
 
