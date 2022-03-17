@@ -1,17 +1,19 @@
 import math
+import re
 from abc import abstractmethod
+from re import M, X
 from statistics import mode
 
 import torch
 import torch.nn as nn
+from numpy import mat
 
 
 # TODO
 class EmbeddingBackbone(nn.Module):
-    def __init__(self, config, *inputs, **kwargs):
-        super().__init__(*inputs, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         # Save config in model
-        self.config = config
 
     @abstractmethod
     def observable_net(self):
@@ -20,7 +22,7 @@ class EmbeddingBackbone(nn.Module):
     @abstractmethod
     def observable_net_fc(self):
         pass
-    
+
     @abstractmethod
     def recovery_net(self):
         pass
@@ -28,10 +30,12 @@ class EmbeddingBackbone(nn.Module):
     @abstractmethod
     def recovery_net_fc(self):
         pass
-    
+
 # https://www.sciencedirect.com/science/article/pii/S0304885319307978
 # https://towardsdatascience.com/illustrated-10-cnn-architectures-95d78ace614d#e276
 # https://en.wikipedia.org/wiki/Swish_function
+
+
 class ConvBackbone(EmbeddingBackbone):
     """ Conv backbone
         simple parametized 
@@ -40,77 +44,79 @@ class ConvBackbone(EmbeddingBackbone):
     def __init__(
         self,
         channels=3,
-        image_shape=(32, 32),
-        scale_size=512,
-        depth=6
+        scale_size=900
     ):
         super().__init__()
 
         # activation
         activation = nn.SiLU(inplace=True)
 
+        # find number to fit
+        # log_b c = k
+        # b_stride = math.exp(math.log(image_shape[0]) / depth)
+        # b_stride_ceil = math.ceil(b_stride)
+        # log_scale_depth = 1
+
         # Observable net
-        print(math.log(scale_size) * depth)
-        scale_starte = int(scale_size / depth)
+
         observable_net_layers = []
         observable_net_layers.append(nn.Sequential(
-            nn.Conv2d(in_channels=channels, stride=1,
-                      kernel_size=1, out_channels=scale_starte),
-            nn.BatchNorm2d(scale_starte),
+            nn.Conv2d(in_channels=channels, stride=100,
+                      kernel_size=1, out_channels=100),
+            nn.BatchNorm2d(100),
             activation
         ))
 
         # Parametized loop for depth n
-        in_channels = scale_starte
-        for _ in range(depth):
-            out_channels = in_channels*2
-            observable_net_layers.append(nn.Sequential(
-                nn.Conv2d(in_channels=in_channels, kernel_size=2, stride=1, out_channels=out_channels),
-                nn.BatchNorm2d(out_channels),
-                activation
-            ))
-            in_channels = out_channels
-            print(in_channels)
+        in_channels = 100
 
-        # FC
+        for i in range(depth - 1):
+            observable_net_layers.append(nn.Sequential(
+                nn.Conv2d(in_channels=in_channels, kernel_size=1,
+                          stride=2, out_channels=100),
+            ))
+            observable_net_layers.append(activation)
+            in_channels = 100
         
+
+        self.observable_net_fc_layers = nn.Sequential()
+
+        #
+
         # Recovery net
         recovery_net_layers = []
         recovery_net_layers.append(nn.Sequential(
-            nn.ConvTranspose2d(in_channels=scale_size, kernel_size=1, out_channels=scale_size),
+            nn.ConvTranspose2d(in_channels=scale_size,
+                               kernel_size=1, out_channels=scale_size),
             nn.BatchNorm2d(scale_size),
             activation
         ))
         in_channels = scale_size
-        for _ in range(depth):
-            out_channels = in_channels*2
-            recovery_net_layers.append(nn.Sequential(
-                nn.ConvTranspose2d(in_channels=in_channels, kernel_size=2, stride=1, out_channels=out_channels),
-                nn.BatchNorm2d(out_channels),
-                activation
-            ))
-            in_channels = out_channels
-            print(in_channels)
 
         # create models
         self.observable_net_layers = nn.Sequential(*observable_net_layers)
 
         self.recovery_net_layers = nn.Sequential(*recovery_net_layers)
+        self.recovery_net_fc_layers = nn.Sequential(*recovery_net_layers)
 
-    def observable_net(self):
-        return super().observable_net()
+    def observable_net(self, x):
+        return self.observable_net_layers(x)
 
-    def observable_net_fc(self):
-        return super().observable_net_fc()
+    def observable_net_fc(self, x):
+        return self.observable_net_fc_layers(x)
 
-    def recovery_net(self):
-        return super().recovery_net()
+    def recovery_net(self, x):
+        return self.recovery_net_layers(x)
 
-    def recovery_net(self):
-        return super().recovery_net()
+    def recovery_net(self, x):
+        return self.recovery_net_fc_layers(x)
 
     def forward(self, x):
-        out = self.observableNet(x)
+        out = self.observable_net(x)
+        print(out.shape)
+        out = self.flatten(out)
+        print(out.shape)
+        out = self.observable_net_fc(out)
         print(out.shape)
 
 

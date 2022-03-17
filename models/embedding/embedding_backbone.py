@@ -1,24 +1,24 @@
 from abc import abstractmethod
 import torch.nn as nn
+import vit_pytorch.twins_svt
 
 class EmbeddingBackbone(nn.Module):
-    def __init__(self, config, *inputs, **kwargs):
-        super().__init__(*inputs, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__( **kwargs)
         # Save config in model
-        self.config = config
-
+        
     @abstractmethod
-    def observable_net(self):
+    def observable_net(self, **kwargs):
         pass
 
     @abstractmethod
-    def observable_net_fc(self):
+    def observable_net_fc(self, **kwargs):
         pass
     
     @abstractmethod
-    def recovery_net(self):
+    def recovery_net(self, **kwargs):
         pass
 
     @abstractmethod
-    def recovery_net_fc(self):
+    def recovery_net_fc(self, **kwargs):
         pass

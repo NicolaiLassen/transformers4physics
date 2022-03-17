@@ -33,6 +33,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     Args:
         config (EmbeddingConfig): Configuration class
     """
+    
     model_name = "embedding_landau-lifshitz-gilbert"
 
     def __init__(self, config: EmmbedingConfig) -> None:
@@ -181,8 +182,6 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
     """
 
     def __init__(self, config: EmmbedingConfig):
-        """Constructor method
-        """
         super().__init__()
         self.embedding_model = LandauLifshitzGilbertEmbedding(config)
 

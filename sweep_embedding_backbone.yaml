@@ -11,16 +11,16 @@ parameters:
     values:
     - 'conv'
     - 'twinSTV'
-  embedding.ae_dim:
+  embedding.embedding_dim:
     values: 
-    - 64
-    - 128
-    - 256
-  embedding.embed_dim:
-    values: 
-    - 128
     - 256
     - 512
+    - 1024
+  embedding.fc_layer:
+    values: 
+    - 256
+    - 512
+    - 1024
   learning.sched: 
     values: 
     - 'multistep'
