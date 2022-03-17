@@ -1,16 +1,9 @@
-import imp
-import math
 from abc import abstractmethod
-from calendar import c
-from pickletools import optimize
-from statistics import mode
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
-from torch import einsum, nn, sigmoid
+from einops import rearrange
+from torch import einsum, nn
 
 
 class EmbeddingBackbone(nn.Module):
@@ -229,12 +222,13 @@ class TwinsSVTBackbone(nn.Module):
         self.embedding_dim = embedding_dim
 
         # Observable net
+        # TODO: can be a for loop
+        ## TODO local last
         observable_net_fc_layers = []
         observable_net_fc_layers.append(nn.Sequential(
             PatchEmbedding(in_channels = channels, out_channels=embedding_dim, patch_size=4),
-            Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 7, global_k = 7, dropout = 0, has_local = False),
+            Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 4, global_k = 7, dropout = 0, has_local = True),
             PEG(in_channels = embedding_dim, kernel_size = 3),
-            
             nn.Sigmoid()
         ))
 
@@ -253,12 +247,14 @@ class TwinsSVTBackbone(nn.Module):
             nn.Linear(fc_layer, embedding_dim*final_patch_size**2),
         )
         
+        # TODO: can be a for loop
+        ## TODO local last
         recovery_net_layers = []
         recovery_net_layers.append(nn.Sequential(
-            Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 7, global_k = 7, dropout = 0, has_local = False),
+            ## TODO local last
+            Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 4, global_k = 7, dropout = 0, has_local = True),
             PEG(in_channels = embedding_dim, kernel_size = 3),
             PatchExpansion(in_channels = embedding_dim, out_channels=3, patch_size=4),
-
             nn.Sigmoid()
         ))
 
@@ -293,30 +289,26 @@ class TwinsSVTBackbone(nn.Module):
         out = self.recover(out)
         return out
 
-
-import os
-
-import matplotlib.pyplot as plt
-import torch.optim as optim
-import torchvision.transforms as transforms
-import vit_pytorch.twins_svt
-from PIL import Image
-
-os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-
 if __name__ == '__main__':    
+    import os
+
+    import matplotlib.pyplot as plt
+    import torch.optim as optim
+    import torchvision.transforms as transforms
+    import vit_pytorch.twins_svt
+    from PIL import Image
+    os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
     img = Image.open("C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
-    pil_to_tensor = transforms.ToTensor()(img).unsqueeze_(0).cuda()
-    print(pil_to_tensor.shape)
-    plt.imshow(transforms.ToPILImage()(pil_to_tensor.cpu().squeeze_(0)))
-    plt.show()
+    pil_to_tensor = torch.rand(1, 3, 64, 64).cuda()
 
     # wandb sweep sweep_embed.yaml
     # wandb sweep autoregressive.yaml
-    model = TwinsSVTBackbone().cuda()
+    model = TwinsSVTBackbone(img_dim=64).cuda()
 
     print(model(pil_to_tensor).shape)
-        
+    
+    print(sum(p.numel() for p in model.parameters()))
+    exit()
     optimizer = optim.Adam(model.parameters(), lr=0.0003)
     criterion = nn.MSELoss()
 
