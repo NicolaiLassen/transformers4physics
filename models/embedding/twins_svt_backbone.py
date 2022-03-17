@@ -234,6 +234,7 @@ class TwinsSVTBackbone(nn.Module):
             PatchEmbedding(in_channels = channels, out_channels=embedding_dim, patch_size=4),
             Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 7, global_k = 7, dropout = 0, has_local = False),
             PEG(in_channels = embedding_dim, kernel_size = 3),
+            
             nn.Sigmoid()
         ))
 
@@ -257,6 +258,7 @@ class TwinsSVTBackbone(nn.Module):
             Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 7, global_k = 7, dropout = 0, has_local = False),
             PEG(in_channels = embedding_dim, kernel_size = 3),
             PatchExpansion(in_channels = embedding_dim, out_channels=3, patch_size=4),
+
             nn.Sigmoid()
         ))
 
@@ -276,8 +278,6 @@ class TwinsSVTBackbone(nn.Module):
 
     def embed(self, x):
         out = self.observable_net(x)
-        print(out.shape)
-        exit(0)
         out = out.view(-1, self.embedding_dim*self.final_patch_size**2)
         out = self.observable_net_fc(out)
         return out
