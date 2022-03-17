@@ -1,0 +1,44 @@
+program: train.py
+name: embedding_sweep
+entity: transformers4physics
+project: v1
+method: random
+metric:
+  goal: minimize
+  name: err/val
+parameters:
+  embedding.backbone: 
+    values:
+    - 'conv'
+    - 'vit'
+    - 'twinSTV'
+    - 'swin'
+  embedding.ae_dim:
+    values: 
+    - 64
+    - 128
+    - 256
+  embedding.embed_dim:
+    values: 
+    - 128
+    - 256
+    - 512
+  learning.sched: 
+    values: 
+    - 'multistep'
+    - 'cosine'
+  learning.lr: 
+    distribution: 'uniform'
+    min: 0.00001
+    max: 0.01
+  opt__name:
+    values: 
+    - 'adam'
+    - 'adamw'
+  batch_size:
+    distribution: 'q_uniform'
+    min: 32
+    max: 256
+  
+command:
+  - ${args_no_hyphens}
