@@ -22,9 +22,9 @@ FloatTuple = Tuple[float]
 
 backbone_models: Dict[str, EmbeddingBackbone] = {
     "conv": ConvBackbone,
-    "swin": SwinBackbone,
     "twinSWT": TwinsSVTBackbone,
-    "vit": ViTBackbone
+    # "swin": SwinBackbone, // TODO: impl
+    # "vit": ViTBackbone // TODO: impl
 }
 
 
@@ -46,7 +46,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             config.image_dim, config.unet_dim)
 
         # Learned Koopman operator
-        self.kMatrixDiag = nn.Parameter(torch.ones(config.n_embd))
+        self.k_matrix_diag = nn.Parameter(torch.ones(config.n_embd))
 
         # Off-diagonal indices
         xidx = []
@@ -58,9 +58,9 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.yidx = torch.LongTensor(np.concatenate(yidx))
 
         # The matrix here is a small NN since we need to make it dependent on external vars
-        self.kMatrixUT = nn.Sequential(
+        self.k_matrix_ut = nn.Sequential(
             nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
-        self.kMatrixLT = nn.Sequential(
+        self.k_matrix_lt = nn.Sequential(
             nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
 
         # Normalization occurs inside the model
@@ -78,11 +78,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 | (Tensor): [B, 3, H, W] Recovered feature tensor
         """
         x = self._normalize(x)
-        g0 = self.backbone.observableNet(x)
-        g = self.backbone.observableNetFC(g0.view(g0.size(0), -1))
+        g0 = self.backbone.observable_net(x)
+        g = self.backbone.observable_net_fc(g0.view(g0.size(0), -1))
         # Decode
-        out0 = self.backbone.recoveryNetFC(g)
-        out = self.backbone.recoveryNet(out0)
+        out0 = self.backbone.recovery_net_fc(g)
+        out = self.backbone.recovery_net(out0)
         xhat = self._unnormalize(out)
 
         return g, xhat
@@ -95,8 +95,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             (Tensor): [B, config.n_embd] Koopman observables
         """
         x = self._normalize(x)
-        g0 = self.backbone.observableNet(x)
-        g = self.backbone.observableNetFC(g0)
+        g0 = self.backbone.observable_net(x)
+        g = self.backbone.observable_net_fc(g0)
         return g
 
     def recover(self, g: Tensor) -> Tensor:
@@ -106,12 +106,12 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             (Tensor): [B, 3, H, W] Physical feature tensor
         """
-        out = self.backbone.recoveryNetFC(g)
-        out = self.backbone.observableNet(x)
+        out = self.backbone.recovery_net_fc(g)
+        out = self.backbone.observable_net(x)
         x = self._unnormalize(out)
         return x
 
-    def koopmanOperation(self, g: Tensor) -> Tensor:
+    def koopman_operation(self, g: Tensor) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
@@ -122,13 +122,13 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         kMatrix = Variable(torch.zeros(
             g.size(0), self.config.n_embd, self.config.n_embd)).to(self.devices[0])
         # Populate the off diagonal terms
-        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT(100)
-        kMatrix[:, self.yidx, self.xidx] = self.kMatrixLT(100)
+        kMatrix[:, self.xidx, self.yidx] = self.k_matrix_ut(100)
+        kMatrix[:, self.yidx, self.xidx] = self.k_matrix_lt(100)
 
         # Populate the diagonal
         ind = np.diag_indices(kMatrix.shape[1])
-        self.kMatrixDiag = self.kMatrixDiagNet(100)
-        kMatrix[:, ind[0], ind[1]] = self.kMatrixDiag
+        self.k_matrix_diag = self.kMatrixDiagNet(100)
+        kMatrix[:, ind[0], ind[1]] = self.k_matrix_diag
 
         # Apply Koopman operation
         gnext = torch.bmm(kMatrix, g.unsqueeze(-1))
@@ -144,7 +144,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return super().rebase_external(c)
 
     @property
-    def koopmanOperator(self, requires_grad: bool = True) -> Tensor:
+    def koopman_operator(self, requires_grad: bool = True) -> Tensor:
         """Current Koopman operator
         Args:
             requires_grad (bool, optional): If to return with gradient storage. Defaults to True
@@ -157,8 +157,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             return self.kMatrix
 
     @property
-    def koopmanDiag(self):
-        return self.kMatrixDiag
+    def koopman_diag(self):
+        return self.k_matrix_diag
 
     def _normalize(self, x):
         x = (x - self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) / \
@@ -170,8 +170,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
     @property
-    def koopmanDiag(self):
-        return self.kMatrixDiag
+    def koopman_diag(self):
+        return self.k_matrix_diag
 
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
@@ -217,11 +217,11 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
             xin0 = states[:, t0, :, :].to(device)  # Next time-step
             _, xRec1 = self.embedding_model(xin0)
 
-            g1Pred = self.embedding_model.koopmanOperation(g1_old)
+            g1Pred = self.embedding_model.koopman_operation(g1_old)
             xgRec1 = self.embedding_model.recover(g1Pred)
 
             loss = loss + mseLoss(xgRec1, xin0) + (1e4)*mseLoss(xRec1, xin0) \
-                + (1e-1)*torch.sum(torch.pow(self.embedding_model.koopmanOperator, 2))
+                + (1e-1)*torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
 
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
             g1_old = g1Pred

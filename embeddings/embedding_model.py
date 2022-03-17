@@ -33,10 +33,6 @@ class EmbeddingModel(nn.Module):
         if (self.config.pretrained):
             self.load_model(self.config.ckpt_path)
 
-    def rebase_external(self, c):
-        """ Used to map some known functional change to the embed"""
-        raise NotImplementedError("rebase_external function has not been properly overridden")
-
     @abstractmethod
     def embed(self, x):
         raise NotImplementedError("embed function has not been properly overridden")
@@ -47,12 +43,12 @@ class EmbeddingModel(nn.Module):
 
     @property
     @abstractmethod
-    def koopmanOperator(self):
+    def koopman_operator(self):
         pass
 
     @property
     @abstractmethod
-    def koopmanDiag(self):
+    def koopman_diag(self):
         pass
 
     @property

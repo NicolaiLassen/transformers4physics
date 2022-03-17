@@ -10,9 +10,7 @@ parameters:
   embedding.backbone: 
     values:
     - 'conv'
-    - 'vit'
     - 'twinSTV'
-    - 'swin'
   embedding.ae_dim:
     values: 
     - 64

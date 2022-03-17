@@ -192,34 +192,12 @@ class TwinsSVTBackbone(EmbeddingBackbone):
         dropout = 0.
     ):
         super().__init__()
-        kwargs = dict(locals())
 
         # calc
 
         dim = 3
         layers = []
 
-        for prefix in ('s1', 's2', 's3', 's4'):
-            config, kwargs = group_by_key_prefix_and_remove_prefix(f'{prefix}_', kwargs)
-            is_last = prefix == 's4'
-
-            dim_next = config['emb_dim']
-
-            layers.append(nn.Sequential(
-                PatchEmbedding(dim = dim, dim_out = dim_next, patch_size = config['patch_size']),
-                Transformer(dim = dim_next, depth = 1, local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last),
-                PEG(dim = dim_next, kernel_size = peg_kernel_size),
-                Transformer(dim = dim_next, depth = config['depth'],  local_patch_size = config['local_patch_size'], global_k = config['global_k'], dropout = dropout, has_local = not is_last)
-            ))
-
-            dim = dim_next
-
-        self.layers = nn.Sequential(
-            *layers,
-            nn.AdaptiveAvgPool2d(1),
-            Rearrange('... () () -> ...'),
-            nn.Linear(dim, num_classes)
-        )
 
     def observableNet(self, x):
         return self.layers(x)

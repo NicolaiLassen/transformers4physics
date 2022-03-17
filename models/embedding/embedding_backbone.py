@@ -8,17 +8,17 @@ class EmbeddingBackbone(nn.Module):
         self.config = config
 
     @abstractmethod
-    def observableNet(self):
+    def observable_net(self):
         pass
 
     @abstractmethod
-    def observableNetFC(self):
+    def observable_net_fc(self):
         pass
     
     @abstractmethod
-    def recoveryNet(self):
+    def recovery_net(self):
         pass
 
     @abstractmethod
-    def recoveryNetFC(self):
+    def recovery_net_fc(self):
         pass
