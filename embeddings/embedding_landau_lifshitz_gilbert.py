@@ -49,20 +49,16 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         # Learned Koopman operator
         self.k_matrix_diag = nn.Parameter(torch.ones(config.n_embd))
 
-        # Off-diagonal indices
+         # Off-diagonal indices
         xidx = []
         yidx = []
-        for i in range(1, 5):
-            yidx.append(np.arange(i, self.obsdim))
-            xidx.append(np.arange(0, self.obsdim-i))
+        for i in range(1, 10):
+            yidx.append(np.arange(i, self.config.n_embd))
+            xidx.append(np.arange(0, self.config.n_embd - i))
+
         self.xidx = torch.LongTensor(np.concatenate(xidx))
         self.yidx = torch.LongTensor(np.concatenate(yidx))
-
-        # The matrix here is a small NN since we need to make it dependent on external vars
-        self.k_matrix_ut = nn.Sequential(
-            nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
-        self.k_matrix_lt = nn.Sequential(
-            nn.Linear(1, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0)))
+        self.kMatrixUT = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
 
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.zeros(3))
@@ -118,13 +114,12 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         kMatrix = Variable(torch.zeros(
             g.size(0), self.config.n_embd, self.config.n_embd)).to(self.devices[0])
         # Populate the off diagonal terms
-        kMatrix[:, self.xidx, self.yidx] = self.k_matrix_ut(100)
-        kMatrix[:, self.yidx, self.xidx] = self.k_matrix_lt(100)
-
+        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT
+        kMatrix[:, self.yidx, self.xidx] = -self.kMatrixUT
+        
         # Populate the diagonal
         ind = np.diag_indices(kMatrix.shape[1])
-        self.k_matrix_diag = self.kMatrixDiagNet(100)
-        kMatrix[:, ind[0], ind[1]] = self.k_matrix_diag
+        kMatrix[:, ind[0], ind[1]] = self.kMatrixDiag
 
         # Apply Koopman operation
         gnext = torch.bmm(kMatrix, g.unsqueeze(-1))
