@@ -1,6 +1,7 @@
 use_wandb: False
 use_sweep: False
 train_embed: False
+image_dim: 32
 seed: 0
 gpus: 1
 cpus: 1
@@ -23,15 +24,14 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: ""
-  backbone: "conv"
-  ae_dim: 128
-  embed_dim: 128
+  backbone: "twinsSTV"
+  fc_layer: 128
+  embedding_dim: 128
 
 autoregressive: 
   name: "GPT2" 
   pretrained: False
   ckpt_path: ""
-
 
 opt:
   name: 'adamw'

@@ -22,7 +22,7 @@ FloatTuple = Tuple[float]
 
 backbone_models: Dict[str, EmbeddingBackbone] = {
     "conv": ConvBackbone,
-    "twinSWT": TwinsSVTBackbone,
+    "twinsSVT": TwinsSVTBackbone,
     # "swin": SwinBackbone, // TODO: impl
     # "vit": ViTBackbone // TODO: impl
 }
@@ -39,26 +39,34 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     def __init__(self, config: EmmbedingConfig) -> None:
         super().__init__(config)
 
-        if config.backbone not in backbone_models.keys:
+        if config.backbone not in backbone_models.keys():
             raise NotImplementedError(
                 "The {} backbone is not suppported".format(config.backbone))
 
         self.backbone: EmbeddingBackbone = backbone_models[config.backbone](
-            config.image_dim, config.unet_dim)
+            img_dim=config.image_dim,
+            embedding_dim=config.embedding_dim,
+            fc_layer=config.fc_layer
+        )
+
+        # koop m
+        self.k_matrix = None
 
         # Learned Koopman operator
-        self.k_matrix_diag = nn.Parameter(torch.ones(config.n_embd))
+        self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
 
-         # Off-diagonal indices
+        # Off-diagonal indices
         xidx = []
         yidx = []
         for i in range(1, 10):
-            yidx.append(np.arange(i, self.config.n_embd))
-            xidx.append(np.arange(0, self.config.n_embd - i))
+            yidx.append(np.arange(i, self.config.embedding_dim))
+            xidx.append(np.arange(0, self.config.embedding_dim - i))
 
         self.xidx = torch.LongTensor(np.concatenate(xidx))
         self.yidx = torch.LongTensor(np.concatenate(yidx))
-        self.kMatrixUT = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
+        self.k_matrix_ut = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
+
+
 
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.zeros(3))
@@ -111,21 +119,21 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
         # Koopman operator
-        kMatrix = Variable(torch.zeros(
-            g.size(0), self.config.n_embd, self.config.n_embd)).to(self.devices[0])
+        k_matrix = Variable(torch.zeros(
+            g.size(0), self.config.embedding_dim, self.config.embedding_dim)).to(self.devices[0])
         # Populate the off diagonal terms
-        kMatrix[:, self.xidx, self.yidx] = self.kMatrixUT
-        kMatrix[:, self.yidx, self.xidx] = -self.kMatrixUT
-        
+        k_matrix[:, self.xidx, self.yidx] = self.k_matrix_ut
+        k_matrix[:, self.yidx, self.xidx] = -self.k_matrix_ut
+
         # Populate the diagonal
-        ind = np.diag_indices(kMatrix.shape[1])
-        kMatrix[:, ind[0], ind[1]] = self.kMatrixDiag
+        ind = np.diag_indices(k_matrix.shape[1])
+        k_matrix[:, ind[0], ind[1]] = self.k_matrix_diag
 
         # Apply Koopman operation
-        gnext = torch.bmm(kMatrix, g.unsqueeze(-1))
-        self.kMatrix = kMatrix
+        g_next = torch.bmm(k_matrix, g.unsqueeze(-1))
+        self.k_matrix = k_matrix
 
-        return gnext.squeeze(-1)  # Squeeze empty dim from bmm
+        return g_next.squeeze(-1)  # Squeeze empty dim from bmm
 
     @property
     def koopman_operator(self, requires_grad: bool = True) -> Tensor:
@@ -136,9 +144,9 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             Tensor: Full Koopman operator tensor
         """
         if not requires_grad:
-            return self.kMatrix.detach()
+            return self.k_matrix.detach()
         else:
-            return self.kMatrix
+            return self.k_matrix
 
     @property
     def koopman_diag(self):
@@ -185,7 +193,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         mseLoss = nn.MSELoss()
 
         xin0 = states[:, 0].to(device)  # Time-step
-
+    
         # Model forward for initial time-step
         g0, xRec0 = self.embedding_model(xin0)
 

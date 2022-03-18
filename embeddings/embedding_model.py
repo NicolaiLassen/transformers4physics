@@ -28,7 +28,7 @@ class EmbeddingModel(nn.Module):
     def __init__(self, config: EmmbedingConfig):
         super().__init__()
         self.config = config
-        
+
         """ If model is pretrained load the model and parameters """
         if (self.config.pretrained):
             self.load_model(self.config.ckpt_path)

@@ -14,4 +14,4 @@ class AutoregressiveConfig(PhysConfig):
     model_type: str = ""
 
     def __init__(self, **kwargs) -> None:
-        print(kwargs)
+        super().__init__(**kwargs)

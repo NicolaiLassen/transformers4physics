@@ -10,7 +10,7 @@ parameters:
   embedding.backbone: 
     values:
     - 'conv'
-    - 'twinSTV'
+    - 'twinsSTV'
   embedding.embedding_dim:
     values: 
     - 256
@@ -29,7 +29,7 @@ parameters:
     distribution: 'uniform'
     min: 0.00001
     max: 0.001
-  opt__name:
+  opt.name:
     values: 
     - 'SGD'
     - 'adam'
