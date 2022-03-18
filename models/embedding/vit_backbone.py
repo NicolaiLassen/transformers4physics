@@ -5,8 +5,9 @@ from einops.layers.torch import Rearrange
 from models.embedding.embedding_backbone import EmbeddingBackbone
 from torch import nn
 
-# helpers
+# https://arxiv.org/abs/2010.11929
 
+# helpers
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 

@@ -28,9 +28,10 @@ parameters:
   learning.lr: 
     distribution: 'uniform'
     min: 0.00001
-    max: 0.01
+    max: 0.001
   opt__name:
     values: 
+    - 'SGD'
     - 'adam'
     - 'adamw'
   batch_size:

@@ -1,33 +1,10 @@
-from abc import abstractmethod
-
 import torch
 import torch.nn as nn
 from einops import rearrange
 from torch import einsum, nn
 
 
-class EmbeddingBackbone(nn.Module):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Save config in model
-
-    @abstractmethod
-    def observable_net(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def observable_net_fc(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def recovery_net(self, **kwargs):
-        pass
-
-    @abstractmethod
-    def recovery_net_fc(self, **kwargs):
-        pass
-
-
+# https://arxiv.org/abs/2104.13840
 class Residual(nn.Module):
     def __init__(self, fn):
         super().__init__()
@@ -76,7 +53,7 @@ class FeedForward(nn.Module):
         return self.net(x)
 
 
-class PatchEmbedding(nn.Module):
+class PatchMerging(nn.Module):
     def __init__(self, *, in_channels, out_channels, patch_size):
         super().__init__()
         self.dim = in_channels
@@ -91,13 +68,15 @@ class PatchEmbedding(nn.Module):
         fmap = self.proj(fmap)
         return fmap
 
+
 class PatchExpansion(nn.Module):
     def __init__(self, *, in_channels, out_channels, patch_size):
         super().__init__()
         self.dim = in_channels
         self.dim_out = out_channels
         self.patch_size = patch_size
-        self.proj = nn.ConvTranspose2d(int(in_channels / (patch_size ** 2)), out_channels, 1)
+        self.proj = nn.ConvTranspose2d(
+            int(in_channels / (patch_size ** 2)), out_channels, 1)
 
     def forward(self, fmap):
         p = self.patch_size
@@ -105,6 +84,7 @@ class PatchExpansion(nn.Module):
             fmap, 'b (c p1 p2) h w -> b c (h p1) (w p2)', p1=p, p2=p)
         fmap = self.proj(fmap)
         return fmap
+
 
 class PEG(nn.Module):
     def __init__(self, in_channels, kernel_size=3):
@@ -114,6 +94,7 @@ class PEG(nn.Module):
 
     def forward(self, x):
         return self.proj(x)
+
 
 class LocalAttention(nn.Module):
     def __init__(self, dim, heads=8, dim_head=64, dropout=0., patch_size=7):
@@ -145,12 +126,13 @@ class LocalAttention(nn.Module):
 
         dots = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
-        attn = dots.softmax(dim=- 1)
+        attn = dots.softmax(dim=-1)
 
         out = einsum('b i j, b j d -> b i d', attn, v)
         out = rearrange(
             out, '(b x y h) (p1 p2) d -> b (h d) (x p1) (y p2)', h=h, x=x, y=y, p1=p, p2=p)
         return self.to_out(out)
+
 
 class GlobalAttention(nn.Module):
     def __init__(self, dim, heads=8, dim_head=64, dropout=0., k=7):
@@ -183,6 +165,7 @@ class GlobalAttention(nn.Module):
         out = rearrange(out, '(b h) (x y) d -> b (h d) x y', h=h, y=y)
         return self.to_out(out)
 
+
 class Transformer(nn.Module):
     def __init__(self, in_channels, depth, heads=8, dim_head=64, mlp_mult=4, local_patch_size=7, global_k=7, dropout=0., has_local=True):
         super().__init__()
@@ -207,6 +190,7 @@ class Transformer(nn.Module):
             x = ff2(x)
         return x
 
+
 class TwinsSVTBackbone(nn.Module):
     def __init__(
         self,
@@ -216,21 +200,24 @@ class TwinsSVTBackbone(nn.Module):
         fc_layer=512
     ):
         super().__init__()
-        
+
         final_patch_size = int(img_dim / 4)
         self.final_patch_size = final_patch_size
         self.embedding_dim = embedding_dim
 
         # Observable net
         # TODO: can be a for loop
-        ## TODO local last
+        # TODO local last
         observable_net_fc_layers = []
         observable_net_fc_layers.append(nn.Sequential(
-            PatchEmbedding(in_channels = channels, out_channels=embedding_dim, patch_size=4),
-            Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 4, global_k = 7, dropout = 0, has_local = True),
-            PEG(in_channels = embedding_dim, kernel_size = 3),
+            PatchMerging(in_channels=channels,
+                         out_channels=embedding_dim, patch_size=4),
+            Transformer(in_channels=embedding_dim, depth=1,
+                        local_patch_size=4, global_k=7, dropout=0, has_local=True),
+            PEG(in_channels=embedding_dim, kernel_size=3),
             nn.Sigmoid()
         ))
+        self.observable_net_layers = nn.Sequential(*observable_net_fc_layers)
 
         self.observable_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim*final_patch_size**2, fc_layer),
@@ -238,28 +225,27 @@ class TwinsSVTBackbone(nn.Module):
             nn.Linear(fc_layer, embedding_dim),
         )
 
-        self.observable_net_layers = nn.Sequential(*observable_net_fc_layers)
-
-        # Recovery net 
+        # Recovery net
         self.recovery_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim, fc_layer),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(fc_layer, embedding_dim*final_patch_size**2),
         )
-        
+
         # TODO: can be a for loop
-        ## TODO local last
+        # TODO local last
         recovery_net_layers = []
         recovery_net_layers.append(nn.Sequential(
-            ## TODO local last
-            Transformer(in_channels = embedding_dim, depth = 1, local_patch_size = 4, global_k = 7, dropout = 0, has_local = True),
-            PEG(in_channels = embedding_dim, kernel_size = 3),
-            PatchExpansion(in_channels = embedding_dim, out_channels=3, patch_size=4),
+            # TODO local last
+            Transformer(in_channels=embedding_dim, depth=1,
+                        local_patch_size=4, global_k=7, dropout=0, has_local=True),
+            PEG(in_channels=embedding_dim, kernel_size=3),
+            PatchExpansion(in_channels=embedding_dim,
+                           out_channels=3, patch_size=4),
             nn.Sigmoid()
         ))
-
         self.recovery_net_layers = nn.Sequential(*recovery_net_layers)
-    
+
     def observable_net(self, x):
         return self.observable_net_layers(x)
 
@@ -280,7 +266,8 @@ class TwinsSVTBackbone(nn.Module):
 
     def recover(self, x):
         out = self.recovery_net_fc(x)
-        out = out.view(-1, self.embedding_dim, self.final_patch_size, self.final_patch_size)
+        out = out.view(-1, self.embedding_dim,
+                       self.final_patch_size, self.final_patch_size)
         out = self.recovery_net(out)
         return out
 
@@ -288,44 +275,3 @@ class TwinsSVTBackbone(nn.Module):
         out = self.embed(x)
         out = self.recover(out)
         return out
-
-if __name__ == '__main__':    
-    import os
-
-    import matplotlib.pyplot as plt
-    import torch.optim as optim
-    import torchvision.transforms as transforms
-    import vit_pytorch.twins_svt
-    from PIL import Image
-    os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
-    img = Image.open("C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
-    pil_to_tensor = torch.rand(1, 3, 64, 64).cuda()
-
-    # wandb sweep sweep_embed.yaml
-    # wandb sweep autoregressive.yaml
-    model = TwinsSVTBackbone(img_dim=64).cuda()
-
-    print(model(pil_to_tensor).shape)
-    
-    print(sum(p.numel() for p in model.parameters()))
-    exit()
-    optimizer = optim.Adam(model.parameters(), lr=0.0003)
-    criterion = nn.MSELoss()
-
-    for i in range(10000):
-        optimizer.zero_grad()
-
-        # forward + backward + optimize
-        outputs = model(pil_to_tensor)
-        loss = criterion(outputs, pil_to_tensor)
-        loss.backward()
-        optimizer.step()
-
-        print(loss.item())
-        
-        if i % 100 == 0:
-            plt.imshow(transforms.ToPILImage()(pil_to_tensor.cpu().squeeze_(0)))
-            plt.show()
-            plt.imshow(transforms.ToPILImage()(outputs.cpu().squeeze_(0)))
-            plt.axis('off')
-            plt.show()

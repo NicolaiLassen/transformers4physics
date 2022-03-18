@@ -95,7 +95,9 @@ class PhysTrainer(pl.LightningModule):
         model_parameters = self.embedding_model.parameters() if self.train_embed \
             else self.autoregressive_model
 
-        if cfg.opt.name == 'admin':
+        if cfg.opt.name == 'SGD':
+            optimizer = optim.SGD(model_parameters, lr=cfg.lr.lr)
+        if cfg.opt.name == 'adam':
             optimizer = optim.Adam(model_parameters, lr=cfg.lr.lr)
         if cfg.opt.name == 'adamw':
             optimizer = optim.AdamW(model_parameters, lr=cfg.lr.lr,

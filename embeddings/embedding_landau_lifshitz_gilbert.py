@@ -66,7 +66,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
 
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.zeros(3))
-        self.register_buffer('std', torch.ones(1))
+        self.register_buffer('std', torch.ones(3))
 
     def forward(self, x: Tensor) -> TensorTuple:
         """Forward pass
