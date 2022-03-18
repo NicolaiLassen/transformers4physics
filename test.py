@@ -9,7 +9,6 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     import torch.optim as optim
     import torchvision.transforms as transforms
-    import vit_pytorch.twins_svt
     from PIL import Image
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     # img = Image.open(
@@ -19,10 +18,6 @@ if __name__ == '__main__':
     # wandb sweep sweep_embed.yaml
     # wandb sweep autoregressive.yaml
     model = TwinsSVTBackbone(img_dim=32).cuda()
-
-    print(model(pil_to_tensor))
-
-    exit()
     optimizer = optim.Adam(model.parameters(), lr=0.0003)
     criterion = nn.MSELoss()
 

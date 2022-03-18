@@ -1,6 +1,5 @@
 from abc import abstractmethod
 import torch.nn as nn
-import vit_pytorch.twins_svt
 
 class EmbeddingBackbone(nn.Module):
     def __init__(self, **kwargs):
