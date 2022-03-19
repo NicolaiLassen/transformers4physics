@@ -184,8 +184,7 @@ class PhysTrainer(pl.LightningModule):
     def embed_step(self, x, mode):
         loss, loss_reconstruct = self.embedding_model(x)
         self.log_dict({
-            f'loss/{mode}': loss.item(),
-            f'err/{mode}': err.item(),
+            f'loss/{mode}': loss.item()
         })
         return loss
 

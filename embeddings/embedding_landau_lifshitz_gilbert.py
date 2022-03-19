@@ -27,7 +27,6 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     # "vit": ViTBackbone // TODO: impl
 }
 
-
 class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     """Embedding Koopman model for Landau-Lifshitz-Gilbert
     Args:
@@ -66,6 +65,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.yidx = torch.LongTensor(np.concatenate(yidx))
         self.k_matrix_ut = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
 
+        # save configs
 
 
         # Normalization occurs inside the model
