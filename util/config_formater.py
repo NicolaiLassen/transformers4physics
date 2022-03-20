@@ -10,6 +10,7 @@ def sweep_decorate_config(cfg: DictConfig, sweep_params: Dict):
     cfg.learning.learning_rate = sweep_params["learning.lr"]
     cfg.opt.name = sweep_params["opt.name"]
     cfg.batch_size = sweep_params["batch_size"]
+    cfg.batch_size = sweep_params["learning."]
 
     if cfg.train_embed:
         cfg.embedding.backbone = sweep_params["embedding.backbone"]

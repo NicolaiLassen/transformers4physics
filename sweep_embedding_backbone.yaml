@@ -15,17 +15,14 @@ parameters:
     values:
     - 64
     - 128
-    - 256
   embedding.embedding_dim:
     values: 
     - 64
     - 128
-    - 256
   embedding.fc_dim:
     values: 
     - 64
     - 128
-    - 256
   learning.sched: 
     values: 
     - 'multistep'
@@ -34,6 +31,10 @@ parameters:
     distribution: 'uniform'
     min: 0.00001
     max: 0.001
+  learning.epochs:
+    distribution: 'q_uniform'
+    min: 10
+    max: 100
   opt.name:
     values: 
     - 'SGD'

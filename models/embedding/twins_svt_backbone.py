@@ -208,28 +208,27 @@ class TwinsSVTBackbone(nn.Module):
         self.backbone_dim = backbone_dim
 
         backbone_dims = [int(backbone_dim / 2 / 2),
-                       int(backbone_dim / 2), backbone_dim]
+                         int(backbone_dim / 2), backbone_dim]
 
         self.observable_net_layers = nn.Sequential(
 
             PatchMerging(in_channels=channels,
                          out_channels=backbone_dims[0], patch_size=2),
-            Transformer(in_channels=backbone_dims[0], depth=1,
-                        heads=4,
+            Transformer(in_channels=backbone_dims[0], depth=1, heads=2,
                         local_patch_size=4, global_k=7, dropout=0, has_local=False),
             PEG(in_channels=backbone_dims[0], kernel_size=3),
 
             PatchMerging(in_channels=backbone_dims[0],
                          out_channels=backbone_dims[1], patch_size=2),
             Transformer(in_channels=backbone_dims[1], depth=1,
-                        heads=4,
+                        heads=2,
                         local_patch_size=4, global_k=7, dropout=0, has_local=False),
             PEG(in_channels=backbone_dims[1], kernel_size=3),
 
             PatchMerging(in_channels=backbone_dims[1],
                          out_channels=backbone_dims[2], patch_size=2),
             Transformer(in_channels=backbone_dims[2], depth=1,
-                        heads=4,
+                        heads=2,
                         local_patch_size=2, global_k=4, dropout=0, has_local=True),
             PEG(in_channels=backbone_dims[2], kernel_size=3),
 
@@ -251,22 +250,20 @@ class TwinsSVTBackbone(nn.Module):
 
         self.recovery_net_layers = nn.Sequential(
 
-            Transformer(in_channels=backbone_dims[2], depth=1,
-                        heads=4,
+            Transformer(in_channels=backbone_dims[2], depth=1, heads=2,
                         local_patch_size=2, global_k=4, dropout=0, has_local=True),
             PEG(in_channels=backbone_dims[2], kernel_size=3),
             PatchExpansion(in_channels=backbone_dims[2],
                            out_channels=backbone_dims[1], patch_size=2),
 
-            Transformer(in_channels=backbone_dims[1], depth=1,
-                        heads=4,
+            Transformer(in_channels=backbone_dims[1], depth=1, heads=2,
                         local_patch_size=4, global_k=7, dropout=0, has_local=False),
             PEG(in_channels=backbone_dims[1], kernel_size=3),
             PatchExpansion(in_channels=backbone_dims[1],
                            out_channels=backbone_dims[0], patch_size=2),
 
             PEG(in_channels=backbone_dims[0], kernel_size=3),
-            Transformer(in_channels=backbone_dims[0], depth=1,
+            Transformer(in_channels=backbone_dims[0], depth=1, heads=2,
                         local_patch_size=4, global_k=7, dropout=0, has_local=False),
             PatchExpansion(in_channels=backbone_dims[0],
                            out_channels=channels, patch_size=2),

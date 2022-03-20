@@ -14,7 +14,7 @@ if __name__ == '__main__':
     import torchvision.transforms as transforms
     from PIL import Image
 
-    model = LandauLifshitzGilbertEmbeddingTrainer(
+    model_res = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(
             backbone="ResNet",
             image_dim=32,
@@ -23,10 +23,24 @@ if __name__ == '__main__':
             fc_dim=128,
             pretrained=False
         )
-    ).cuda()
+    )
     # 4714272
+    print(sum(p.numel() for p in model_res.parameters()))
+
+    model = LandauLifshitzGilbertEmbeddingTrainer(
+        EmmbedingConfig(
+            backbone="TwinsSVT",
+            image_dim=32,
+            backbone_dim=128,
+            embedding_dim=128,
+            fc_dim=128,
+            pretrained=False
+        )
+    ).cuda()
+
     print(sum(p.numel() for p in model.parameters()))
 
+    exit()
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
     # img = Image.open("C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
     pil_to_tensor = torch.rand(1, 3, 32, 32).cuda()

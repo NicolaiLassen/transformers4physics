@@ -16,7 +16,7 @@ check_val_every_n_epoch: 5
 checkpoint_hist: 1
 workers: 1
 pin_mem: False
-experiment: "koopman_GPT2_0_search"
+experiment: "koopman_Backbone_search_0"
 project: "v1"
 notes: "Staic field"
 

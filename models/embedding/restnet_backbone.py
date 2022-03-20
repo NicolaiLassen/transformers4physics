@@ -125,13 +125,14 @@ class ResNet(nn.Module):
         out = self.layer3(out)
         return out
 
+## TODO SIZE
 
 def resnetDown(backbone_dims=[64/2/2, 64/2, 64]):
-    return ResNet(BasicBlockDown, [12, 12, 12], backbone_dims)
+    return ResNet(BasicBlockDown, [8, 8, 8], backbone_dims)
 
 
 def resnetUp(backbone_dim=[64, 64/2, 64/2/2]):
-    return ResNet(BasicBlockUp, [12, 12, 12], backbone_dim)
+    return ResNet(BasicBlockUp, [8, 8, 8], backbone_dim)
 
 
 class ResnetBackbone(EmbeddingBackbone):
