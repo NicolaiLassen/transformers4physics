@@ -104,16 +104,15 @@ class PhysTrainer(pl.LightningModule):
                 for i in range(0,  data_series.size(0) - block_size + 1, stride):
                     seq.append(data_series[i: i + block_size].unsqueeze(0))
 
-        if data.size(0) < batch_size:
-            print("log")
-            batch_size = data.size(0)
-
         data = torch.cat(seq, dim=0)
-
         mu = torch.tensor([torch.mean(data[:, :, 0]), torch.mean(
             data[:, :, 1]), torch.mean(data[:, :, 2])])
         std = torch.tensor([torch.std(data[:, :, 0]), torch.std(
             data[:, :, 1]), torch.std(data[:, :, 2])])
+
+        if data.size(0) < batch_size:
+            print("log")
+            batch_size = data.size(0)
 
         return PhysData(data, mu, std)
 
