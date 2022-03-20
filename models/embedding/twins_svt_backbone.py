@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
+from models.embedding.embedding_backbone import EmbeddingBackbone
 from torch import einsum, nn
 
 
@@ -191,7 +192,7 @@ class Transformer(nn.Module):
         return x
 
 
-class TwinsSVTBackbone(nn.Module):
+class TwinsSVTBackbone(EmbeddingBackbone):
     def __init__(
         self,
         channels=3,

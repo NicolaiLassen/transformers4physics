@@ -1,17 +1,8 @@
-from abc import abstractmethod
-from re import M, X
-from statistics import mode
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from numpy import mat
-
-
-class EmbeddingBackbone(nn.Module):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+from models.embedding.embedding_backbone import EmbeddingBackbone
 
 # https://www.sciencedirect.com/science/article/pii/S0304885319307978
 # https://towardsdatascience.com/illustrated-10-cnn-architectures-95d78ace614d#e276
@@ -29,7 +20,6 @@ class LambdaLayer(nn.Module):
     """
       Identity mapping between ResNet blocks with diffrenet size feature map
     """
-
     def __init__(self, lambd):
         super(LambdaLayer, self).__init__()
         self.lambd = lambd
