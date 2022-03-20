@@ -13,7 +13,8 @@ def sweep_decorate_config(cfg: DictConfig, sweep_params: Dict):
 
     if cfg.train_embed:
         cfg.embedding.backbone = sweep_params["embedding.backbone"]
-        cfg.embedding.fc_layer = sweep_params["embedding.fc_layer"]
+        cfg.embedding.backbone_dim = sweep_params["embedding.backbone_dim"]
+        cfg.embedding.fc_dim = sweep_params["embedding.fc_dim"]
         cfg.embedding.embedding_dim = sweep_params["embedding.embedding_dim"]
     else:
         cfg.autoregressive.model = sweep_params["autoregressive.model"]

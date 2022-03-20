@@ -13,10 +13,18 @@ class EmmbedingConfig(PhysConfig):
     """
     model_type: str = ""
 
-    def __init__(self, channels=3, image_dim=32, backbone="twinsSVT", embedding_dim=128, fc_layer=128, **kwargs) -> None:
+    def __init__(self,
+                 channels=3,
+                 image_dim=32,
+                 backbone="TwinsSVT",
+                 backbone_dim=64,
+                 embedding_dim=128,
+                 fc_dim=128,
+                 **kwargs) -> None:
         super().__init__(**kwargs)
         self.channels = channels,
         self.image_dim = image_dim
         self.backbone = backbone
+        self.backbone_dim = backbone_dim
         self.embedding_dim = embedding_dim
-        self.fc_layer = fc_layer
+        self.fc_dim = fc_dim

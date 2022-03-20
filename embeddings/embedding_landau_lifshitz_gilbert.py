@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
-from models.embedding.conv_backbone import ConvBackbone
+from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.embedding_backbone import EmbeddingBackbone
 from models.embedding.swin_backbone import SwinBackbone
 from models.embedding.twins_svt_backbone import TwinsSVTBackbone
@@ -21,8 +21,8 @@ TensorTuple = Tuple[torch.Tensor]
 FloatTuple = Tuple[float]
 
 backbone_models: Dict[str, EmbeddingBackbone] = {
-    "conv": ConvBackbone,
-    "twinsSVT": TwinsSVTBackbone,
+    "ResNet": ResnetBackbone,
+    "TwinsSVT": TwinsSVTBackbone,
     # "swin": SwinBackbone, // TODO: impl
     # "vit": ViTBackbone // TODO: impl
 }
@@ -44,10 +44,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
 
         self.backbone: EmbeddingBackbone = backbone_models[config.backbone](
             img_dim=config.image_dim,
+            backbone_dim=config.backbone_dim,
             embedding_dim=config.embedding_dim,
-            fc_layer=config.fc_layer
+            fc_dim=config.fc_dim
         )
-
+        
         # koop m
         self.k_matrix = None
 

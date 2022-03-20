@@ -196,55 +196,83 @@ class TwinsSVTBackbone(nn.Module):
         self,
         channels=3,
         img_dim=32,
+        backbone_dim=64,
         embedding_dim=128,
-        fc_layer=512
+        fc_dim=128
     ):
         super().__init__()
 
-        final_patch_size = int(img_dim / 4)
+        final_patch_size = int(img_dim / 2 / 2 / 2)
         self.final_patch_size = final_patch_size
         self.embedding_dim = embedding_dim
+        self.backbone_dim = backbone_dim
 
-        # Observable net
-        # TODO: can be a for loop
-        # TODO local last
-        observable_net_fc_layers = []
-        observable_net_fc_layers.append(nn.Sequential(
+        backbone_dims = [int(backbone_dim / 2 / 2),
+                       int(backbone_dim / 2), backbone_dim]
+
+        self.observable_net_layers = nn.Sequential(
+
             PatchMerging(in_channels=channels,
-                         out_channels=embedding_dim, patch_size=4),
-            Transformer(in_channels=embedding_dim, depth=1,
-                        local_patch_size=4, global_k=7, dropout=0, has_local=True),
-            PEG(in_channels=embedding_dim, kernel_size=3),
+                         out_channels=backbone_dims[0], patch_size=2),
+            Transformer(in_channels=backbone_dims[0], depth=1,
+                        heads=4,
+                        local_patch_size=4, global_k=7, dropout=0, has_local=False),
+            PEG(in_channels=backbone_dims[0], kernel_size=3),
+
+            PatchMerging(in_channels=backbone_dims[0],
+                         out_channels=backbone_dims[1], patch_size=2),
+            Transformer(in_channels=backbone_dims[1], depth=1,
+                        heads=4,
+                        local_patch_size=4, global_k=7, dropout=0, has_local=False),
+            PEG(in_channels=backbone_dims[1], kernel_size=3),
+
+            PatchMerging(in_channels=backbone_dims[1],
+                         out_channels=backbone_dims[2], patch_size=2),
+            Transformer(in_channels=backbone_dims[2], depth=1,
+                        heads=4,
+                        local_patch_size=2, global_k=4, dropout=0, has_local=True),
+            PEG(in_channels=backbone_dims[2], kernel_size=3),
+
             nn.Sigmoid()
-        ))
-        self.observable_net_layers = nn.Sequential(*observable_net_fc_layers)
+        )
 
         self.observable_net_fc_layers = nn.Sequential(
-            nn.Linear(embedding_dim*final_patch_size**2, fc_layer),
+            nn.Linear(backbone_dim*final_patch_size**2, fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
-            nn.Linear(fc_layer, embedding_dim),
+            nn.Linear(fc_dim, embedding_dim)
         )
 
-        # Recovery net
+        # # Recovery net
         self.recovery_net_fc_layers = nn.Sequential(
-            nn.Linear(embedding_dim, fc_layer),
+            nn.Linear(embedding_dim, fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
-            nn.Linear(fc_layer, embedding_dim*final_patch_size**2),
+            nn.Linear(fc_dim, backbone_dim*final_patch_size**2),
         )
 
-        # TODO: can be a for loop
-        # TODO local last
-        recovery_net_layers = []
-        recovery_net_layers.append(nn.Sequential(
-            # TODO local last
-            Transformer(in_channels=embedding_dim, depth=1,
-                        local_patch_size=4, global_k=7, dropout=0, has_local=True),
-            PEG(in_channels=embedding_dim, kernel_size=3),
-            PatchExpansion(in_channels=embedding_dim,
-                           out_channels=3, patch_size=4),
+        self.recovery_net_layers = nn.Sequential(
+
+            Transformer(in_channels=backbone_dims[2], depth=1,
+                        heads=4,
+                        local_patch_size=2, global_k=4, dropout=0, has_local=True),
+            PEG(in_channels=backbone_dims[2], kernel_size=3),
+            PatchExpansion(in_channels=backbone_dims[2],
+                           out_channels=backbone_dims[1], patch_size=2),
+
+            Transformer(in_channels=backbone_dims[1], depth=1,
+                        heads=4,
+                        local_patch_size=4, global_k=7, dropout=0, has_local=False),
+            PEG(in_channels=backbone_dims[1], kernel_size=3),
+            PatchExpansion(in_channels=backbone_dims[1],
+                           out_channels=backbone_dims[0], patch_size=2),
+
+            PEG(in_channels=backbone_dims[0], kernel_size=3),
+            Transformer(in_channels=backbone_dims[0], depth=1,
+                        local_patch_size=4, global_k=7, dropout=0, has_local=False),
+            PatchExpansion(in_channels=backbone_dims[0],
+                           out_channels=channels, patch_size=2),
+
             nn.Sigmoid()
-        ))
-        self.recovery_net_layers = nn.Sequential(*recovery_net_layers)
+        )
 
     def observable_net(self, x):
         return self.observable_net_layers(x)
@@ -260,13 +288,13 @@ class TwinsSVTBackbone(nn.Module):
 
     def embed(self, x):
         out = self.observable_net(x)
-        out = out.view(-1, self.embedding_dim*self.final_patch_size**2)
+        out = out.view(-1, self.backbone_dim*self.final_patch_size**2)
         out = self.observable_net_fc(out)
         return out
 
     def recover(self, x):
         out = self.recovery_net_fc(x)
-        out = out.view(-1, self.embedding_dim,
+        out = out.view(-1, self.backbone_dim,
                        self.final_patch_size, self.final_patch_size)
         out = self.recovery_net(out)
         return out

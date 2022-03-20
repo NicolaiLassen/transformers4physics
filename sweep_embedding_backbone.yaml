@@ -9,18 +9,23 @@ metric:
 parameters:
   embedding.backbone: 
     values:
-    - 'conv'
-    - 'twinsSTV'
+    - 'ResNet'
+    - 'TwinsSTV'
+  embedding.backbone_dim:
+    values:
+    - 64
+    - 128
+    - 256
   embedding.embedding_dim:
     values: 
+    - 64
+    - 128
     - 256
-    - 512
-    - 1024
-  embedding.fc_layer:
+  embedding.fc_dim:
     values: 
+    - 64
+    - 128
     - 256
-    - 512
-    - 1024
   learning.sched: 
     values: 
     - 'multistep'
@@ -37,7 +42,7 @@ parameters:
   batch_size:
     distribution: 'q_uniform'
     min: 32
-    max: 256
+    max: 128
   
 command:
   - ${args_no_hyphens}

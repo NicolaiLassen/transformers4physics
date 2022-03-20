@@ -24,7 +24,7 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: ""
-  backbone: "twinsSTV"
+  backbone: "TwinsSTV"
   fc_layer: 128
   embedding_dim: 128
 

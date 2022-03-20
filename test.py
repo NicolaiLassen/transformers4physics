@@ -16,38 +16,45 @@ if __name__ == '__main__':
 
     model = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(
+            backbone="ResNet",
             image_dim=32,
+            backbone_dim=128,
             embedding_dim=128,
-            fc_layer=128,
+            fc_dim=128,
             pretrained=False
         )
     ).cuda()
+    # 4714272
+    print(sum(p.numel() for p in model.parameters()))
 
     os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
-    # img = Image.open(
-    #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
-    pil_to_tensor = torch.rand(1, 10, 3, 32, 32).cuda()
+    # img = Image.open("C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
+    pil_to_tensor = torch.rand(1, 3, 32, 32).cuda()
 
-    print(pil_to_tensor[0, 0, :].shape)
-    plt.imshow(transforms.ToPILImage()(pil_to_tensor[0, 0, :].cpu()))
+    print(pil_to_tensor[0, :, :].shape)
+    plt.imshow(transforms.ToPILImage()(pil_to_tensor[0, :, :].cpu()))
     plt.show()
 
     optimizer = optim.Adam(model.parameters(), lr=0.0003)
+    criterion = nn.MSELoss()
 
     for i in range(1000):
-        loss, loss_reconstruct = model(pil_to_tensor)
+        # loss, loss_reconstruct = model(pil_to_tensor)
+        # loss0 = loss.sum()
+        # loss0.backward()
 
-        loss0 = loss.sum()
-        loss0.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
-        optimizer.step()
         optimizer.zero_grad()
-        print(loss0)
+
+        # forward + backward + optimize
+        g = model.embedding_model.backbone.observable_net(pil_to_tensor)
+        outputs = model.embedding_model.backbone.recovery_net(g)
+        loss = criterion(outputs, pil_to_tensor)
+        loss.backward()
+        optimizer.step()
+        print(loss)
 
         if i % 100 == 0:
-            print(pil_to_tensor[:, 0, :, :].shape)
-            g,r = model.embedding_model(pil_to_tensor[:, 0, :, :])
-            plt.imshow(transforms.ToPILImage()(r[0].cpu()))
+            plt.imshow(transforms.ToPILImage()(outputs[0].cpu()))
             plt.show()
             plt.axis('off')
 
