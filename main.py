@@ -1,6 +1,4 @@
-import imp
 import os
-from distutils.command.config import config
 from pathlib import Path
 from typing import Tuple
 
@@ -17,11 +15,9 @@ from torch.utils.data import DataLoader
 
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
-from data_utils.dataset_magnet import MicroMagnetismDataset
-from data_utils.dataset_phys import PhysicalDataset
 from embeddings.embedding_landau_lifshitz_gilbert import \
     LandauLifshitzGilbertEmbeddingTrainer
-from embeddings.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+from embeddings.embedding_model import EmbeddingTrainingHead
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
 from util.config_formater import sweep_decorate_config
@@ -271,7 +267,6 @@ def sweep_autoregressive(cfg: DictConfig):
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
-
 def sweep_embedding(cfg: DictConfig):
     # wandb sweep sweep_embed.yaml
     sweep = None
@@ -293,7 +288,6 @@ def main(cfg: DictConfig):
         # TODO
     else:
         train(cfg)
-
 
 if __name__ == '__main__':
     main()
