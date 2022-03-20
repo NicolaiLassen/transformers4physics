@@ -58,6 +58,7 @@ learning:
   lr: 1e-4
   min_lr: 1e-6
   warmup_lr: 1e-6
+  gamma: 0.995
 
   sched: 'cosine'
   multistep_milestones: [25, 50, 75, 100]

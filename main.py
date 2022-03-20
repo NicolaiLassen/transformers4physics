@@ -1,15 +1,19 @@
+import imp
 import os
 from distutils.command.config import config
 from pathlib import Path
+from typing import Tuple
 
+import h5py
 import hydra
 import pytorch_lightning as pl
+import torch
 import wandb
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
@@ -22,13 +26,12 @@ from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
 from util.config_formater import sweep_decorate_config
 
-# Phys trainer pipeline
-# 1. Train embedding model
-# 2. Load embedding model & Train transformer model
 
-# Phys gen pipeline
-# 1. load embedding model & transformer
-# 2. feed transformer with past tokens and set of constants c_1, c_2 ... c_N , N = max_seq_len
+class PhysData():
+    def __init__(self, data, mu, std):
+        self.data = data
+        self.mu = mu
+        self.std = std
 
 
 class PhysTrainer(pl.LightningModule):
@@ -47,6 +50,7 @@ class PhysTrainer(pl.LightningModule):
         self.embedding_model = self.configure_embedding_model()
 
         if not self.train_embedding:
+            self.embedding_model.eval()
             self.autoregressive_model = self.configure_autoregressive_model()
 
     def generate(self, past_tokens, seq_len, **kwargs):
@@ -57,15 +61,48 @@ class PhysTrainer(pl.LightningModule):
         assert self.train_embedding, "Cannot use autoregressive model when traning embed"
         return self.autoregressive_model(z)
 
-    def configure_dataset(self) -> (PhysicalDataset):
+    def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
         cfg = self.hparams
 
-        os.path.expanduser(cfg.data_dir)
+        base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
+        train_path = "{}\\train.h5".format(base_path)
+        val_path = "{}\\val.h5".format(base_path)
+        test_path = "{}\\test.h5".format(base_path)
 
-        train_size = int(0.8 * len(dataset))
-        val_size = int(0.1 * len(dataset))
-        test_size = len(dataset) - train_size - val_size
+        train_set = self.read_dataset(train_path)
+        val_set = self.read_dataset(val_path)
+        test_set = self.read_dataset(test_path)
+
         return train_set, val_set, test_set
+
+    def read_dataset(self,
+                     file_path: str,
+                     block_size: int,
+                     batch_size: int = 32,
+                     stride: int = 1) -> PhysData:
+        assert os.path.isfile(
+            file_path), "Training HDF5 file {} not found".format(file_path)
+
+        seq = []
+        with h5py.File(file_path, "r") as f:
+            for key in f.keys():
+                data_series = torch.Tensor(f[key])
+                # Truncate in block of block_size
+                for i in range(0,  data_series.size(0) - block_size + 1, stride):
+                    seq.append(data_series[i: i + block_size].unsqueeze(0))
+
+        if data.size(0) < batch_size:
+            print("log")
+            batch_size = data.size(0)
+
+        data = torch.cat(seq, dim=0)
+
+        mu = torch.tensor([torch.mean(data[:, :, 0]), torch.mean(
+            data[:, :, 1]), torch.mean(data[:, :, 2])])
+        std = torch.tensor([torch.std(data[:, :, 0]), torch.std(
+            data[:, :, 1]), torch.std(data[:, :, 2])])
+
+        return PhysData(data, mu, std)
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
@@ -79,48 +116,54 @@ class PhysTrainer(pl.LightningModule):
         cfg = self.hparams
 
         model_parameters = self.embedding_model.parameters() if self.train_embedding \
-            else self.autoregressive_model
+            else self.autoregressive_model.parameters()
 
         if cfg.opt.name == 'SGD':
             optimizer = optim.SGD(
-                model_parameters, momentum=cfg.opt.momentum, lr=cfg.lr.lr)
+                model_parameters, momentum=cfg.opt.momentum, lr=cfg.learning.lr)
         if cfg.opt.name == 'adam':
-            optimizer = optim.Adam(model_parameters, lr=cfg.lr.lr)
+            optimizer = optim.Adam(model_parameters, lr=cfg.learning.lr)
         if cfg.opt.name == 'adamw':
-            optimizer = optim.AdamW(model_parameters, lr=cfg.lr.lr,
+            optimizer = optim.AdamW(model_parameters, lr=cfg.learning.lr,
                                     betas=(cfg.opt.beta0,
                                            cfg.opt.beta1), eps=cfg.opt.eps,
                                     weight_decay=cfg.opt.weight_decay)
         else:
             raise NotImplementedError()
 
-        if cfg.lr.sched is not None:
+        if cfg.learning.sched is not None:
             lr_scheduler = None
 
-            if cfg.lr.sched == 'cosine':
-                lr_scheduler_g = optim.lr_scheduler.CosineAnnealingLR(
+            if cfg.learning.sched == 'exponential':
+                lr_scheduler = optim.lr_scheduler.ExponentialLR(
                     optimizer,
-                    T_max=cfg.lr.epochs,
+                    gamma=cfg.learning.gamma
                 )
-            elif cfg.lr.sched == 'multistep':
+            elif cfg.learning.sched == 'cosine':
+                lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+                    optimizer,
+                    eta_min=cfg.learning.min_lr
+                )
+            elif cfg.learning.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
                     optimizer,
-                    milestones=cfg.lr.multistep_milestones,
+                    milestones=cfg.learning.multistep_milestones,
+                    gamma=cfg.learning.gamma
                 )
 
             start_epoch = 0
-            if cfg.lr.start_epoch is not None:
-                start_epoch = cfg.lr.start_epoch
+            if cfg.learning.start_epoch is not None:
+                start_epoch = cfg.learning.start_epoch
             if lr_scheduler is not None and start_epoch > 0:
                 lr_scheduler.step(start_epoch)
 
-            return [optimizer], [lr_scheduler_g]
+            return [optimizer], [lr_scheduler]
         else:
             return optimizer
 
     def train_dataloader(self):
         return DataLoader(
-            self.train_dataset,
+            self.train_dataset.data,
             batch_size=self.hparams.batch_size,
             shuffle=True,
             drop_last=True,
@@ -130,7 +173,7 @@ class PhysTrainer(pl.LightningModule):
 
     def val_dataloader(self):
         return DataLoader(
-            self.val_dataset,
+            self.val_dataset.data,
             batch_size=self.hparams.val_batch_size,
             shuffle=False,
             drop_last=True,
@@ -140,7 +183,7 @@ class PhysTrainer(pl.LightningModule):
 
     def test_dataloader(self):
         return DataLoader(
-            self.test_dataset,
+            self.test_dataset.data,
             batch_size=self.hparams.test_batch_size,
             shuffle=False,
             drop_last=True,
@@ -184,7 +227,6 @@ class PhysTrainer(pl.LightningModule):
 
 
 def train(cfg):
-
     pl.seed_everything(cfg.seed)
     model = PhysTrainer(cfg)
 
@@ -204,7 +246,7 @@ def train(cfg):
     trainer = pl.Trainer(
         accumulate_grad_batches=1,
         gradient_clip_val=0.1,
-        max_epochs=cfg.lr.epochs,
+        max_epochs=cfg.learning.epochs,
         gpus=1,
         num_nodes=1,
         logger=logger,

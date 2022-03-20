@@ -27,6 +27,7 @@ parameters:
     values: 
     - 'multistep'
     - 'cosine'
+    - 'exponential'
   learning.lr: 
     distribution: 'uniform'
     min: 0.00001
