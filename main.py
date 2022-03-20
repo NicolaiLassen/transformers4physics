@@ -1,18 +1,16 @@
 import os
 from distutils.command.config import config
-from msilib.schema import Error
 from pathlib import Path
-
-from omegaconf import DictConfig
 
 import hydra
 import pytorch_lightning as pl
+import wandb
+from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader, random_split
 
-import wandb
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from data_utils.dataset_magnet import MicroMagnetismDataset
@@ -32,8 +30,6 @@ from util.config_formater import sweep_decorate_config
 # 1. load embedding model & transformer
 # 2. feed transformer with past tokens and set of constants c_1, c_2 ... c_N , N = max_seq_len
 
-EMBED_TRANING_ERROR = Error(
-    "Cannot use autoregressive model when traning embed")
 
 class PhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
@@ -41,7 +37,7 @@ class PhysTrainer(pl.LightningModule):
 
         # hyper
         self.save_hyperparameters(cfg)
-        self.train_embed = cfg.train_embed
+        self.train_embedding = cfg.train_embedding
 
         # dataset
         self.train_dataset, self.val_dataset, self.test_dataset = \
@@ -50,51 +46,44 @@ class PhysTrainer(pl.LightningModule):
         # models
         self.embedding_model = self.configure_embedding_model()
 
-        if not self.train_embed:
+        if not self.train_embedding:
             self.autoregressive_model = self.configure_autoregressive_model()
 
     def generate(self, past_tokens, seq_len, **kwargs):
-        if self.train_embed:
-            raise EMBED_TRANING_ERROR
-
+        assert self.train_embedding, "Cannot use autoregressive model when traning embed"
         return self.autoregressive_model.generate(past_tokens, seq_len, kwargs)
 
     def forward(self, z):
-        if self.train_embed:
-            raise EMBED_TRANING_ERROR
+        assert self.train_embedding, "Cannot use autoregressive model when traning embed"
         return self.autoregressive_model(z)
 
-    def configure_dataset(self) -> PhysicalDataset:
+    def configure_dataset(self) -> (PhysicalDataset):
         cfg = self.hparams
 
         os.path.expanduser(cfg.data_dir)
 
-        dataset = MicroMagnetismDataset()
         train_size = int(0.8 * len(dataset))
         val_size = int(0.1 * len(dataset))
         test_size = len(dataset) - train_size - val_size
-        return random_split(dataset, [train_size, val_size, test_size])
+        return train_set, val_set, test_set
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
-        return LandauLifshitzGilbertEmbeddingTrainer(
-            EmmbedingConfig(cfg.embedding)
-        )
+        return LandauLifshitzGilbertEmbeddingTrainer(EmmbedingConfig(cfg.embedding))
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
-        return PhysformerGPT2(
-            AutoregressiveConfig(cfg.autoregressive)
-        )
+        return PhysformerGPT2(AutoregressiveConfig(cfg.autoregressive))
 
     def configure_optimizers(self):
         cfg = self.hparams
 
-        model_parameters = self.embedding_model.parameters() if self.train_embed \
+        model_parameters = self.embedding_model.parameters() if self.train_embedding \
             else self.autoregressive_model
 
         if cfg.opt.name == 'SGD':
-            optimizer = optim.SGD(model_parameters, lr=cfg.lr.lr)
+            optimizer = optim.SGD(
+                model_parameters, momentum=cfg.opt.momentum, lr=cfg.lr.lr)
         if cfg.opt.name == 'adam':
             optimizer = optim.Adam(model_parameters, lr=cfg.lr.lr)
         if cfg.opt.name == 'adamw':
@@ -169,8 +158,10 @@ class PhysTrainer(pl.LightningModule):
         return self.step(batch=batch, batch_idx=batch_idx, mode='test', optimizer_idx=optimizer_idx)
 
     def step(self, batch, batch_idx, mode):
+        cfg = self.hparams
         x = batch
-        if self.hparams["train_embed"]:
+
+        if cfg.train_embbeding:
             return self.embedding_step(x, mode)
         else:
             return self.autoregressive_step(x, mode)
@@ -179,10 +170,16 @@ class PhysTrainer(pl.LightningModule):
         raise NotImplementedError("not ready")
 
     def embedding_step(self, x, mode):
-        loss, loss_reconstruct = self.embedding_model(x)
+
+        if mode == "val":
+            loss = self.embedding_model.evaluate(x)
+        else:
+            loss, loss_reconstruct = self.embedding_model(x)
+
         self.log_dict({
             f'loss/{mode}': loss.item()
         })
+
         return loss
 
 
@@ -232,23 +229,24 @@ def sweep_autoregressive(cfg: DictConfig):
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
+
 def sweep_embedding(cfg: DictConfig):
     # wandb sweep sweep_embed.yaml
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
-        cfg.train_embed = True
+        cfg.train_embedding = True
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
 
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):
-
     if cfg.use_sweep:
         # sweep_embedding
         wandb.agent("", sweep_embedding, count=100,
                     project="v1", entity="transformers4physics")
+
         # sweep_autoregressive
         # TODO
     else:
@@ -256,10 +254,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    # wandb sweep sweep_embed.yaml
-    # wandb sweep autoregressive.yaml
-    
-    LandauLifshitzGilbertEmbeddingTrainer(
-        config=EmmbedingConfig()
-    )
-    # main()
+    main()

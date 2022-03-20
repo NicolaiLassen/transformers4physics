@@ -1,16 +1,16 @@
 use_wandb: False
 use_sweep: False
-train_embed: False
+train_embedding: False
 
-seed: 0
+seed: 2
 gpus: 1
 cpus: 1
 workers: 4
 pin_mem: False
+device: 'cuda'
 
 batch_size: 1
 val_batch_size: 1
-recovery_interval: 0
 
 data_dir: '~/data'
 dataset: 'prism_grid_dataset_224.hdf5'
@@ -25,7 +25,7 @@ notes: "Staic field"
 embedding:
   name: 'koopman'
   pretrained: False
-  ckpt_path: ""
+  ckpt_path: "./ckpt/"
 
   image_dim: 32
   channels: 3
@@ -37,7 +37,7 @@ embedding:
 autoregressive: 
   name: "GPT2" 
   pretrained: False
-  ckpt_path: ""
+  ckpt_path: "./ckpt/" 
 
 opt:
   name: 'adamw'
@@ -48,10 +48,16 @@ opt:
   weight_decay: 0.05
 
 learning:
-  sched: 'cosine'
-  learning_rate: 1e-3
-  k_decay: 1.0
-  warmup_lr: 1e-6
-  min_lr: 1e-6
+
+  block_size_train: 5
+  stride_train: 5
   epochs: 100
+  
+  k_decay: 1.0
+  
+  lr: 1e-4
+  min_lr: 1e-6
+  warmup_lr: 1e-6
+
+  sched: 'cosine'
   multistep_milestones: [25, 50, 75, 100]

@@ -8,11 +8,11 @@ from torch import embedding
 def sweep_decorate_config(cfg: DictConfig, sweep_params: Dict):
     cfg.learning.sched = sweep_params["learning.sched"]
     cfg.learning.learning_rate = sweep_params["learning.lr"]
+    cfg.learning.epochs = sweep_params["learning.epochs"]
     cfg.opt.name = sweep_params["opt.name"]
     cfg.batch_size = sweep_params["batch_size"]
-    cfg.batch_size = sweep_params["learning."]
 
-    if cfg.train_embed:
+    if cfg.train_embedding:
         cfg.embedding.backbone = sweep_params["embedding.backbone"]
         cfg.embedding.backbone_dim = sweep_params["embedding.backbone_dim"]
         cfg.embedding.fc_dim = sweep_params["embedding.fc_dim"]
