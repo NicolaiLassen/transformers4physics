@@ -1,3 +1,4 @@
+import imp
 import os
 from distutils.command.config import config
 from msilib.schema import Error
@@ -6,10 +7,12 @@ from pathlib import Path
 from omegaconf import DictConfig
 
 import hydra
+import h5py
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
+import torch
 from torch.utils.data import DataLoader, random_split
 
 import wandb
@@ -67,13 +70,23 @@ class PhysTrainer(pl.LightningModule):
     def configure_dataset(self) -> PhysicalDataset:
         cfg = self.hparams
 
-        os.path.expanduser(cfg.data_dir)
+        base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
+        train_path = "{}\\train.h5".format(base_path)
+        val_path = "{}\\val.h5".format(base_path)
+        test_path = "{}\\test.h5".format(base_path)   
 
-        dataset = MicroMagnetismDataset()
-        train_size = int(0.8 * len(dataset))
-        val_size = int(0.1 * len(dataset))
-        test_size = len(dataset) - train_size - val_size
-        return random_split(dataset, [train_size, val_size, test_size])
+        train_set = self.read_dataset(train_path)
+        val_set = self.read_dataset(val_path)
+        test_set = self.read_dataset(test_path)
+
+
+        return train_set, val_set, test_set
+
+    def read_dataset(self, path):
+        with h5py.File(path, "r") as f:
+            for key in f.keys():
+                data_series = torch.Tensor(f[key])
+                print(data_series)
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
