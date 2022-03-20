@@ -125,13 +125,11 @@ class ResNet(nn.Module):
         out = self.layer3(out)
         return out
 
-## TODO SIZE
-
-def resnetDown(backbone_dims=[64/2/2, 64/2, 64]):
+def resnetDown8(backbone_dims=[64/2/2, 64/2, 64]):
     return ResNet(BasicBlockDown, [8, 8, 8], backbone_dims)
 
 
-def resnetUp(backbone_dim=[64, 64/2, 64/2/2]):
+def resnetUp8(backbone_dim=[64, 64/2, 64/2/2]):
     return ResNet(BasicBlockUp, [8, 8, 8], backbone_dim)
 
 
@@ -159,7 +157,7 @@ class ResnetBackbone(EmbeddingBackbone):
                       stride=1, padding=1, bias=False),
             nn.BatchNorm2d(int(backbone_dim / 2 / 2)),
             nn.ReLU(),
-            resnetDown(backbone_dims),
+            resnetDown8(backbone_dims),
             nn.Sigmoid()
         )
 
@@ -177,7 +175,7 @@ class ResnetBackbone(EmbeddingBackbone):
         )
 
         self.recovery_net_layers = nn.Sequential(
-            resnetUp(backbone_dims[::-1]),
+            resnetUp8(backbone_dims[::-1]),
             nn.ConvTranspose2d(int(backbone_dim / 2 / 2), 3,
                                kernel_size=3, stride=1, padding=1, bias=False),
             nn.Sigmoid()

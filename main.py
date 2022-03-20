@@ -118,6 +118,7 @@ class PhysTrainer(pl.LightningModule):
             elif cfg.lr.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
                     optimizer,
+                    war
                     milestones=cfg.lr.multistep_milestones,
                 )
 
@@ -173,15 +174,14 @@ class PhysTrainer(pl.LightningModule):
     def step(self, batch, batch_idx, mode):
         x = batch
         if self.hparams["train_embed"]:
-            return self.embed_step(x, mode)
+            return self.embedding_step(x, mode)
         else:
             return self.autoregressive_step(x, mode)
 
     def autoregressive_step():
-        print
-        return 0
+        raise NotImplementedError("not ready")
 
-    def embed_step(self, x, mode):
+    def embedding_step(self, x, mode):
         loss, loss_reconstruct = self.embedding_model(x)
         self.log_dict({
             f'loss/{mode}': loss.item()
