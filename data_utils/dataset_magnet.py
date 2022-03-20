@@ -20,8 +20,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
+from data_utils.dataset_phys import PhysicalDataset
 
 from data_utils.embedding_data_handler import EmbeddingDataHandler
+from embeddings.embedding_model import EmbeddingModel
 
 logger = logging.getLogger(__name__)
 

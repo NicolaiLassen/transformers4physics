@@ -42,6 +42,8 @@ class PhysTrainer(pl.LightningModule):
         self.save_hyperparameters(cfg)
         self.train_embedding = cfg.train_embedding
 
+        print(cfg)
+
         # dataset
         self.train_dataset, self.val_dataset, self.test_dataset = \
             self.configure_dataset()
@@ -69,10 +71,21 @@ class PhysTrainer(pl.LightningModule):
         val_path = "{}\\val.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
-        train_set = self.read_dataset(train_path)
-        val_set = self.read_dataset(val_path)
-        test_set = self.read_dataset(test_path)
-
+        train_set = self.read_dataset(train_path,
+            cfg.learning.block_size_train, 
+            cfg.learning.stride_train,
+            cfg.learning.batch_size_train
+            )
+        val_set = self.read_dataset(val_path,
+            cfg.learning.block_size_val, 
+            cfg.learning.stride_val,
+            cfg.learning.batch_size_val
+        )
+        test_set = self.read_dataset(test_path,
+            cfg.learning.block_size_val, 
+            cfg.learning.stride_val,
+            cfg.learning.batch_size_val
+        )
         return train_set, val_set, test_set
 
     def read_dataset(self,

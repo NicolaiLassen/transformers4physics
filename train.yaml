@@ -9,9 +9,6 @@ workers: 4
 pin_mem: False
 device: 'cuda'
 
-batch_size: 1
-val_batch_size: 1
-
 data_dir: '~/data'
 dataset: 'prism_grid_dataset_224.hdf5'
 
@@ -49,9 +46,15 @@ opt:
 
 learning:
 
+  epochs: 100
+
   block_size_train: 5
   stride_train: 5
-  epochs: 100
+  batch_size_train: 32
+  
+  batch_size_val: 16
+  block_size_val: 5
+  stride_val: 100
   
   k_decay: 1.0
   
