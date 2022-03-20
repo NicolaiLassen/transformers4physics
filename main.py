@@ -77,14 +77,12 @@ class PhysTrainer(pl.LightningModule):
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
-        # TODO
         return LandauLifshitzGilbertEmbeddingTrainer(
             EmmbedingConfig(cfg.embedding)
         )
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
-        # TODO
         return PhysformerGPT2(
             AutoregressiveConfig(cfg.autoregressive)
         )
@@ -118,7 +116,6 @@ class PhysTrainer(pl.LightningModule):
             elif cfg.lr.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
                     optimizer,
-                    war
                     milestones=cfg.lr.multistep_milestones,
                 )
 

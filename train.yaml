@@ -12,7 +12,6 @@ batch_size: 1
 val_batch_size: 1
 recovery_interval: 0
 
-image_dim: 32
 data_dir: '~/data'
 dataset: 'prism_grid_dataset_224.hdf5'
 
@@ -27,6 +26,9 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: ""
+
+  image_dim: 32
+  channels: 3
   backbone: "TwinsSTV"
   fc_dim: 128
   embedding_dim: 128
