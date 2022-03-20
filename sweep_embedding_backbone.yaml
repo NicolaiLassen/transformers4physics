@@ -41,7 +41,7 @@ parameters:
     - 'SGD'
     - 'adam'
     - 'adamw'
-  batch_size:
+  batch_size_train:
     distribution: 'q_uniform'
     min: 32
     max: 128

@@ -38,14 +38,14 @@ class PhysTrainer(pl.LightningModule):
         self.save_hyperparameters(cfg)
         self.train_embedding = cfg.train_embedding
 
-        print(cfg)
-
         # dataset
         self.train_dataset, self.val_dataset, self.test_dataset = \
             self.configure_dataset()
 
         # models
         self.embedding_model = self.configure_embedding_model()
+        self.embedding_model.mu = self.train_dataset.mu
+        self.embedding_model.std = self.train_dataset.std
 
         if not self.train_embedding:
             self.embedding_model.eval()
@@ -150,7 +150,8 @@ class PhysTrainer(pl.LightningModule):
             elif cfg.learning.sched == 'cosine':
                 lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(
                     optimizer,
-                    eta_min=cfg.learning.min_lr
+                    eta_min=cfg.learning.min_lr,
+                    T_max=cfg.learning.epochs
                 )
             elif cfg.learning.sched == 'multistep':
                 lr_scheduler = optim.lr_scheduler.MultiStepLR(
@@ -172,7 +173,7 @@ class PhysTrainer(pl.LightningModule):
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset.data,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.hparams.learning.batch_size_train,
             shuffle=True,
             drop_last=True,
             pin_memory=self.hparams.pin_mem,
@@ -182,7 +183,7 @@ class PhysTrainer(pl.LightningModule):
     def val_dataloader(self):
         return DataLoader(
             self.val_dataset.data,
-            batch_size=self.hparams.val_batch_size,
+            batch_size=self.hparams.learning.batch_size_val,
             shuffle=False,
             drop_last=True,
             pin_memory=self.hparams.pin_mem,
@@ -192,27 +193,26 @@ class PhysTrainer(pl.LightningModule):
     def test_dataloader(self):
         return DataLoader(
             self.test_dataset.data,
-            batch_size=self.hparams.test_batch_size,
+            batch_size=self.hparams.learning.batch_size_val,
             shuffle=False,
             drop_last=True,
             pin_memory=self.hparams.pin_mem,
             num_workers=self.hparams.workers
         )
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='train', optimizer_idx=optimizer_idx)
+    def training_step(self, batch, batch_idx):
+        return self.step(batch=batch, batch_idx=batch_idx, mode='train')
 
-    def validation_step(self, batch, batch_idx, optimizer_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='val', optimizer_idx=optimizer_idx)
+    def validation_step(self, batch, batch_idx):
+        return self.step(batch=batch, batch_idx=batch_idx, mode='val')
 
-    def test_step(self, batch, batch_idx, optimizer_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='test', optimizer_idx=optimizer_idx)
+    def test_step(self, batch, batch_idx):
+        return self.step(batch=batch, batch_idx=batch_idx, mode='test')
 
     def step(self, batch, batch_idx, mode):
-        cfg = self.hparams
         x = batch
-
-        if cfg.train_embbeding:
+        
+        if self.train_embedding:
             return self.embedding_step(x, mode)
         else:
             return self.autoregressive_step(x, mode)
@@ -299,6 +299,7 @@ def main(cfg: DictConfig):
         # sweep_autoregressive
         # TODO
     else:
+        cfg.train_embedding = True
         train(cfg)
 
 if __name__ == '__main__':

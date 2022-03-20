@@ -47,6 +47,7 @@ opt:
 learning:
 
   epochs: 100
+  start_epoch: 0
 
   block_size_train: 5
   stride_train: 5
