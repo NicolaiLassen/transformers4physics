@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Tuple
 
+import numpy as np
 import h5py
 import hydra
 import pytorch_lightning as pl
@@ -69,18 +70,21 @@ class PhysTrainer(pl.LightningModule):
 
         train_set = self.read_dataset(train_path,
             cfg.learning.block_size_train, 
+            cfg.learning.batch_size_train,
             cfg.learning.stride_train,
-            cfg.learning.batch_size_train
+            1
             )
         val_set = self.read_dataset(val_path,
             cfg.learning.block_size_val, 
+            cfg.learning.batch_size_val,
             cfg.learning.stride_val,
-            cfg.learning.batch_size_val
+            1,
         )
         test_set = self.read_dataset(test_path,
             cfg.learning.block_size_val, 
+            cfg.learning.batch_size_val,
             cfg.learning.stride_val,
-            cfg.learning.batch_size_val
+            1
         )
         return train_set, val_set, test_set
 
@@ -88,17 +92,25 @@ class PhysTrainer(pl.LightningModule):
                      file_path: str,
                      block_size: int,
                      batch_size: int = 32,
-                     stride: int = 1) -> PhysData:
+                     stride: int = 5,
+                     n_data: int = -1    
+                     ) -> PhysData:
         assert os.path.isfile(
             file_path), "Training HDF5 file {} not found".format(file_path)
 
         seq = []
         with h5py.File(file_path, "r") as f:
+            
+            n_seq = 0
             for key in f.keys():
                 data_series = torch.Tensor(f[key])
                 # Truncate in block of block_size
                 for i in range(0,  data_series.size(0) - block_size + 1, stride):
                     seq.append(data_series[i: i + block_size].unsqueeze(0))
+
+                n_seq = n_seq + 1
+                if(n_data > 0 and n_seq > n_data): #If we have enough time-series samples break loop
+                    break
 
         data = torch.cat(seq, dim=0)
         mu = torch.tensor([torch.mean(data[:, :, 0]), torch.mean(
@@ -110,6 +122,8 @@ class PhysTrainer(pl.LightningModule):
             print("log")
             batch_size = data.size(0)
 
+
+        print(data.shape)
         return PhysData(data, mu, std)
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
@@ -129,8 +143,6 @@ class PhysTrainer(pl.LightningModule):
         if cfg.opt.name == 'SGD':
             optimizer = optim.SGD(
                 model_parameters, momentum=cfg.opt.momentum, lr=cfg.learning.lr)
-        if cfg.opt.name == 'adam':
-            optimizer = optim.Adam(model_parameters, lr=cfg.learning.lr)
         if cfg.opt.name == 'adamw':
             optimizer = optim.AdamW(model_parameters, lr=cfg.learning.lr,
                                     betas=(cfg.opt.beta0,
@@ -175,7 +187,6 @@ class PhysTrainer(pl.LightningModule):
             self.train_dataset.data,
             batch_size=self.hparams.learning.batch_size_train,
             shuffle=True,
-            drop_last=True,
             pin_memory=self.hparams.pin_mem,
             num_workers=self.hparams.workers
         )
@@ -185,7 +196,6 @@ class PhysTrainer(pl.LightningModule):
             self.val_dataset.data,
             batch_size=self.hparams.learning.batch_size_val,
             shuffle=False,
-            drop_last=True,
             pin_memory=self.hparams.pin_mem,
             num_workers=self.hparams.workers
         )
@@ -195,7 +205,6 @@ class PhysTrainer(pl.LightningModule):
             self.test_dataset.data,
             batch_size=self.hparams.learning.batch_size_val,
             shuffle=False,
-            drop_last=True,
             pin_memory=self.hparams.pin_mem,
             num_workers=self.hparams.workers
         )
@@ -211,7 +220,7 @@ class PhysTrainer(pl.LightningModule):
 
     def step(self, batch, batch_idx, mode):
         x = batch
-        
+
         if self.train_embedding:
             return self.embedding_step(x, mode)
         else:
@@ -221,14 +230,15 @@ class PhysTrainer(pl.LightningModule):
         raise NotImplementedError("not ready")
 
     def embedding_step(self, x, mode):
-
         if mode == "val":
-            loss = self.embedding_model.evaluate(x)
-        else:
-            loss, loss_reconstruct = self.embedding_model(x)
-
+            loss, _, _ = self.embedding_model.evaluate(x)
+            self.log_dict({f'loss/{mode}': loss.detach().item()})
+            print(loss)
+            return loss
+        
+        loss, loss_reconstruct = self.embedding_model(x)
         self.log_dict({
-            f'loss/{mode}': loss.item()
+            f'loss/{mode}': loss_reconstruct.detach().item()
         })
 
         return loss
@@ -268,9 +278,11 @@ def train(cfg):
     trainer.fit(model)
 
     if cfg.use_wandb:
+        wandb.finish()
         run.finish()
 
 
+@hydra.main(config_path=".", config_name="train.yaml")
 def sweep_autoregressive(cfg: DictConfig):
     # wandb sweep autoregressive.yaml
     sweep = None
@@ -279,28 +291,20 @@ def sweep_autoregressive(cfg: DictConfig):
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
+@hydra.main(config_path=".", config_name="train.yaml")
 def sweep_embedding(cfg: DictConfig):
     # wandb sweep sweep_embed.yaml
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
-        cfg.train_embedding = True
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
-
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):
-    if cfg.use_sweep:
-        # sweep_embedding
-        wandb.agent("", sweep_embedding, count=100,
-                    project="v1", entity="transformers4physics")
-
-        # sweep_autoregressive
-        # TODO
-    else:
-        cfg.train_embedding = True
-        train(cfg)
+    train(cfg)
 
 if __name__ == '__main__':
     main()
+    
+    ## wandb.agent("jc6a52lq", sweep_embedding, count=100, project="v1", entity="transformers4physics")

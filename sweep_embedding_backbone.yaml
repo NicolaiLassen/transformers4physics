@@ -1,11 +1,11 @@
 program: train.py
-name: embedding_sweep
+name: embedding_backbone_sweep
 entity: transformers4physics
 project: v1
 method: random
 metric:
   goal: minimize
-  name: err/val
+  name: loss/val
 parameters:
   embedding.backbone: 
     values:
@@ -36,15 +36,14 @@ parameters:
     distribution: 'q_uniform'
     min: 10
     max: 100
-  opt.name:
-    values: 
-    - 'SGD'
-    - 'adam'
-    - 'adamw'
-  batch_size_train:
+  learning.batch_size_train:
     distribution: 'q_uniform'
     min: 32
     max: 128
+  opt.name:
+    values: 
+    - 'SGD'
+    - 'adamw'
   
 command:
   - ${args_no_hyphens}
