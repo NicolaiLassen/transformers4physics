@@ -191,7 +191,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         device = self.embedding_model.devices[0]
 
         loss_reconstruct = 0
-        mseLoss = nn.MSELoss()
+        mseLoss = nn.MSELoss(reduction="sum")
 
         xin0 = states[:, 0].to(device)  # Time-step
     
@@ -217,7 +217,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
             g1_old = g1Pred
             
-        return loss, loss_reconstruct / (states.shape[1] - 1)
+        return loss, loss_reconstruct
 
     def evaluate(self, states: Tensor) -> Tuple[float, Tensor, Tensor]:
         """Evaluates the embedding models reconstruction error and returns its
@@ -230,12 +230,12 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         self.embedding_model.eval()
         device = self.embedding_model.devices[0]
 
-        mseLoss = nn.MSELoss()
-
         # Pull out targets from prediction dataset
         yTarget = states[:,1:].to(device)
         xInput = states[:,:-1].to(device)
         yPred = torch.zeros(yTarget.size()).to(device)
+
+        mseLoss = nn.MSELoss(reduction="sum")
 
         # Test accuracy of one time-step
         for i in range(xInput.size(1)):

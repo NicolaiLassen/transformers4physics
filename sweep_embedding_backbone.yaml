@@ -40,10 +40,6 @@ parameters:
     distribution: 'q_uniform'
     min: 32
     max: 128
-  opt.name:
-    values: 
-    - 'SGD'
-    - 'adamw'
-  
+    
 command:
   - ${args_no_hyphens}

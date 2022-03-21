@@ -1,19 +1,20 @@
-use_wandb: False
+use_wandb: True
 use_sweep: False
+verbose: False
 train_embedding: True
+pin_mem: True
 
 seed: 2
 gpus: 1
 cpus: 1
-workers: 4
-pin_mem: False
+workers: 1
 device: 'cuda'
 
 data_dir: '~/data'
 dataset: 'prism_grid_dataset_224.hdf5'
 
 checkpoint_path: './ckpt/'
-check_val_every_n_epoch: 2
+check_val_every_n_epoch: 1
 
 experiment: "koopman_Backbone_search_0"
 project: "v1"
@@ -27,9 +28,9 @@ embedding:
   image_dim: 32
   channels: 3
   backbone: "ResNet"
-  fc_dim: 128
-  embedding_dim: 128
-  backbone_dim: 128
+  fc_dim: 64
+  embedding_dim: 64
+  backbone_dim: 64
 
 autoregressive: 
   name: "GPT2" 
@@ -46,12 +47,13 @@ opt:
 
 learning:
 
-  epochs: 10
+  epochs: 100
   start_epoch: 0
 
   block_size_train: 16
   stride_train: 6
   batch_size_train: 32
+  n_data_train: 1
   
   batch_size_val: 16
   block_size_val: 100

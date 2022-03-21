@@ -17,3 +17,4 @@ tests/run_time_v0/__pycache__/swin.cpython-38.pyc
 *.pyc
 **/__pycache__
 /.venv/*
+/wanddb/*
