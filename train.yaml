@@ -7,7 +7,7 @@ pin_mem: True
 seed: 2
 gpus: 1
 cpus: 1
-workers: 1
+workers: 16
 device: 'cuda'
 
 data_dir: '~/data'
@@ -24,13 +24,13 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: "./ckpt/"
-
   image_dim: 32
+  
   channels: 3
-  backbone: "ResNet"
-  fc_dim: 64
-  embedding_dim: 64
-  backbone_dim: 64
+  backbone: "Conv"
+  fc_dim: 256
+  embedding_dim: 140
+  backbone_dim: 128
 
 autoregressive: 
   name: "GPT2" 
@@ -43,21 +43,21 @@ opt:
   momentum: 0.9
   beta0: 0.9
   beta1: 0.999
-  weight_decay: 0.05
+  weight_decay: 1e-8
 
 learning:
 
-  epochs: 100
+  epochs: 300
   start_epoch: 0
 
-  block_size_train: 16
-  stride_train: 6
-  batch_size_train: 32
-  n_data_train: 1
+  block_size_train: 8
+  stride_train: 4
+  batch_size_train: 128
+  n_data_train: -1
   
   batch_size_val: 16
-  block_size_val: 100
-  stride_val: 100
+  block_size_val: 32
+  stride_val: 32
   
   k_decay: 1.0
   
@@ -66,5 +66,5 @@ learning:
   warmup_lr: 1e-6
   gamma: 0.995
 
-  sched: 'cosine'
+  sched: 'exponential'
   multistep_milestones: [25, 50, 75, 100]

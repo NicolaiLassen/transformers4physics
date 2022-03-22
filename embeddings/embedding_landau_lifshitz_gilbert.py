@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
+from models.embedding.conv_backbone import ConvBackbone
 from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.embedding_backbone import EmbeddingBackbone
 from models.embedding.swin_backbone import SwinBackbone
@@ -23,6 +24,7 @@ FloatTuple = Tuple[float]
 backbone_models: Dict[str, EmbeddingBackbone] = {
     "ResNet": ResnetBackbone,
     "TwinsSVT": TwinsSVTBackbone,
+    "Conv": ConvBackbone,
     # "swin": SwinBackbone, // TODO: impl
     # "vit": ViTBackbone // TODO: impl
 }
@@ -49,9 +51,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             fc_dim=config.fc_dim
         )
         
-        # koop m
-        self.k_matrix = None
-
         # Learned Koopman operator
         self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
 
@@ -162,10 +161,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)*x +\
             self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
-    @property
-    def koopman_diag(self):
-        return self.k_matrix_diag
-
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
@@ -191,7 +186,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         device = self.embedding_model.devices[0]
 
         loss_reconstruct = 0
-        mseLoss = nn.MSELoss(reduction="sum")
+        mseLoss = nn.MSELoss()
 
         xin0 = states[:, 0].to(device)  # Time-step
     
@@ -235,7 +230,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         xInput = states[:,:-1].to(device)
         yPred = torch.zeros(yTarget.size()).to(device)
 
-        mseLoss = nn.MSELoss(reduction="sum")
+        mseLoss = nn.MSELoss()
 
         # Test accuracy of one time-step
         for i in range(xInput.size(1)):

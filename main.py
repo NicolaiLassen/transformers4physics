@@ -32,7 +32,6 @@ class PhysData():
         self.mu = mu
         self.std = std
 
-
 class PhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
@@ -67,7 +66,7 @@ class PhysTrainer(pl.LightningModule):
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
         train_path = "{}\\train.h5".format(base_path)
-        val_path = "{}\\val.h5".format(base_path)
+        val_path = "{}\\test.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
         train_set = self.read_dataset(train_path,
@@ -93,7 +92,7 @@ class PhysTrainer(pl.LightningModule):
                      block_size: int,
                      batch_size: int = 32,
                      stride: int = 5,
-                     n_data: int = -1
+                     n_data: int = -1,
                      ) -> PhysData:
         assert os.path.isfile(
             file_path), "Training HDF5 file {} not found".format(file_path)
@@ -119,7 +118,6 @@ class PhysTrainer(pl.LightningModule):
             data[:, :, 1]), torch.std(data[:, :, 2])])
 
         if data.size(0) < batch_size:
-            print("log")
             batch_size = data.size(0)
 
         return PhysData(data, mu, std)
@@ -143,6 +141,8 @@ class PhysTrainer(pl.LightningModule):
                                     betas=(cfg.opt.beta0,
                                            cfg.opt.beta1), eps=cfg.opt.eps,
                                     weight_decay=cfg.opt.weight_decay)
+        elif cfg.opt.name == 'adam':
+            optimizer = optim.Adam(model_parameters, lr=cfg.learning.lr, weight_decay=1e-8)
         else:
             raise NotImplementedError()
 
@@ -229,7 +229,7 @@ class PhysTrainer(pl.LightningModule):
     def embedding_step(self, x, mode):
         if mode == "val":
             loss, _, _ = self.embedding_model.evaluate(x)
-            self.log_dict({f'loss/{mode}': loss.item()}, on_epoch=True)
+            self.log_dict({f'loss/{mode}': loss.item()}, on_epoch=True, on_step=False)
             return loss
         
         loss, loss_reconstruct = self.embedding_model(x)
@@ -254,7 +254,7 @@ def train(cfg):
         wandb.config.update(cfg)
 
     trainer = pl.Trainer(
-        devices=2,
+        devices=1,
         accelerator="auto",
         accumulate_grad_batches=1,
         gradient_clip_val=0.1,

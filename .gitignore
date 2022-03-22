@@ -18,3 +18,4 @@ tests/run_time_v0/__pycache__/swin.cpython-38.pyc
 **/__pycache__
 /.venv/*
 /wanddb/*
+.vscode/settings.json
