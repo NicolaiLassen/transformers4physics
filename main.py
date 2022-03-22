@@ -50,6 +50,8 @@ class PhysTrainer(pl.LightningModule):
 
         # models
         self.embedding_model = self.configure_embedding_model()
+        self.embedding_model.mu = self.train_dataset.mu
+        self.embedding_model.std = self.train_dataset.std
 
         if not self.train_embedding:
             self.embedding_model.eval()
@@ -92,17 +94,25 @@ class PhysTrainer(pl.LightningModule):
                      file_path: str,
                      block_size: int,
                      batch_size: int = 32,
-                     stride: int = 1) -> PhysData:
+                     stride: int = 1,
+                     n_data: int = -1
+                     ) -> PhysData:
         assert os.path.isfile(
             file_path), "Training HDF5 file {} not found".format(file_path)
 
         seq = []
         with h5py.File(file_path, "r") as f:
+            
+            n_seq = 0
             for key in f.keys():
                 data_series = torch.Tensor(f[key])
                 # Truncate in block of block_size
                 for i in range(0,  data_series.size(0) - block_size + 1, stride):
                     seq.append(data_series[i: i + block_size].unsqueeze(0))
+
+                n_seq = n_seq + 1
+                if(n_data > 0 and n_seq > n_data): #If we have enough time-series samples break loop
+                    break
 
         data = torch.cat(seq, dim=0)
         mu = torch.tensor([torch.mean(data[:, :, 0]), torch.mean(
@@ -227,9 +237,9 @@ class PhysTrainer(pl.LightningModule):
     def embedding_step(self, x, mode):
 
         if mode == "val":
-            loss = self.embedding_model.evaluate(x)
+            loss, _, _ = self.embedding_model.evaluate(x)
         else:
-            loss, loss_reconstruct = self.embedding_model(x)
+            loss, _ = self.embedding_model(x)
 
         self.log_dict({
             f'loss/{mode}': loss.item()
@@ -305,7 +315,6 @@ def main(cfg: DictConfig):
         # TODO
     else:
         train(cfg)
-
 
 if __name__ == '__main__':
     main()

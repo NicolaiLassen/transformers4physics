@@ -67,7 +67,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.k_matrix_ut = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
 
         # save configs
-
+        # TODO
 
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.zeros(3))
@@ -223,26 +223,27 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         """Evaluates the embedding models reconstruction error and returns its
         predictions.
         Args:
-            states (Tensor): [B, T, res, res] Time-series feature tensor
+            states (Tensor): [B, T, 3, H, W] Time-series feature tensor
         Returns:
             Tuple[Float, Tensor, Tensor]: Test error, Predicted states, Target states
         """
         self.embedding_model.eval()
         device = self.embedding_model.devices[0]
-
+        
         mseLoss = nn.MSELoss()
 
         # Pull out targets from prediction dataset
-        yTarget = states[:, 1:].to(device)
-        xInput = states[:, :-1].to(device)
+        yTarget = states[:,1:].to(device)
+        xInput = states[:,:-1].to(device)
         yPred = torch.zeros(yTarget.size()).to(device)
-
+    
         # Test accuracy of one time-step
         for i in range(xInput.size(1)):
-            xInput0 = xInput[:, i].to(device)
+    
+            xInput0 = xInput[:,i].to(device)
             g0 = self.embedding_model.embed(xInput0)
             yPred0 = self.embedding_model.recover(g0)
-            yPred[:, i] = yPred0.squeeze().detach()
+            yPred[:,i] = yPred0.squeeze().detach()
 
         test_loss = mseLoss(yTarget, yPred)
 

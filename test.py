@@ -1,4 +1,6 @@
 
+from config.config_emmbeding import EmmbedingConfig
+from embeddings.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbeddingTrainer
 from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.twins_svt_backbone import TwinsSVTBackbone
 
@@ -27,29 +29,14 @@ if __name__ == '__main__':
 
     # img = Image.open(
     #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
-    pil_to_tensor = torch.rand(1, 3, 32, 32).cuda()
-
-    # wandb sweep sweep_embed.yaml
-    # wandb sweep autoregressive.yaml
-    model = ResnetBackbone(img_dim=32).cuda()
+    pil_to_tensor = torch.rand(16, 500, 3, 32, 32).cuda()
+    model = LandauLifshitzGilbertEmbeddingTrainer(
+        EmmbedingConfig()
+    ).cuda()
+        
     optimizer = optim.Adam(model.parameters(), lr=0.0003)
     criterion = nn.MSELoss()
 
-    for i in range(10000):
-        optimizer.zero_grad()
+    loss1, _, _ = model.evaluate(pil_to_tensor)
+    print(loss1)
 
-        # forward + backward + optimize
-        outputs = model(pil_to_tensor)
-        loss = criterion(outputs, pil_to_tensor)
-        loss.backward()
-        optimizer.step()
-
-        print(loss.item())
-
-        if i % 100 == 0:
-            plt.imshow(transforms.ToPILImage()(
-                pil_to_tensor.cpu().squeeze_(0)))
-            plt.show()
-            plt.imshow(transforms.ToPILImage()(outputs.cpu().squeeze_(0)))
-            plt.axis('off')
-            plt.show()

@@ -48,12 +48,12 @@ learning:
 
   epochs: 100
 
-  block_size_train: 5
-  stride_train: 5
+  block_size_train: 16
+  stride_train: 6
   batch_size_train: 32
   
   batch_size_val: 16
-  block_size_val: 5
+  block_size_val: 100
   stride_val: 100
   
   k_decay: 1.0
