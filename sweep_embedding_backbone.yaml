@@ -32,10 +32,14 @@ parameters:
     distribution: 'uniform'
     min: 0.00001
     max: 0.001
+  learning.epochs:
+    distribution: 'q_uniform'
+    min: 10
+    max: 100
   learning.batch_size_train:
     distribution: 'q_uniform'
     min: 32
     max: 128
-  
+    
 command:
   - ${args_no_hyphens}

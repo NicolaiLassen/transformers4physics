@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
+from models.embedding.conv_backbone import ConvBackbone
 from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.embedding_backbone import EmbeddingBackbone
 from models.embedding.swin_backbone import SwinBackbone
@@ -23,6 +24,7 @@ FloatTuple = Tuple[float]
 backbone_models: Dict[str, EmbeddingBackbone] = {
     "ResNet": ResnetBackbone,
     "TwinsSVT": TwinsSVTBackbone,
+    "Conv": ConvBackbone,
     # "swin": SwinBackbone, // TODO: impl
     # "vit": ViTBackbone // TODO: impl
 }
@@ -49,9 +51,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             fc_dim=config.fc_dim
         )
         
-        # koop m
-        self.k_matrix = None
-
         # Learned Koopman operator
         self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
 
@@ -162,10 +161,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)*x +\
             self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
-    @property
-    def koopman_diag(self):
-        return self.k_matrix_diag
-
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
@@ -216,7 +211,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
 
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
             g1_old = g1Pred
-
+            
         return loss, loss_reconstruct
 
     def evaluate(self, states: Tensor) -> Tuple[float, Tensor, Tensor]:
@@ -229,17 +224,16 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         """
         self.embedding_model.eval()
         device = self.embedding_model.devices[0]
-        
-        mseLoss = nn.MSELoss()
 
         # Pull out targets from prediction dataset
         yTarget = states[:,1:].to(device)
         xInput = states[:,:-1].to(device)
         yPred = torch.zeros(yTarget.size()).to(device)
-    
+
+        mseLoss = nn.MSELoss()
+
         # Test accuracy of one time-step
         for i in range(xInput.size(1)):
-    
             xInput0 = xInput[:,i].to(device)
             g0 = self.embedding_model.embed(xInput0)
             yPred0 = self.embedding_model.recover(g0)

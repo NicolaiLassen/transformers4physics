@@ -14,17 +14,12 @@ class EmmbedingConfig(PhysConfig):
     model_type: str = ""
 
     def __init__(self,
-                 channels=3,
-                 image_dim=32,
-                 backbone="TwinsSVT",
-                 backbone_dim=64,
-                 embedding_dim=128,
-                 fc_dim=128,
+                 cfg,
                  **kwargs) -> None:
         super().__init__(**kwargs)
-        self.channels = channels,
-        self.image_dim = image_dim
-        self.backbone = backbone
-        self.backbone_dim = backbone_dim
-        self.embedding_dim = embedding_dim
-        self.fc_dim = fc_dim
+        self.channels = cfg.channels if cfg.channels else 3
+        self.image_dim = cfg.image_dim if cfg.image_dim else 32
+        self.backbone = cfg.backbone if cfg.backbone else "TwinsSVT"
+        self.backbone_dim = cfg.backbone_dim if cfg.backbone_dim else 64
+        self.embedding_dim = cfg.embedding_dim if cfg.embedding_dim else 128
+        self.fc_dim = cfg.fc_dim if cfg.fc_dim else 128

@@ -22,9 +22,7 @@ class PhysConfig(object):
         self.config_name = kwargs.pop("config_name", "")
         self.pretrained = kwargs.pop("pretrained", False)
         self.ckpt_path = kwargs.pop("ckpt_path", "")
-
-        # self.check_configs(kwargs)
-
+        
     def check_configs(self, **kwargs):
           for key, value in kwargs.items():
             try:
