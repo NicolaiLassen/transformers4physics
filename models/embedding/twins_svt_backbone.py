@@ -239,7 +239,8 @@ class TwinsSVTBackbone(EmbeddingBackbone):
         self.observable_net_fc_layers = nn.Sequential(
             nn.Linear(backbone_dim*final_patch_size**2, fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
-            nn.Linear(fc_dim, embedding_dim)
+            nn.Linear(fc_dim, embedding_dim),
+            nn.LayerNorm(embedding_dim, eps=1e-5),
         )
 
         # # Recovery net
@@ -247,6 +248,7 @@ class TwinsSVTBackbone(EmbeddingBackbone):
             nn.Linear(embedding_dim, fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(fc_dim, backbone_dim*final_patch_size**2),
+            nn.LeakyReLU(0.02, inplace=True),
         )
 
         self.recovery_net_layers = nn.Sequential(

@@ -11,12 +11,14 @@ class EmmbedingConfig(PhysConfig):
     Raises:
         AssertionError: If provided parameter is not a config parameter
     """
-    model_type: str = ""
+    model_type: str = "Emmbeding Model"
 
     def __init__(self,
                  cfg,
                  **kwargs) -> None:
         super().__init__(**kwargs)
+
+        print(cfg)
         self.channels = cfg.channels if cfg.channels else 3
         self.image_dim = cfg.image_dim if cfg.image_dim else 32
         self.backbone = cfg.backbone if cfg.backbone else "TwinsSVT"
