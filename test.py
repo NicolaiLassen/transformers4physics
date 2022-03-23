@@ -30,12 +30,12 @@ if __name__ == '__main__':
 
     # img = Image.open(
     #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
-    pil_to_tensor = torch.rand(16, 500, 3, 32, 32).cuda()
+    pil_to_tensor = torch.rand(1, 16, 3, 32, 32).cuda()
     model = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(DictConfig({
           "image_dim": 32,
           "channels": 3,
-          "backbone": "ResNet",
+          "backbone": "Conv",
           "fc_dim": 256,
           "embedding_dim": 140,
           "backbone_dim": 128,
@@ -43,10 +43,17 @@ if __name__ == '__main__':
     ).cuda()
         
     optimizer = optim.Adam(model.parameters(), lr=0.0003)
-    criterion = nn.MSELoss()
 
     print(sum(p.numel() for p in model.parameters()))
 
-    loss1, _, _ = model.evaluate(pil_to_tensor)
-    print(loss1)
+    for i in range(10):
+
+        optimizer.zero_grad()
+        
+        loss, _ = model(pil_to_tensor)
+
+        loss.backward()
+        optimizer.step()
+
+    print(loss)
 

@@ -115,13 +115,8 @@ class ResNet(nn.Module):
         out = self.layer3(out)
         return out
 
-def resnetDown8(backbone_dims=[64/2/2, 64/2, 64]):
-    return ResNet(BasicBlockDown, [8, 8, 8], backbone_dims)
-
-
-def resnetUp8(backbone_dim=[64, 64/2, 64/2/2]):
-    return ResNet(BasicBlockUp, [8, 8, 8], backbone_dim)
-
+def resnetDown8(backbone_dims=[]):
+    return ResNet(BasicBlockDown, [2, 2, 2], backbone_dims)
 
 class ResnetBackbone(EmbeddingBackbone):
     def __init__(
@@ -167,10 +162,22 @@ class ResnetBackbone(EmbeddingBackbone):
         )
 
         self.recovery_net_layers = nn.Sequential(
-            resnetUp8(backbone_dims[::-1]),
-            nn.ConvTranspose2d(int(backbone_dim / 2 / 2), 3,
-                               kernel_size=3, stride=1, padding=1, bias=False),
-            nn.Sigmoid()
+            nn.ConvTranspose2d(
+                backbone_dims[2],  backbone_dims[1], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.BatchNorm2d(backbone_dims[1]),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(
+                backbone_dims[1], backbone_dims[0], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.BatchNorm2d(backbone_dims[0]),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(
+                backbone_dims[0], 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.LeakyReLU(0.02, inplace=True)
         )
 
     def observable_net(self, x):
@@ -209,4 +216,4 @@ if __name__ == '__main__':
     input_test = torch.rand(1, 3, 32, 32)
     model = ResnetBackbone()    
     print(sum(p.numel() for p in model.parameters()))
-    print(model(input_test).shape)
+    print(model(input_test))

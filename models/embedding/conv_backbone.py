@@ -1,7 +1,9 @@
 from abc import abstractmethod
 
+import torch
 import torch.nn as nn
 from models.embedding.embedding_backbone import EmbeddingBackbone
+
 
 
 class ConvBackbone(EmbeddingBackbone):
@@ -9,15 +11,14 @@ class ConvBackbone(EmbeddingBackbone):
         self, channels=3, img_dim=32, backbone_dim=128, embedding_dim=128, fc_dim=128,
     ):
         super().__init__()
-        self.channels = channels
-        self.img_dim = img_dim
+
+        final_patch_size = int(img_dim / 2 / 2 / 2)
+        self.final_patch_size = final_patch_size
         self.backbone_dim = backbone_dim
         self.embedding_dim = embedding_dim
-        self.fc_dim = fc_dim
 
         self.obsdim = embedding_dim
 
-        final_patch_size = int(img_dim / 2 / 2 / 2)
         backbone_dims = [int(backbone_dim / 2 / 2),
                          int(backbone_dim / 2), backbone_dim]
 
@@ -54,11 +55,19 @@ class ConvBackbone(EmbeddingBackbone):
 
         self.recovery_net_layers = nn.Sequential(
             nn.ConvTranspose2d(
-                backbone_dims[2], 32, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+                backbone_dims[2],  backbone_dims[1], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
             ),
-            nn.BatchNorm2d(32),
+            nn.BatchNorm2d(backbone_dims[1]),
+            nn.LeakyReLU(0.02, inplace=True),
+
             nn.ConvTranspose2d(
-                32, 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+                backbone_dims[1], backbone_dims[0], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.BatchNorm2d(backbone_dims[0]),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(
+                backbone_dims[0], 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
             ),
             nn.LeakyReLU(0.02, inplace=True)
         )
@@ -88,3 +97,15 @@ class ConvBackbone(EmbeddingBackbone):
                        self.final_patch_size, self.final_patch_size)
         out = self.recovery_net_layers(out)
         return out
+
+    def forward(self, x):
+        out = self.embed(x)
+        out = self.recover(out)
+        return out
+
+
+if __name__ == '__main__':
+
+    x = torch.rand((1, 3, 32, 32))
+    model = ConvBackbone()
+    print(model(x))

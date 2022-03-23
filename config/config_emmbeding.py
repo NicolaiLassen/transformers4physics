@@ -17,8 +17,6 @@ class EmmbedingConfig(PhysConfig):
                  cfg,
                  **kwargs) -> None:
         super().__init__(**kwargs)
-
-        print(cfg)
         self.channels = cfg.channels if cfg.channels else 3
         self.image_dim = cfg.image_dim if cfg.image_dim else 32
         self.backbone = cfg.backbone if cfg.backbone else "TwinsSVT"
