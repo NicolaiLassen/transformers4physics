@@ -115,7 +115,7 @@ class ResNet(nn.Module):
         out = self.layer3(out)
         return out
 
-def resnetDown8(backbone_dims=[]):
+def resnetDown6(backbone_dims=[]):
     return ResNet(BasicBlockDown, [2, 2, 2], backbone_dims)
 
 class ResnetBackbone(EmbeddingBackbone):
@@ -142,8 +142,7 @@ class ResnetBackbone(EmbeddingBackbone):
                       stride=1, padding=1, bias=False),
             nn.BatchNorm2d(int(backbone_dim / 2 / 2)),
             nn.ReLU(),
-            resnetDown8(backbone_dims),
-            nn.Sigmoid()
+            resnetDown6(backbone_dims),
         )
 
         self.observable_net_fc_layers = nn.Sequential(

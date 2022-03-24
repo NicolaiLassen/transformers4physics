@@ -191,7 +191,6 @@ class Transformer(nn.Module):
             x = ff2(x)
         return x
 
-
 class TwinsSVTBackbone(EmbeddingBackbone):
     def __init__(
         self,
@@ -230,7 +229,6 @@ class TwinsSVTBackbone(EmbeddingBackbone):
             Transformer(in_channels=backbone_dims[2], depth=1, heads=1,
                         local_patch_size=2, global_k=4, dropout=0, has_local=True),
             PEG(in_channels=backbone_dims[2], kernel_size=3),
-            nn.Sigmoid()
         )
 
         self.observable_net_fc_layers = nn.Sequential(
