@@ -1,5 +1,5 @@
 program: train.py
-name: embedding_backbone_sweep
+name: embedding_backbone_sweep_1
 entity: transformers4physics
 project: v1
 method: random
@@ -10,36 +10,23 @@ parameters:
   embedding.backbone: 
     values:
     - 'ResNet'
-    - 'TwinsSTV'
+    - 'TwinsSVT'
+    - 'Conv'
   embedding.backbone_dim:
     values:
     - 64
     - 128
+    - 256
   embedding.embedding_dim:
     values: 
     - 64
     - 128
+    - 256
   embedding.fc_dim:
     values: 
     - 64
     - 128
-  learning.sched: 
-    values: 
-    - 'multistep'
-    - 'cosine'
-    - 'exponential'
-  learning.lr: 
-    distribution: 'uniform'
-    min: 0.00001
-    max: 0.001
-  learning.epochs:
-    distribution: 'q_uniform'
-    min: 10
-    max: 100
-  learning.batch_size_train:
-    distribution: 'q_uniform'
-    min: 32
-    max: 128
+    - 256
     
 command:
   - ${args_no_hyphens}

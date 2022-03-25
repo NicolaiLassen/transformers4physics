@@ -233,7 +233,7 @@ class PhysTrainer(pl.LightningModule):
             return loss
         
         loss, loss_reconstruct = self.embedding_model(x)
-        self.log_dict({f'loss/{mode}': loss_reconstruct.item()})
+        self.log_dict({f'loss_koopman/{mode}': loss.item(), f'loss/{mode}': loss_reconstruct.item()})
         return loss
 
 def train(cfg):
@@ -242,13 +242,14 @@ def train(cfg):
 
     logger = None
     if cfg.use_wandb:
-        run = wandb.init(
-            name=cfg.experiment,
-            project=cfg.project,
-            entity='transformers4physics',
-            notes=cfg.notes,
-            config=cfg
-        )
+        if wandb.run is None:
+            run = wandb.init(
+                name=cfg.experiment,
+                project=cfg.project,
+                entity='transformers4physics',
+                notes=cfg.notes,
+                config=cfg
+            )
         logger = WandbLogger(log_model=True)
         logger.watch(model)
         wandb.config.update(cfg)
@@ -270,7 +271,6 @@ def train(cfg):
 
     if cfg.use_wandb:
         wandb.finish()
-        run.finish()
 
 
 @hydra.main(config_path=".", config_name="train.yaml")
@@ -297,4 +297,4 @@ def main(cfg: DictConfig):
 
 if __name__ == '__main__':
     main()
-    # wandb.agent("sedi7xcg", sweep_embedding, count=100, project="v1", entity="transformers4physics")
+    # wandb.agent("4piv5qnc", sweep_embedding, count=50, project="v1", entity="transformers4physics")

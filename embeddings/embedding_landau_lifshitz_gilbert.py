@@ -25,7 +25,7 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     "ResNet": ResnetBackbone,
     "TwinsSVT": TwinsSVTBackbone,
     "Conv": ConvBackbone,
-    # "swin": SwinBackbone, // TODO: impl
+    "Swin": SwinBackbone,
     # "vit": ViTBackbone // TODO: impl
 }
 

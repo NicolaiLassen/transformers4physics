@@ -11,7 +11,7 @@ if __name__ == '__main__':
     import os
 
     import h5py
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
     import numpy as np
     import torch
     import torch.nn as nn
@@ -31,26 +31,77 @@ if __name__ == '__main__':
     # img = Image.open(
     #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
     pil_to_tensor = torch.rand(1, 16, 3, 32, 32).cuda()
-    model = LandauLifshitzGilbertEmbeddingTrainer(
+    model_1 = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(DictConfig({
           "image_dim": 32,
           "channels": 3,
-          "backbone": "Conv",
-          "fc_dim": 256,
-          "embedding_dim": 140,
-          "backbone_dim": 128,
+          "backbone": "TwinsSVT",
+          "fc_dim": 64,
+          "embedding_dim": 64,
+          "backbone_dim": 64,
         }))
     ).cuda()
-        
-    optimizer = optim.Adam(model.parameters(), lr=0.0003)
 
-    print(sum(p.numel() for p in model.parameters()))
+
+    optimizer = optim.Adam(model_1.parameters(), lr=0.001)
+
+    print(sum(p.numel() for p in model_1.parameters()))
 
     for i in range(10):
 
         optimizer.zero_grad()
         
-        loss, _ = model(pil_to_tensor)
+        loss, _ = model_1(pil_to_tensor)
+
+        loss.backward()
+        optimizer.step()
+
+    print(loss)
+
+    model_2 = LandauLifshitzGilbertEmbeddingTrainer(
+        EmmbedingConfig(DictConfig({
+          "image_dim": 32,
+          "channels": 3,
+          "backbone": "Conv",
+          "fc_dim": 64,
+          "embedding_dim": 64,
+          "backbone_dim": 64,
+        }))
+    ).cuda()
+
+    optimizer = optim.Adam(model_2.parameters(), lr=0.001)
+    print(sum(p.numel() for p in model_2.parameters()))
+
+    for i in range(10):
+
+        optimizer.zero_grad()
+        
+        loss, _ = model_2(pil_to_tensor)
+
+        loss.backward()
+        optimizer.step()
+
+    print(loss)
+
+    model_3 = LandauLifshitzGilbertEmbeddingTrainer(
+        EmmbedingConfig(DictConfig({
+          "image_dim": 32,
+          "channels": 3,
+          "backbone": "ResNet",
+          "fc_dim": 64,
+          "embedding_dim": 64,
+          "backbone_dim": 64,
+        }))
+    ).cuda()
+
+    optimizer = optim.Adam(model_3.parameters(), lr=0.001)
+    print(sum(p.numel() for p in model_3.parameters()))
+
+    for i in range(10):
+
+        optimizer.zero_grad()
+        
+        loss, _ = model_3(pil_to_tensor)
 
         loss.backward()
         optimizer.step()

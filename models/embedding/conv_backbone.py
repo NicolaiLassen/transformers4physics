@@ -7,19 +7,23 @@ from models.embedding.embedding_backbone import EmbeddingBackbone
 
 
 class ConvBackbone(EmbeddingBackbone):
+    model_name = "Conv"
+
     def __init__(
         self, channels=3, img_dim=32, backbone_dim=128, embedding_dim=128, fc_dim=128,
     ):
         super().__init__()
 
-        final_patch_size = int(img_dim / 2 / 2 / 2)
+        print("Backbone: {}".format(self.model_name))
+
+        final_patch_size = int(img_dim / 8)
         self.final_patch_size = final_patch_size
         self.backbone_dim = backbone_dim
         self.embedding_dim = embedding_dim
 
         self.obsdim = embedding_dim
 
-        backbone_dims = [int(backbone_dim / 2 / 2),
+        backbone_dims = [int(backbone_dim / 4),
                          int(backbone_dim / 2), backbone_dim]
 
         self.observable_net_layers = nn.Sequential(
@@ -28,7 +32,17 @@ class ConvBackbone(EmbeddingBackbone):
             nn.BatchNorm2d(backbone_dims[0]),
             nn.LeakyReLU(0.02, inplace=True),
 
+            nn.Conv2d(backbone_dims[0], backbone_dims[0], kernel_size=3, stride=1,
+                      padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(backbone_dims[0]),
+            nn.LeakyReLU(0.02, inplace=True),
+
             nn.Conv2d(backbone_dims[0], backbone_dims[1], kernel_size=3, stride=2,
+                      padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(backbone_dims[1]),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.Conv2d(backbone_dims[1], backbone_dims[1], kernel_size=3, stride=1,
                       padding=1, padding_mode="zeros"),
             nn.BatchNorm2d(backbone_dims[1]),
             nn.LeakyReLU(0.02, inplace=True),
@@ -87,25 +101,27 @@ class ConvBackbone(EmbeddingBackbone):
     def embed(self, x):
         out = self.observable_net(x)
         out = out.view(x.size(0), -1)
-        out = self.observable_net_fc_layers(out)
+        out = self.observable_net_fc(out)
         return out
 
     @abstractmethod
     def recover(self, x):
-        out = self.recovery_net_fc_layers(x)
+        out = self.recovery_net_fc(x)
         out = out.view(-1, self.backbone_dim,
                        self.final_patch_size, self.final_patch_size)
-        out = self.recovery_net_layers(out)
+        out = self.recovery_net(out)
         return out
 
     def forward(self, x):
         out = self.embed(x)
         out = self.recover(out)
         return out
+     
 
 
 if __name__ == '__main__':
 
     x = torch.rand((1, 3, 32, 32))
     model = ConvBackbone()
+    model.s
     print(model(x))

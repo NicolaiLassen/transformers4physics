@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
-from models.embedding.embedding_backbone import EmbeddingBackbone
+# from models.embedding.embedding_backbone import EmbeddingBackbone
 from torch import einsum, nn
-
 
 # https://arxiv.org/abs/2104.13840
 class Residual(nn.Module):
@@ -191,7 +190,9 @@ class Transformer(nn.Module):
             x = ff2(x)
         return x
 
-class TwinsSVTBackbone(EmbeddingBackbone):
+class TwinsSVTBackbone(nn.Module):
+    model_name = "TwinsSVT"
+    
     def __init__(
         self,
         channels=3,
@@ -201,34 +202,35 @@ class TwinsSVTBackbone(EmbeddingBackbone):
         fc_dim=128
     ):
         super().__init__()
+    
 
-        final_patch_size = int(img_dim / 2 / 2 / 2)
+        print("Backbone: {}".format(self.model_name))
+
+        final_patch_size = int(img_dim / 8)
         self.final_patch_size = final_patch_size
         self.embedding_dim = embedding_dim
         self.backbone_dim = backbone_dim
 
-        backbone_dims = [int(backbone_dim / 2 / 2),
-                         int(backbone_dim / 2), backbone_dim]
+        backbone_dims = [int(backbone_dim / 4), int(backbone_dim / 2), backbone_dim]
 
-        self.observable_net_layers = nn.Sequential(
-
+        self.observable_net_layers = nn.Sequential(            
             PatchMerging(in_channels=channels,
                          out_channels=backbone_dims[0], patch_size=2),
-            Transformer(in_channels=backbone_dims[0], depth=1, heads=1,
-                        local_patch_size=2, global_k=3, dropout=0, has_local=False),
-            PEG(in_channels=backbone_dims[0], kernel_size=3),
+            Transformer(in_channels=backbone_dims[0], depth=1, heads=1, dim_head=32,
+                        local_patch_size=0, global_k=1, dropout=0, has_local=False),
+            PEG(in_channels=backbone_dims[0], kernel_size=1),
 
             PatchMerging(in_channels=backbone_dims[0],
                          out_channels=backbone_dims[1], patch_size=2),
-            Transformer(in_channels=backbone_dims[1], depth=1, heads=1,
-                        local_patch_size=2, global_k=3, dropout=0, has_local=False),
-            PEG(in_channels=backbone_dims[1], kernel_size=3),
+            Transformer(in_channels=backbone_dims[1], depth=1, heads=1, dim_head=32,
+                        local_patch_size=0, global_k=1, dropout=0, has_local=False),
+            PEG(in_channels=backbone_dims[1], kernel_size=1),
 
             PatchMerging(in_channels=backbone_dims[1],
-                         out_channels=backbone_dims[2], patch_size=2),
-            Transformer(in_channels=backbone_dims[2], depth=1, heads=1,
-                        local_patch_size=2, global_k=4, dropout=0, has_local=True),
-            PEG(in_channels=backbone_dims[2], kernel_size=3),
+                          out_channels=backbone_dims[2], patch_size=2),
+            Transformer(in_channels=backbone_dims[2], depth=1, heads=1, dim_head=32,
+                        local_patch_size=1, global_k=1, dropout=0, has_local=True),
+            PEG(in_channels=backbone_dims[2], kernel_size=1),
         )
 
         self.observable_net_fc_layers = nn.Sequential(
@@ -238,7 +240,6 @@ class TwinsSVTBackbone(EmbeddingBackbone):
             nn.LayerNorm(embedding_dim, eps=1e-5),
         )
 
-        # # Recovery net
         self.recovery_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim, fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
@@ -248,7 +249,7 @@ class TwinsSVTBackbone(EmbeddingBackbone):
 
         self.recovery_net_layers = nn.Sequential(
             nn.ConvTranspose2d(
-                backbone_dims[2],  backbone_dims[1], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+                backbone_dim,  backbone_dims[1], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
             ),
             nn.BatchNorm2d(backbone_dims[1]),
             nn.LeakyReLU(0.02, inplace=True),
@@ -279,7 +280,7 @@ class TwinsSVTBackbone(EmbeddingBackbone):
 
     def embed(self, x):
         out = self.observable_net(x)
-        out = out.view(-1, self.backbone_dim*self.final_patch_size**2)
+        out = out.reshape(x.size(0), -1)
         out = self.observable_net_fc(out)
         return out
 
@@ -295,10 +296,9 @@ class TwinsSVTBackbone(EmbeddingBackbone):
         out = self.recover(out)
         return out
 
-
 if __name__ == '__main__':
-    # print(test(torch.rand(1, 16, 6, 6)).shape)
-    input_test = torch.rand(1, 3, 32, 32)
-    model = TwinsSVTBackbone()    
-    print(sum(p.numel() for p in model.parameters()))
-    print(model(input_test))
+    #  print(test(torch.rand(1, 16, 6, 6)).shape)
+     input_test = torch.rand(1, 3, 32, 32)
+     model = TwinsSVTBackbone()    
+     print(sum(p.numel() for p in model.parameters()))
+     print(model(input_test))

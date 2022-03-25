@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
-from models.embedding.embedding_backbone import EmbeddingBackbone
+# from models.embedding.embedding_backbone import EmbeddingBackbone
 
 # https://www.sciencedirect.com/science/article/pii/S0304885319307978
 # https://towardsdatascience.com/illustrated-10-cnn-architectures-95d78ace614d#e276
@@ -116,9 +116,11 @@ class ResNet(nn.Module):
         return out
 
 def resnetDown6(backbone_dims=[]):
-    return ResNet(BasicBlockDown, [2, 2, 2], backbone_dims)
+    return ResNet(BasicBlockDown, [1, 1, 1], backbone_dims)
 
-class ResnetBackbone(EmbeddingBackbone):
+class ResnetBackbone(nn.Module):
+    model_name = "ResNet"
+
     def __init__(
         self,
         channels=3,
@@ -129,18 +131,20 @@ class ResnetBackbone(EmbeddingBackbone):
     ):
         super().__init__()
 
-        final_patch_size = int(img_dim / 2 / 2 / 2)
+        print("Backbone: {}".format(self.model_name))
+
+        final_patch_size = int(img_dim / 8)
         self.final_patch_size = final_patch_size
         self.embedding_dim = embedding_dim
         self.backbone_dim = backbone_dim
 
-        backbone_dims = [int(backbone_dim / 2 / 2),
+        backbone_dims = [int(backbone_dim / 4),
                        int(backbone_dim / 2), backbone_dim]
 
         self.observable_net_layers = nn.Sequential(
-            nn.Conv2d(3, int(backbone_dim / 2 / 2), kernel_size=3,
+            nn.Conv2d(3, backbone_dims[0], kernel_size=3,
                       stride=1, padding=1, bias=False),
-            nn.BatchNorm2d(int(backbone_dim / 2 / 2)),
+            nn.BatchNorm2d(backbone_dims[0]),
             nn.ReLU(),
             resnetDown6(backbone_dims),
         )
@@ -152,7 +156,6 @@ class ResnetBackbone(EmbeddingBackbone):
             nn.LayerNorm(embedding_dim, eps=1e-5),
         )
 
-        # Recovery net
         self.recovery_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim, fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
@@ -215,4 +218,4 @@ if __name__ == '__main__':
     input_test = torch.rand(1, 3, 32, 32)
     model = ResnetBackbone()    
     print(sum(p.numel() for p in model.parameters()))
-    print(model(input_test))
+    print(model(input_test).shape)

@@ -6,10 +6,9 @@ from torch import embedding
 
 
 def sweep_decorate_config(cfg: DictConfig, sweep_params: Dict):
-    cfg.learning.sched = sweep_params["learning.sched"]
-    cfg.learning.lr = sweep_params["learning.lr"]
-    cfg.learning.batch_size_train = int(sweep_params["learning.batch_size_train"])
-    cfg.opt.name = sweep_params["opt.name"]
+    # cfg.learning.sched = sweep_params["learning.sched"]
+    # cfg.learning.lr = sweep_params["learning.lr"]
+    # cfg.learning.batch_size_train = int(sweep_params["learning.batch_size_train"])
 
     if cfg.train_embedding:
         cfg.embedding.backbone = sweep_params["embedding.backbone"]
