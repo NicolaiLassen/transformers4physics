@@ -296,5 +296,4 @@ def main(cfg: DictConfig):
     train(cfg)
 
 if __name__ == '__main__':
-    main()
-    # wandb.agent("4piv5qnc", sweep_embedding, count=50, project="v1", entity="transformers4physics")
+    wandb.agent("pezxi1k0", sweep_embedding, count=50, project="v1", entity="transformers4physics")
