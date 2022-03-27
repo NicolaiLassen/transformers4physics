@@ -63,10 +63,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         self.xidx = torch.LongTensor(np.concatenate(xidx))
         self.yidx = torch.LongTensor(np.concatenate(yidx))
         self.k_matrix_ut = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
-
-        # save configs
-        # TODO
-
+        
         # Normalization occurs inside the model
         self.register_buffer('mu', torch.zeros(3))
         self.register_buffer('std', torch.ones(3))

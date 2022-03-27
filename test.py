@@ -4,8 +4,7 @@ from torch.nn import MultiheadAttention
 
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import \
-    LandauLifshitzGilbertEmbeddingTrainer
-
+    LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
 if __name__ == '__main__':
     import os
 
@@ -30,78 +29,80 @@ if __name__ == '__main__':
     # img = Image.open(
     #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
     pil_to_tensor = torch.rand(1, 16, 3, 32, 32).cuda()
-    model_1 = LandauLifshitzGilbertEmbeddingTrainer(
+    model_1 = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(DictConfig({
-            "image_dim": 32,
-            "channels": 3,
-            "backbone": "TwinsSVT",
-            "fc_dim": 64,
-            "embedding_dim": 64,
-            "backbone_dim": 64,
-        }))
-    ).cuda()
-
-    optimizer = optim.Adam(model_1.parameters(), lr=0.001)
-
-    print(sum(p.numel() for p in model_1.parameters()))
-
-    for i in range(10):
-
-        optimizer.zero_grad()
-
-        loss, _ = model_1(pil_to_tensor)
-
-        loss.backward()
-        optimizer.step()
-
-    print(loss)
-
-    model_2 = LandauLifshitzGilbertEmbeddingTrainer(
-        EmmbedingConfig(DictConfig({
-            "image_dim": 32,
+            "image_size": 32,
             "channels": 3,
             "backbone": "Conv",
             "fc_dim": 64,
             "embedding_dim": 64,
             "backbone_dim": 64,
         }))
-    ).cuda()
+    )
 
-    optimizer = optim.Adam(model_2.parameters(), lr=0.001)
-    print(sum(p.numel() for p in model_2.parameters()))
+    trainer_1 = LandauLifshitzGilbertEmbeddingTrainer(model_1)
+
+    optimizer = optim.Adam(trainer_1.parameters(), lr=0.001)
+
+    print(sum(p.numel() for p in trainer_1.parameters()))
 
     for i in range(10):
 
         optimizer.zero_grad()
 
-        loss, _ = model_2(pil_to_tensor)
+        loss, _ = trainer_1(pil_to_tensor)
 
         loss.backward()
         optimizer.step()
 
     print(loss)
 
-    model_3 = LandauLifshitzGilbertEmbeddingTrainer(
-        EmmbedingConfig(DictConfig({
-            "image_dim": 32,
-            "channels": 3,
-            "backbone": "ResNet",
-            "fc_dim": 64,
-            "embedding_dim": 64,
-            "backbone_dim": 64,
-        }))
-    ).cuda()
+    # model_2 = LandauLifshitzGilbertEmbeddingTrainer(
+    #     EmmbedingConfig(DictConfig({
+    #         "image_size": 32,
+    #         "channels": 3,
+    #         "backbone": "Conv",
+    #         "fc_dim": 64,
+    #         "embedding_dim": 64,
+    #         "backbone_dim": 64,
+    #     }))
+    # ).cuda()
 
-    optimizer = optim.Adam(model_3.parameters(), lr=0.001)
-    print(sum(p.numel() for p in model_3.parameters()))
+    # optimizer = optim.Adam(model_2.parameters(), lr=0.001)
+    # print(sum(p.numel() for p in model_2.parameters()))
 
-    for i in range(10):
+    # for i in range(10):
 
-        optimizer.zero_grad()
+    #     optimizer.zero_grad()
 
-        loss, _ = model_3(pil_to_tensor)
+    #     loss, _ = model_2(pil_to_tensor)
 
-        loss.backward()
-        optimizer.step()
+    #     loss.backward()
+    #     optimizer.step()
 
-    print(loss)
+    # print(loss)
+
+    # model_3 = LandauLifshitzGilbertEmbeddingTrainer(
+    #     EmmbedingConfig(DictConfig({
+    #         "image_size": 32,
+    #         "channels": 3,
+    #         "backbone": "ResNet",
+    #         "fc_dim": 64,
+    #         "embedding_dim": 64,
+    #         "backbone_dim": 64,
+    #     }))
+    # ).cuda()
+
+    # optimizer = optim.Adam(model_3.parameters(), lr=0.001)
+    # print(sum(p.numel() for p in model_3.parameters()))
+
+    # for i in range(10):
+
+    #     optimizer.zero_grad()
+
+    #     loss, _ = model_3(pil_to_tensor)
+
+    #     loss.backward()
+    #     optimizer.step()
+
+    # print(loss)
