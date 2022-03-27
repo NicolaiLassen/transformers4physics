@@ -1,10 +1,7 @@
-import os
-import profile
 from pathlib import Path
 from tabnanny import verbose
 from typing import Tuple
 
-import h5py
 import hydra
 import numpy as np
 import pytorch_lightning as pl
@@ -21,8 +18,8 @@ from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
     LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
 from embedding.embedding_model import EmbeddingTrainingHead
-from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from transformer.phys_transformer import PhysformerTrain
+from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from util.config_formater import sweep_decorate_config
 from util.data_loader import PhysData, read_h5_dataset
 from viz.viz_magnet import MicroMagViz

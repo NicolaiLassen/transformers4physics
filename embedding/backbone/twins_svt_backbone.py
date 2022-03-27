@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
-from .embedding_backbone import EmbeddingBackbone
 from torch import einsum, nn
+from .embedding_backbone import EmbeddingBackbone
 
 
 # https://arxiv.org/abs/2104.13840
@@ -297,9 +297,9 @@ class TwinsSVTBackbone(nn.Module):
         out = self.recover(out)
         return out
 
-# if __name__ == '__main__':
-#     #  print(test(torch.rand(1, 16, 6, 6)).shape)
-#      input_test = torch.rand(1, 3, 32, 32)
-#      model = TwinsSVTBackbone()    
-#      print(sum(p.numel() for p in model.parameters()))
-#      print(model(input_test))
+if __name__ == '__main__':
+     #  print(test(torch.rand(1, 16, 6, 6)).shape)
+      input_test = torch.rand(1, 3, 32, 32)
+      model = TwinsSVTBackbone()    
+      print(sum(p.numel() for p in model.parameters()))
+      print(model(input_test))
