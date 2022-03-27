@@ -1,5 +1,4 @@
-
-from config.phys_config import PhysConfig
+from .phys_config import PhysConfig
 
 
 class EmmbedingConfig(PhysConfig):

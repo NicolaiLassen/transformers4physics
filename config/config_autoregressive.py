@@ -1,4 +1,4 @@
-from config.phys_config import PhysConfig
+from .phys_config import PhysConfig
 
 
 
@@ -20,7 +20,7 @@ class AutoregressiveConfig(PhysConfig):
 
         self.activation_function = cfg.activation_function if cfg.activation_function else "gelu_new"
         self.embedding_dim = cfg.n_embedding if cfg.n_embedding else 128
-     
+
         self.n_ctx = 0
         self.n_layer = 0
         self.n_head = 0
