@@ -32,12 +32,12 @@ class MicroMagViz(Viz):
         super().__init__(plot_dir=plot_dir)
         self.coords = None
 
-    def setCoords(self, coords_path) -> None:
+    def set_coords(self, coords_path) -> None:
         b = np.load(coords_path)
         b = b.swapaxes(0, 1).reshape(3, 36, 36).swapaxes(1, 2)
         self.coords = b
 
-    def plotPrediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
+    def plot_prediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
         def _plot(y, seq_len, title):
             plt.clf()
             plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,0,:,:].reshape(seq_len,-1), axis=1), 'rx')
@@ -57,7 +57,7 @@ class MicroMagViz(Viz):
         _plot(y_target, seq_len, 'Target')
         _plot(y_pred, seq_len, 'Pred')
 
-    def makeGif(self,
+    def make_gif(self,
                        y_pred: Tensor,
                        plot_name: str = None,
                        epoch: int = None,
@@ -99,4 +99,4 @@ class MicroMagViz(Viz):
         anim.save(f, writer=writergif)
 
     def plotEmbeddingPrediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
-        return super().plotEmbeddingPrediction(y_pred, y_target, plot_dir, **kwargs)
+        return super().plot_embedding_prediction(y_pred, y_target, plot_dir, **kwargs)

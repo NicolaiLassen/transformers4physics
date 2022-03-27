@@ -2,8 +2,14 @@ from abc import abstractmethod
 import torch.nn as nn
 
 class EmbeddingBackbone(nn.Module):
-    def __init__(self, **kwargs):
-        super().__init__( **kwargs)
+    def __init__(self,
+        channels: int = 3,
+        img_size: int = 32,
+        backbone_dim: int = 128,
+        embedding_dim: int = 128,
+        fc_dim: int = 128,
+    ):
+        super().__init__()
         # Save config in model
         
     @abstractmethod

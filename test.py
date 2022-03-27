@@ -7,6 +7,8 @@ from embeddings.embedding_landau_lifshitz_gilbert import \
 from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.twins_svt_backbone import TwinsSVTBackbone
 
+from torch.nn import MultiheadAttention
+
 if __name__ == '__main__':
     import os
 
@@ -41,7 +43,6 @@ if __name__ == '__main__':
           "backbone_dim": 64,
         }))
     ).cuda()
-
 
     optimizer = optim.Adam(model_1.parameters(), lr=0.001)
 

@@ -195,18 +195,18 @@ class TwinsSVTBackbone(nn.Module):
     
     def __init__(
         self,
-        channels=3,
-        img_dim=32,
-        backbone_dim=64,
-        embedding_dim=128,
-        fc_dim=128
+        channels: int=3,
+        img_size: int=32,
+        backbone_dim: int=64,
+        embedding_dim: int=128,
+        fc_dim: int=128
     ):
         super().__init__()
     
 
         print("Backbone: {}".format(self.model_name))
 
-        final_patch_size = int(img_dim / 8)
+        final_patch_size = int(img_size / 8)
         self.final_patch_size = final_patch_size
         self.embedding_dim = embedding_dim
         self.backbone_dim = backbone_dim
@@ -296,9 +296,9 @@ class TwinsSVTBackbone(nn.Module):
         out = self.recover(out)
         return out
 
-if __name__ == '__main__':
-    #  print(test(torch.rand(1, 16, 6, 6)).shape)
-     input_test = torch.rand(1, 3, 32, 32)
-     model = TwinsSVTBackbone()    
-     print(sum(p.numel() for p in model.parameters()))
-     print(model(input_test))
+# if __name__ == '__main__':
+#     #  print(test(torch.rand(1, 16, 6, 6)).shape)
+#      input_test = torch.rand(1, 3, 32, 32)
+#      model = TwinsSVTBackbone()    
+#      print(sum(p.numel() for p in model.parameters()))
+#      print(model(input_test))

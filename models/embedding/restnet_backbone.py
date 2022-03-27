@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
+
 # from models.embedding.embedding_backbone import EmbeddingBackbone
 
 # https://www.sciencedirect.com/science/article/pii/S0304885319307978
@@ -123,17 +124,17 @@ class ResnetBackbone(nn.Module):
 
     def __init__(
         self,
-        channels=3,
-        img_dim=32,
-        backbone_dim=128,
-        embedding_dim=128,
-        fc_dim=128
+        channels: int=3,
+        img_size: int=32,
+        backbone_dim: int=128,
+        embedding_dim: int=128,
+        fc_dim: int=128
     ):
         super().__init__()
 
         print("Backbone: {}".format(self.model_name))
 
-        final_patch_size = int(img_dim / 8)
+        final_patch_size = int(img_size / 8)
         self.final_patch_size = final_patch_size
         self.embedding_dim = embedding_dim
         self.backbone_dim = backbone_dim
@@ -142,7 +143,7 @@ class ResnetBackbone(nn.Module):
                        int(backbone_dim / 2), backbone_dim]
 
         self.observable_net_layers = nn.Sequential(
-            nn.Conv2d(3, backbone_dims[0], kernel_size=3,
+            nn.Conv2d(channels, backbone_dims[0], kernel_size=3,
                       stride=1, padding=1, bias=False),
             nn.BatchNorm2d(backbone_dims[0]),
             nn.ReLU(),
@@ -213,9 +214,9 @@ class ResnetBackbone(nn.Module):
         return out
 
 
-if __name__ == '__main__':
-    # print(test(torch.rand(1, 16, 6, 6)).shape)
-    input_test = torch.rand(1, 3, 32, 32)
-    model = ResnetBackbone()    
-    print(sum(p.numel() for p in model.parameters()))
-    print(model(input_test).shape)
+# if __name__ == '__main__':
+#     # print(test(torch.rand(1, 16, 6, 6)).shape)
+#     input_test = torch.rand(1, 3, 32, 32)
+#     model = ResnetBackbone()    
+#     print(sum(p.numel() for p in model.parameters()))
+#     print(model(input_test).shape)

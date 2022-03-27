@@ -1,6 +1,7 @@
 use_wandb: True
 use_sweep: True
 verbose: False
+train_autoregressive: True
 train_embedding: True
 pin_mem: True
 
@@ -11,6 +12,7 @@ workers: 16
 device: 'cuda'
 
 data_dir: '~/data'
+viz_dir: '~/data/viz/'
 dataset: 'prism_grid_dataset_224.hdf5'
 
 checkpoint_path: './ckpt/'
@@ -24,10 +26,11 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: "./ckpt/"
-  image_dim: 32
+  image_size: 32
   
   channels: 3
   backbone: "TwinsSVT"
+ 
   fc_dim: 256
   embedding_dim: 140
   backbone_dim: 128

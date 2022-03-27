@@ -6,11 +6,9 @@ import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
 from models.embedding.conv_backbone import ConvBackbone
-from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.embedding_backbone import EmbeddingBackbone
-from models.embedding.swin_backbone import SwinBackbone
+from models.embedding.restnet_backbone import ResnetBackbone
 from models.embedding.twins_svt_backbone import TwinsSVTBackbone
-from models.embedding.vit_backbone import ViTBackbone
 from torch import Tensor, nn
 from torch.autograd import Variable
 
@@ -25,8 +23,8 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     "ResNet": ResnetBackbone,
     "TwinsSVT": TwinsSVTBackbone,
     "Conv": ConvBackbone,
-    "Swin": SwinBackbone,
-    # "vit": ViTBackbone // TODO: impl
+    # "Swin": SwinBackbone,
+    # "vit": ViTBackbone
 }
 
 class LandauLifshitzGilbertEmbedding(EmbeddingModel):
@@ -45,7 +43,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 "The {} backbone is not suppported".format(config.backbone))
 
         self.backbone: EmbeddingBackbone = backbone_models[config.backbone](
-            img_dim=config.image_dim,
+            img_size=config.image_size,
             backbone_dim=config.backbone_dim,
             embedding_dim=config.embedding_dim,
             fc_dim=config.fc_dim
@@ -153,13 +151,13 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return self.k_matrix_diag
 
     def _normalize(self, x):
-        x = (x - self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) / \
-            self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        x = (x - self.mu.view(1,-1,1,1)) / \
+            self.std.view(1,-1,1,1)
         return x
 
     def _unnormalize(self, x: Tensor) -> Tensor:
-        return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)*x +\
-            self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        return self.std[:3].view(1,-1,1,1)*x +\
+            self.mu[:3].view(1,-1,1,1)
 
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
@@ -168,9 +166,9 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         config (PhysConfig): Configuration class with transformer/embedding parameters
     """
 
-    def __init__(self, config: EmmbedingConfig):
+    def __init__(self, embedding_model: EmbeddingModel):
         super().__init__()
-        self.embedding_model = LandauLifshitzGilbertEmbedding(config)
+        self.embedding_model = embedding_model
 
     def forward(self, states: Tensor) -> FloatTuple:
         """Trains model for a single epoch

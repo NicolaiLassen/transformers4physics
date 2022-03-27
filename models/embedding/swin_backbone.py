@@ -581,7 +581,7 @@ class SwinBackbone(nn.Module):
     def __init__(
         self,
         channels=3,
-        img_dim=32,
+        img_size=32,
         backbone_dim=128,
         embedding_dim=128,
         fc_dim=128

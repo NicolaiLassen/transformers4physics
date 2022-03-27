@@ -1,22 +1,25 @@
 from abc import abstractmethod
 
-import torch
 import torch.nn as nn
 from models.embedding.embedding_backbone import EmbeddingBackbone
-
 
 
 class ConvBackbone(EmbeddingBackbone):
     model_name = "Conv"
 
     def __init__(
-        self, channels=3, img_dim=32, backbone_dim=128, embedding_dim=128, fc_dim=128,
+        self,
+        channels: int = 3,
+        img_size: int = 32,
+        backbone_dim: int = 128,
+        embedding_dim: int = 128,
+        fc_dim: int = 128,
     ):
         super().__init__()
 
         print("Backbone: {}".format(self.model_name))
 
-        final_patch_size = int(img_dim / 8)
+        final_patch_size = int(img_size / 8)
         self.final_patch_size = final_patch_size
         self.backbone_dim = backbone_dim
         self.embedding_dim = embedding_dim
@@ -116,12 +119,10 @@ class ConvBackbone(EmbeddingBackbone):
         out = self.embed(x)
         out = self.recover(out)
         return out
-     
 
 
-if __name__ == '__main__':
-
-    x = torch.rand((1, 3, 32, 32))
-    model = ConvBackbone()
-    model.s
-    print(model(x))
+# if __name__ == '__main__':
+#     x = torch.rand((1, 3, 32, 32))
+#     model = ConvBackbone()
+#     model.s
+#     print(model(x))

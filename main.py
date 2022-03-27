@@ -1,12 +1,12 @@
 import os
-from pathlib import Path
 import profile
+from pathlib import Path
 from tabnanny import verbose
 from typing import Tuple
 
-import numpy as np
 import h5py
 import hydra
+import numpy as np
 import pytorch_lightning as pl
 import torch
 import wandb
@@ -18,21 +18,19 @@ from torch.utils.data import DataLoader
 
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
-from embeddings.embedding_landau_lifshitz_gilbert import \
-    LandauLifshitzGilbertEmbeddingTrainer
+from embeddings.embedding_landau_lifshitz_gilbert import (
+    LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
 from embeddings.embedding_model import EmbeddingTrainingHead
 from models.transformer.phys_transformer_gpt2 import PhysformerGPT2
 from models.transformer.phys_transformer_helpers import PhysformerTrain
 from util.config_formater import sweep_decorate_config
+from util.data_loader import PhysData, read_h5_dataset
+from viz.viz_magnet import MicroMagViz
+
+Tensor = torch.Tensor
 
 
-class PhysData():
-    def __init__(self, data, mu, std):
-        self.data = data
-        self.mu = mu
-        self.std = std
-
-class PhysTrainer(pl.LightningModule):
+class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
@@ -40,26 +38,33 @@ class PhysTrainer(pl.LightningModule):
         self.save_hyperparameters(cfg)
         self.train_embedding = cfg.train_embedding
 
+        self.lr = cfg.learning.lr
+        self.batch_size = cfg.learning.batch_size_train
+
         # dataset
         self.train_dataset, self.val_dataset, self.test_dataset = \
             self.configure_dataset()
+
+        # viz
+        self.viz = MicroMagViz(cfg.viz_dir)
 
         # models
         self.embedding_model = self.configure_embedding_model()
         self.embedding_model.mu = self.train_dataset.mu
         self.embedding_model.std = self.train_dataset.std
+        self.embedding_model_trainer = \
+            LandauLifshitzGilbertEmbeddingTrainer(self.embedding_model)
 
         if not self.train_embedding:
-            self.embedding_model.eval()
             self.autoregressive_model = self.configure_autoregressive_model()
+
+    def forward(self, z: Tensor):
+        assert self.train_embedding, "Cannot use autoregressive model when traning embed"
+        return self.autoregressive_model(z)
 
     def generate(self, past_tokens, seq_len, **kwargs):
         assert self.train_embedding, "Cannot use autoregressive model when traning embed"
-        return self.autoregressive_model.generate(past_tokens, seq_len, kwargs)
-
-    def forward(self, z):
-        assert self.train_embedding, "Cannot use autoregressive model when traning embed"
-        return self.autoregressive_model(z)
+        return self.autoregressive_model(past_tokens, seq_len, kwargs)
 
     def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
         cfg = self.hparams
@@ -69,62 +74,27 @@ class PhysTrainer(pl.LightningModule):
         val_path = "{}\\test.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
-        train_set = self.read_dataset(train_path,
-            cfg.learning.block_size_train, 
-            cfg.learning.batch_size_train,
-            cfg.learning.stride_train,
-            cfg.learning.n_data_train
-            )
-        val_set = self.read_dataset(val_path,
-            cfg.learning.block_size_val, 
-            cfg.learning.batch_size_val,
-            cfg.learning.stride_val,
-        )
-        test_set = self.read_dataset(test_path,
-            cfg.learning.block_size_val, 
-            cfg.learning.batch_size_val,
-            cfg.learning.stride_val,
-        )
+        train_set = read_h5_dataset(train_path,
+                                    cfg.learning.block_size_train,
+                                    self.batch_size,
+                                    cfg.learning.stride_train,
+                                    cfg.learning.n_data_train
+                                    )
+        val_set = read_h5_dataset(val_path,
+                                  cfg.learning.block_size_val,
+                                  self.batch_size,
+                                  cfg.learning.stride_val,
+                                  )
+        test_set = read_h5_dataset(test_path,
+                                   cfg.learning.block_size_val,
+                                   self.batch_size,
+                                   cfg.learning.stride_val,
+                                   )
         return train_set, val_set, test_set
-
-    def read_dataset(self,
-                     file_path: str,
-                     block_size: int,
-                     batch_size: int = 32,
-                     stride: int = 5,
-                     n_data: int = -1,
-                     ) -> PhysData:
-        assert os.path.isfile(
-            file_path), "Training HDF5 file {} not found".format(file_path)
-
-        seq = []
-        with h5py.File(file_path, "r") as f:
-            
-            n_seq = 0
-            for key in f.keys():
-                data_series = torch.Tensor(np.array(f[key]))
-                # Truncate in block of block_size
-                for i in range(0,  data_series.size(0) - block_size + 1, stride):
-                    seq.append(data_series[i: i + block_size].unsqueeze(0))
-
-                n_seq = n_seq + 1
-                if(n_data > 0 and n_seq >= n_data): #If we have enough time-series samples break loop
-                    break
-
-        data = torch.cat(seq, dim=0)
-        mu = torch.tensor([torch.mean(data[:, :, 0]), torch.mean(
-            data[:, :, 1]), torch.mean(data[:, :, 2])])
-        std = torch.tensor([torch.std(data[:, :, 0]), torch.std(
-            data[:, :, 1]), torch.std(data[:, :, 2])])
-
-        if data.size(0) < batch_size:
-            batch_size = data.size(0)
-
-        return PhysData(data, mu, std)
 
     def configure_embedding_model(self) -> EmbeddingTrainingHead:
         cfg = self.hparams
-        return LandauLifshitzGilbertEmbeddingTrainer(EmmbedingConfig(cfg.embedding))
+        return LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg.embedding))
 
     def configure_autoregressive_model(self) -> PhysformerTrain:
         cfg = self.hparams
@@ -137,12 +107,13 @@ class PhysTrainer(pl.LightningModule):
             else self.autoregressive_model.parameters()
 
         if cfg.opt.name == 'adamw':
-            optimizer = optim.AdamW(model_parameters, lr=cfg.learning.lr,
+            optimizer = optim.AdamW(model_parameters, lr=self.lr,
                                     betas=(cfg.opt.beta0,
                                            cfg.opt.beta1), eps=cfg.opt.eps,
                                     weight_decay=cfg.opt.weight_decay)
         elif cfg.opt.name == 'adam':
-            optimizer = optim.Adam(model_parameters, lr=cfg.learning.lr, weight_decay=1e-8)
+            optimizer = optim.Adam(
+                model_parameters, lr=self.lr, weight_decay=1e-8)
         else:
             raise NotImplementedError()
 
@@ -160,12 +131,6 @@ class PhysTrainer(pl.LightningModule):
                     eta_min=cfg.learning.min_lr,
                     T_max=cfg.learning.epochs
                 )
-            elif cfg.learning.sched == 'multistep':
-                lr_scheduler = optim.lr_scheduler.MultiStepLR(
-                    optimizer,
-                    milestones=cfg.learning.multistep_milestones,
-                    gamma=cfg.learning.gamma
-                )
 
             start_epoch = 0
             if cfg.learning.start_epoch is not None:
@@ -178,33 +143,36 @@ class PhysTrainer(pl.LightningModule):
             return optimizer
 
     def train_dataloader(self):
+        cfg = self.hparams
         return DataLoader(
             self.train_dataset.data,
-            batch_size=self.hparams.learning.batch_size_train,
+            batch_size=self.batch_size,
             shuffle=True,
             persistent_workers=True,
-            pin_memory=self.hparams.pin_mem,
-            num_workers=self.hparams.workers
+            pin_memory=cfg.pin_mem,
+            num_workers=cfg.workers
         )
 
     def val_dataloader(self):
+        cfg = self.hparams
         return DataLoader(
             self.val_dataset.data,
-            batch_size=self.hparams.learning.batch_size_val,
+            batch_size=self.batch_size,
             shuffle=False,
             persistent_workers=True,
-            pin_memory=self.hparams.pin_mem,
-            num_workers=self.hparams.workers
+            pin_memory=cfg.pin_mem,
+            num_workers=cfg.workers
         )
 
     def test_dataloader(self):
+        cfg = self.hparams
         return DataLoader(
             self.test_dataset.data,
-            batch_size=self.hparams.learning.batch_size_val,
+            batch_size=self.batch_size,
             shuffle=False,
             persistent_workers=True,
-            pin_memory=self.hparams.pin_mem,
-            num_workers=self.hparams.workers
+            pin_memory=cfg.pin_mem,
+            num_workers=cfg.workers
         )
 
     def training_step(self, batch, batch_idx):
@@ -216,34 +184,42 @@ class PhysTrainer(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch=batch, batch_idx=batch_idx, mode='test')
 
-    def step(self, batch, batch_idx, mode):
+    def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
+
         if self.train_embedding:
             return self.embedding_step(x, mode)
         else:
             return self.autoregressive_step(x, mode)
 
-    def autoregressive_step():
-        raise NotImplementedError("not ready")
-
-    def embedding_step(self, x, mode):
+    def autoregressive_step(self, x: Tensor, mode: str):
+        self.embedding_model.eval()
         if mode == "val":
-            loss, _, _ = self.embedding_model.evaluate(x)
-            self.log_dict({f'loss/{mode}': loss.item()}, on_epoch=True, on_step=False)
+            self.autoregressive_model.evaluate()
+
+    def embedding_step(self, x: Tensor, mode: str):
+        if mode == "val":
+            loss, _, _ = self.embedding_model_trainer.evaluate(x)
+            self.log_dict({f'embedding_loss/{mode}': loss.item()},
+                          on_epoch=True, on_step=False)
             return loss
-        
-        loss, loss_reconstruct = self.embedding_model(x)
-        self.log_dict({f'loss_koopman/{mode}': loss.item(), f'loss/{mode}': loss_reconstruct.item()})
+
+        loss, loss_reconstruct = self.embedding_model_trainer(x)
+        self.log_dict({
+            f'embedding_loss/{mode}': loss_reconstruct.item(),
+            f'embedding_loss_koopman/{mode}': loss.item(),
+        })
         return loss
+
 
 def train(cfg):
     pl.seed_everything(cfg.seed)
-    model = PhysTrainer(cfg)
+    model = LandauLifshitzGilbertPhysTrainer(cfg)
 
     logger = None
     if cfg.use_wandb:
         if wandb.run is None:
-            run = wandb.init(
+            wandb.init(
                 name=cfg.experiment,
                 project=cfg.project,
                 entity='transformers4physics',
@@ -257,6 +233,8 @@ def train(cfg):
     trainer = pl.Trainer(
         devices=1,
         accelerator="auto",
+        precision=16,
+        auto_lr_find=True,
         accumulate_grad_batches=1,
         gradient_clip_val=0.1,
         max_epochs=cfg.learning.epochs,
@@ -282,6 +260,7 @@ def sweep_autoregressive(cfg: DictConfig):
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
+
 @hydra.main(config_path=".", config_name="train.yaml")
 def sweep_embedding(cfg: DictConfig):
     # wandb sweep sweep_embed.yaml
@@ -291,9 +270,17 @@ def sweep_embedding(cfg: DictConfig):
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
+
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):
-    train(cfg)
+    model = LandauLifshitzGilbertPhysTrainer(cfg)
+
+    b = torch.rand(2, 14, 3, 32, 32)
+    print(model.step(b, 0, "train"))
+
+    # train(cfg)
+
 
 if __name__ == '__main__':
-    wandb.agent("pezxi1k0", sweep_embedding, count=50, project="v1", entity="transformers4physics")
+    main()
+    # wandb.agent("pezxi1k0", sweep_embedding, count=50, project="v1", entity="transformers4physics")

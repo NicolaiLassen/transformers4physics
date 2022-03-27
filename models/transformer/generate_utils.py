@@ -154,12 +154,6 @@ class GenerationMixin:
             inputs_embeds = torch.cat([inputs_embeds, next_output], dim=1)
             cur_len = cur_len + 1
 
-            # If number of time-steps has surpassed model capacity, start dropping
-            # the earliest time-step from the past states
-            # if(cur_len > self.config.n_ctx):
-                # Dim [keys/query, batch, heads, tsteps, n_embed]
-                # past = tuple(attention_state[:,:,:,1:] for attention_state in past)
-
         return (inputs_embeds, ) + outputs[1:]
 
     @staticmethod
