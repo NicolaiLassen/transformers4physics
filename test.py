@@ -1,13 +1,10 @@
 
 from omegaconf import DictConfig
+from torch.nn import MultiheadAttention
 
 from config.config_emmbeding import EmmbedingConfig
-from embeddings.embedding_landau_lifshitz_gilbert import \
+from embedding.embedding_landau_lifshitz_gilbert import \
     LandauLifshitzGilbertEmbeddingTrainer
-from models.embedding.restnet_backbone import ResnetBackbone
-from models.embedding.twins_svt_backbone import TwinsSVTBackbone
-
-from torch.nn import MultiheadAttention
 
 if __name__ == '__main__':
     import os
@@ -35,12 +32,12 @@ if __name__ == '__main__':
     pil_to_tensor = torch.rand(1, 16, 3, 32, 32).cuda()
     model_1 = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(DictConfig({
-          "image_dim": 32,
-          "channels": 3,
-          "backbone": "TwinsSVT",
-          "fc_dim": 64,
-          "embedding_dim": 64,
-          "backbone_dim": 64,
+            "image_dim": 32,
+            "channels": 3,
+            "backbone": "TwinsSVT",
+            "fc_dim": 64,
+            "embedding_dim": 64,
+            "backbone_dim": 64,
         }))
     ).cuda()
 
@@ -51,7 +48,7 @@ if __name__ == '__main__':
     for i in range(10):
 
         optimizer.zero_grad()
-        
+
         loss, _ = model_1(pil_to_tensor)
 
         loss.backward()
@@ -61,12 +58,12 @@ if __name__ == '__main__':
 
     model_2 = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(DictConfig({
-          "image_dim": 32,
-          "channels": 3,
-          "backbone": "Conv",
-          "fc_dim": 64,
-          "embedding_dim": 64,
-          "backbone_dim": 64,
+            "image_dim": 32,
+            "channels": 3,
+            "backbone": "Conv",
+            "fc_dim": 64,
+            "embedding_dim": 64,
+            "backbone_dim": 64,
         }))
     ).cuda()
 
@@ -76,7 +73,7 @@ if __name__ == '__main__':
     for i in range(10):
 
         optimizer.zero_grad()
-        
+
         loss, _ = model_2(pil_to_tensor)
 
         loss.backward()
@@ -86,12 +83,12 @@ if __name__ == '__main__':
 
     model_3 = LandauLifshitzGilbertEmbeddingTrainer(
         EmmbedingConfig(DictConfig({
-          "image_dim": 32,
-          "channels": 3,
-          "backbone": "ResNet",
-          "fc_dim": 64,
-          "embedding_dim": 64,
-          "backbone_dim": 64,
+            "image_dim": 32,
+            "channels": 3,
+            "backbone": "ResNet",
+            "fc_dim": 64,
+            "embedding_dim": 64,
+            "backbone_dim": 64,
         }))
     ).cuda()
 
@@ -101,11 +98,10 @@ if __name__ == '__main__':
     for i in range(10):
 
         optimizer.zero_grad()
-        
+
         loss, _ = model_3(pil_to_tensor)
 
         loss.backward()
         optimizer.step()
 
     print(loss)
-

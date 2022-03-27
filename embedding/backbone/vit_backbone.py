@@ -2,7 +2,7 @@
 import torch
 from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
-from models.embedding.embedding_backbone import EmbeddingBackbone
+from .embedding_backbone import EmbeddingBackbone
 from torch import nn
 
 # https://arxiv.org/abs/2010.11929

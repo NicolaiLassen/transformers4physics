@@ -1,7 +1,8 @@
 from abc import abstractmethod
 
 import torch.nn as nn
-from models.embedding.embedding_backbone import EmbeddingBackbone
+
+from .embedding_backbone import EmbeddingBackbone
 
 
 class ConvBackbone(EmbeddingBackbone):

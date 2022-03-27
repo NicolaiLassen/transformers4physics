@@ -9,8 +9,8 @@ github: https://github.com/zabaras/transformer-physx
 """
 import torch
 import torch.nn as nn
-from config.config_emmbeding import EmmbedingConfig
-from models.transformer.phys_transformer_functions import Conv1D
+from config.config_autoregressive import AutoregressiveConfig
+from .phys_transformer_functions import Conv1D
 from typing import List
 
 Tensor = torch.Tensor
@@ -31,7 +31,7 @@ class MaskedAttention(nn.Module):
         self, 
         nx: int, 
         n_ctx: int, 
-        config: EmmbedingConfig, 
+        config: AutoregressiveConfig, 
         scale: bool  = False, 
         mask: str = 'tril'
     ) -> None:

@@ -5,14 +5,15 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from config.config_emmbeding import EmmbedingConfig
-from models.embedding.conv_backbone import ConvBackbone
-from models.embedding.embedding_backbone import EmbeddingBackbone
-from models.embedding.restnet_backbone import ResnetBackbone
-from models.embedding.twins_svt_backbone import TwinsSVTBackbone
 from torch import Tensor, nn
 from torch.autograd import Variable
 
-from embeddings.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+from .backbone.conv_backbone import ConvBackbone
+from .backbone.restnet_backbone import ResnetBackbone
+from .backbone.twins_svt_backbone import TwinsSVTBackbone
+from .backbone.embedding_backbone import EmbeddingBackbone
+
+from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 
 # Custom types
 Tensor = torch.Tensor
@@ -20,9 +21,9 @@ TensorTuple = Tuple[torch.Tensor]
 FloatTuple = Tuple[float]
 
 backbone_models: Dict[str, EmbeddingBackbone] = {
+    "Conv": ConvBackbone,
     "ResNet": ResnetBackbone,
     "TwinsSVT": TwinsSVTBackbone,
-    "Conv": ConvBackbone,
     # "Swin": SwinBackbone,
     # "vit": ViTBackbone
 }

@@ -1,3 +1,4 @@
+
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
@@ -557,8 +558,8 @@ class SwinTransformer(nn.Module):
             x = layer(x)
 
         x = self.norm(x)  # B L C
-        x = self.avgpool(x.transpose(1, 2))  # B C 1
-        x = torch.flatten(x, 1)
+        # x = self.avgpool(x.transpose(1, 2))  # B C 1
+        # x = torch.flatten(x, 1)
         return x
 
     def forward(self, x):
@@ -574,3 +575,106 @@ class SwinTransformer(nn.Module):
         flops += self.num_features * self.patches_resolution[0] * self.patches_resolution[1] // (2 ** self.num_layers)
         flops += self.num_features * self.num_classes
         return flops
+
+
+class SwinBackbone(nn.Module):
+    def __init__(
+        self,
+        channels=3,
+        img_size=32,
+        backbone_dim=128,
+        embedding_dim=128,
+        fc_dim=128
+    ):
+        super().__init__()
+
+        final_patch_size = int(img_size / 8)
+        self.final_patch_size = final_patch_size
+        self.embedding_dim = embedding_dim
+        self.backbone_dim = backbone_dim
+
+        backbone_dims = [int(backbone_dim / 4),
+                         int(backbone_dim / 2), backbone_dim]
+
+        self.observable_net_layers = nn.Sequential(
+            SwinTransformer(
+                img_size=img_size,
+                num_classes=0,
+                embed_dim=backbone_dim,
+                patch_size=8,
+                depths=[1, 1],
+                num_heads=[1, 1],
+                window_size=2
+            )
+        )
+
+        self.observable_net_fc_layers = nn.Sequential(
+            nn.Linear(backbone_dim*2*final_patch_size, fc_dim),
+            nn.LeakyReLU(0.02, inplace=True),
+            nn.Linear(fc_dim, embedding_dim),
+            nn.LayerNorm(embedding_dim, eps=1e-5),
+        )
+
+        self.recovery_net_fc_layers = nn.Sequential(
+            nn.Linear(embedding_dim, fc_dim),
+            nn.LeakyReLU(0.02, inplace=True),
+            nn.Linear(fc_dim, backbone_dim*final_patch_size**2),
+            nn.LeakyReLU(0.02, inplace=True),
+        )
+
+        self.recovery_net_layers = nn.Sequential(
+            nn.ConvTranspose2d(
+                backbone_dims[2],  backbone_dims[1], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.BatchNorm2d(backbone_dims[1]),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(
+                backbone_dims[1], backbone_dims[0], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.BatchNorm2d(backbone_dims[0]),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(
+                backbone_dims[0], 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
+            ),
+            nn.LeakyReLU(0.02, inplace=True)
+        )
+
+    def observable_net(self, x):
+        return self.observable_net_layers(x)
+
+    def observable_net_fc(self, x):
+        return self.observable_net_fc_layers(x)
+
+    def recovery_net(self, x):
+        return self.recovery_net_layers(x)
+
+    def recovery_net_fc(self, x):
+        return self.recovery_net_fc_layers(x)
+
+    def embed(self, x):
+        out = self.observable_net(x)
+        out = out.reshape(x.size(0), -1)
+        out = self.observable_net_fc(out)
+        return out
+
+    def recover(self, x):
+        out = self.recovery_net_fc(x)
+        out = out.view(-1, self.backbone_dim,
+                       self.final_patch_size, self.final_patch_size)
+        out = self.recovery_net(out)
+        return out
+
+    def forward(self, x):
+        out = self.embed(x)
+        out = self.recover(out)
+        return out
+
+
+# if __name__ == '__main__':
+#     # print(test(torch.rand(1, 16, 6, 6)).shape)
+#     input_test = torch.rand(1, 3, 32, 32)
+#     model = SwinBackbone()    
+#     print(sum(p.numel() for p in model.parameters()))
+#     print(model(input_test).shape)

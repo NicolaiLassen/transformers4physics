@@ -17,7 +17,7 @@ from torch import nn
 
 from .attention import MaskedAttention
 from .generate_utils import GenerationMixin
-from .phys_transformer_base import PhysformerBase
+from .phys_transformer import Physformer
 from .phys_transformer_functions import ACT2FN, Conv1D
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ class Block(nn.Module):
         outputs = [x] + output_attn[1:]
         return outputs  # x, present, (attentions)
 
-class PhysformerGPT2(GenerationMixin, PhysformerBase): # Mixins come first before base to overload
+class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before base to overload
     """Transformer decoder model for modeling physics
     Args:
             config (PhysConfig): Phys-transformer config object
@@ -122,7 +122,7 @@ class PhysformerGPT2(GenerationMixin, PhysformerBase): # Mixins come first befor
     def __init__(self, config: AutoregressiveConfig, model_name: str = None) -> None:
         """Constructor        
         """
-        PhysformerBase.__init__(self, config)
+        Physformer.__init__(self, config)
         self.output_hidden_states = config.output_hidden_states
 
         self.drop = nn.Dropout(config.embd_pdrop)

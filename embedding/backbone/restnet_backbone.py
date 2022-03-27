@@ -1,12 +1,14 @@
-import torch
+from torch.nn import MultiheadAttention
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.nn.init as init
 
-# from models.embedding.embedding_backbone import EmbeddingBackbone
+from .embedding_backbone import EmbeddingBackbone
+
 
 # https://www.sciencedirect.com/science/article/pii/S0304885319307978
 # https://towardsdatascience.com/illustrated-10-cnn-architectures-95d78ace614d#e276
+
 
 def _weights_init(m):
     """
@@ -21,6 +23,7 @@ class LambdaLayer(nn.Module):
     """
       Identity mapping between ResNet blocks with diffrenet size feature map
     """
+
     def __init__(self, lambd):
         super(LambdaLayer, self).__init__()
         self.lambd = lambd
@@ -42,11 +45,11 @@ class BasicBlockDown(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
-                self.shortcut = nn.Sequential(
-                     nn.Conv2d(in_planes, self.expansion * planes,
-                               kernel_size=1, stride=stride, bias=False),
-                     nn.BatchNorm2d(self.expansion * planes),
-                )
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.expansion * planes,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion * planes),
+            )
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -64,19 +67,20 @@ class BasicBlockUp(nn.Module):
 
         self.conv1 = nn.ConvTranspose2d(
             in_planes, planes, kernel_size=3, stride=stride, padding=1,
-            output_padding= 1 if stride != 1 else 0, bias=False)
+            output_padding=1 if stride != 1 else 0, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
-        
-        self.conv2 = nn.ConvTranspose2d(planes, planes, kernel_size=3, padding=1, stride=1, bias=False)
+
+        self.conv2 = nn.ConvTranspose2d(
+            planes, planes, kernel_size=3, padding=1, stride=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
         self.shortcut = nn.Sequential()
 
         if stride != 1 or in_planes != planes:
-                self.shortcut = nn.Sequential(
-                     nn.ConvTranspose2d(in_planes, self.expansion * planes,
-                               kernel_size=1, output_padding=1 if stride != 1 else 0, stride=stride, bias=False),
-                     nn.BatchNorm2d(self.expansion * planes),
-                )
+            self.shortcut = nn.Sequential(
+                nn.ConvTranspose2d(in_planes, self.expansion * planes,
+                                   kernel_size=1, output_padding=1 if stride != 1 else 0, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion * planes),
+            )
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
@@ -111,24 +115,26 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
-        out = self.layer1(x)  
+        out = self.layer1(x)
         out = self.layer2(out)
         out = self.layer3(out)
         return out
 
+
 def resnetDown6(backbone_dims=[]):
     return ResNet(BasicBlockDown, [1, 1, 1], backbone_dims)
 
-class ResnetBackbone(nn.Module):
+
+class ResnetBackbone(EmbeddingBackbone):
     model_name = "ResNet"
 
     def __init__(
         self,
-        channels: int=3,
-        img_size: int=32,
-        backbone_dim: int=128,
-        embedding_dim: int=128,
-        fc_dim: int=128
+        channels: int = 3,
+        img_size: int = 32,
+        backbone_dim: int = 128,
+        embedding_dim: int = 128,
+        fc_dim: int = 128
     ):
         super().__init__()
 
@@ -140,7 +146,7 @@ class ResnetBackbone(nn.Module):
         self.backbone_dim = backbone_dim
 
         backbone_dims = [int(backbone_dim / 4),
-                       int(backbone_dim / 2), backbone_dim]
+                         int(backbone_dim / 2), backbone_dim]
 
         self.observable_net_layers = nn.Sequential(
             nn.Conv2d(channels, backbone_dims[0], kernel_size=3,
@@ -217,6 +223,6 @@ class ResnetBackbone(nn.Module):
 # if __name__ == '__main__':
 #     # print(test(torch.rand(1, 16, 6, 6)).shape)
 #     input_test = torch.rand(1, 3, 32, 32)
-#     model = ResnetBackbone()    
+#     model = ResnetBackbone()
 #     print(sum(p.numel() for p in model.parameters()))
 #     print(model(input_test).shape)

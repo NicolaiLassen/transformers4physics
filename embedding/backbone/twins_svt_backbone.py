@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
-# from models.embedding.embedding_backbone import EmbeddingBackbone
+from .embedding_backbone import EmbeddingBackbone
 from torch import einsum, nn
+
 
 # https://arxiv.org/abs/2104.13840
 class Residual(nn.Module):
@@ -166,7 +167,7 @@ class GlobalAttention(nn.Module):
         return self.to_out(out)
 
 
-class Transformer(nn.Module):
+class Transformer(EmbeddingBackbone):
     def __init__(self, in_channels, depth, heads=8, dim_head=64, mlp_mult=4, local_patch_size=7, global_k=7, dropout=0., has_local=True):
         super().__init__()
         self.layers = nn.ModuleList([])
