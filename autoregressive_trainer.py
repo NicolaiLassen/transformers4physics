@@ -17,17 +17,9 @@ from torch.utils.data import DataLoader
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
-<<<<<<< HEAD:main.py
-    LandauLifshitzGilbertEmbedding,
-    LandauLifshitzGilbertEmbeddingTrainer,
-)
-from embedding.embedding_model import EmbeddingTrainingHead
-from transformer.phys_transformer import PhysformerTrain
-=======
     LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
 from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 from transformer.phys_transformer import Physformer, PhysformerTrain
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from util.config_formater import sweep_decorate_config
 from util.data_loader import PhysData, read_h5_dataset
@@ -68,21 +60,9 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         self.embedding_model_trainer = PhysformerTrain(self.autoregressive_model)
 
     def forward(self, z: Tensor):
-<<<<<<< HEAD:main.py
-        assert (
-            self.train_embedding
-        ), "Cannot use autoregressive model when traning embed"
         return self.autoregressive_model(z)
 
     def generate(self, past_tokens, seq_len, **kwargs):
-        assert (
-            self.train_embedding
-        ), "Cannot use autoregressive model when traning embed"
-=======
-        return self.autoregressive_model(z)
-
-    def generate(self, past_tokens, seq_len, **kwargs):
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
         return self.autoregressive_model(past_tokens, seq_len, kwargs)
 
     def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
@@ -125,15 +105,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
     def configure_optimizers(self):
         cfg = self.hparams
 
-<<<<<<< HEAD:main.py
-        model_parameters = (
-            self.embedding_model.parameters()
-            if self.train_embedding
-            else self.autoregressive_model.parameters()
-        )
-=======
         model_parameters = self.autoregressive_model.parameters()
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
 
         if cfg.opt.name == "adamw":
             optimizer = optim.AdamW(
@@ -221,26 +193,6 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
             e = self.embedding_model.embed(x[:, t])
             seq[:, t] = e
 
-<<<<<<< HEAD:main.py
-    def embedding_step(self, x: Tensor, mode: str):
-        if mode == "val":
-            loss, _, _ = self.embedding_model_trainer.evaluate(x)
-            self.log_dict(
-                {f"embedding_loss/{mode}": loss.item()}, on_epoch=True, on_step=False,
-            )
-            return loss
-
-        loss, loss_reconstruct = self.embedding_model_trainer(x)
-        self.log_dict(
-            {
-                f"embedding_loss/{mode}": loss_reconstruct.item(),
-                f"embedding_loss_koopman/{mode}": loss.item(),
-            },
-            on_epoch=True,
-            on_step=False,
-        )
-        return loss
-=======
         h, p = self.autoregressive_model(seq)
         print(p.shape)
         # return self.embedding_step(x, mode)
@@ -264,7 +216,6 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         ## PLOT
 
         return targets_error
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
 
 
 def train(cfg):

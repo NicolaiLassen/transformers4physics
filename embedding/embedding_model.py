@@ -82,7 +82,7 @@ class EmbeddingModel(nn.Module):
                 devices.append(buffer.device)
         return devices
         
-    def save_model(self, save_directory: str, epoch: int = 0) -> None:
+    def save_model(self, save_directory: str, filename: str) -> None:
         """Saves embedding model to the specified directory.
         Args:
             save_directory (str): Folder directory to save state dictionary to.
@@ -96,9 +96,10 @@ class EmbeddingModel(nn.Module):
 
         os.makedirs(save_directory, exist_ok=True)
         # If we save using the predefined names, we can load using `from_pretrained`
-        output_model_file = os.path.join(save_directory, "{}{:d}.pth".format(self.model_name, epoch))
+        output_model_file = os.path.join(save_directory, "{}.pth".format(filename))
         # Save pytorch model to file
         torch.save(self.state_dict(), output_model_file)
+        self.config.to_json_file('{}/config.json'.format(save_directory))
 
     def load_model(self, file_or_path_directory: str, epoch: int = 0) -> None:
         """Load a embedding model from the specified file or path

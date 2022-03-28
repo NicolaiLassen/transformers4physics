@@ -23,10 +23,7 @@ def read_h5_dataset(
     n_data: int = -1,
 ) -> PhysData:
 
-<<<<<<< HEAD
-=======
-    return PhysData(torch.rand(2, 14, 3, 32, 32), torch.zeros(3), torch.ones(3))
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32
+    # return PhysData(torch.rand(2, 14, 3, 32, 32), torch.zeros(3), torch.ones(3))
     assert os.path.isfile(
         file_path), "Training HDF5 file {} not found".format(file_path)
 

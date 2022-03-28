@@ -15,6 +15,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader
+from callback import SaveCallback
 
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
@@ -29,7 +30,7 @@ from util.data_loader import PhysData, read_h5_dataset
 Tensor = torch.Tensor
 
 
-class EmmbeddingPhysTrainer(pl.LightningModule):
+class EmbeddingPhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
@@ -48,6 +49,9 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
         self.embedding_model.std = self.train_dataset.std
         self.embedding_model_trainer = \
             LandauLifshitzGilbertEmbeddingTrainer(self.embedding_model)
+
+    def save_model(self, checkpoint_dir, filename):
+        self.embedding_model.save_model(save_directory=checkpoint_dir, filename=filename)
 
     def forward(self, z: Tensor):
         return self.embedding_model.embed(z)
@@ -181,7 +185,7 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
 
 def train(cfg):
     pl.seed_everything(cfg.seed)
-    model = EmmbeddingPhysTrainer(cfg)
+    model = EmbeddingPhysTrainer(cfg)
 
     logger = None
     if cfg.use_wandb:
@@ -206,8 +210,12 @@ def train(cfg):
         gpus=cfg.gpus,
         logger=logger,
         num_sanity_val_steps=2,
-        log_every_n_steps=1,
+        log_every_n_steps=15,
         check_val_every_n_epoch=2,
+        callbacks=SaveCallback(
+            dirpath='{}'.format(cfg.embedding.ckpt_path),
+            filename=cfg.embedding.display_name,
+        )
     )
 
     trainer.fit(model)
@@ -222,6 +230,8 @@ def sweep(cfg: DictConfig):
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
+        cfg.embedding.display_name = wandb.run.name
+        cfg.embedding.sweep_id = wandb.run.sweep_id
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
@@ -232,5 +242,5 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    main()
-    # wandb.agent("pezxi1k0", sweep_embedding, count=50, project="v1", entity="transformers4physics")
+    # main()
+    wandb.agent("gv398m8m", sweep, count=2, project="v1", entity="transformers4physics")

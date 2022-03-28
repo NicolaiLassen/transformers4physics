@@ -1,35 +1,25 @@
 use_wandb: False
 use_sweep: False
 verbose: False
-<<<<<<< HEAD
-train_autoregressive: False
-train_embedding: True
-=======
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32
 pin_mem: True
 
 seed: 2
 gpus: 1
 cpus: 1
-<<<<<<< HEAD
-workers: 24
-=======
-workers: 1
->>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32
+workers: 16
 device: 'cuda'
 
 data_dir: '~/data'
 viz_dir: '~/data/viz/'
 dataset: 'prism_grid_dataset_224.hdf5'
 
-checkpoint_path: './ckpt/'
-check_val_every_n_epoch: 1
-
 experiment: "koopman_Backbone_search_0"
 project: "v1"
 notes: "Staic field"
 
 embedding:
+  sweep_id: ''
+  display_name: ''
   name: 'koopman'
   pretrained: False
   ckpt_path: "./ckpt/"
@@ -47,7 +37,7 @@ embedding:
 autoregressive: 
   name: "GPT2" 
   pretrained: False
-  ckpt_path: "./ckpt/" 
+  ckpt_path: "./ckpt/model_name" 
 
   activation_function: "gelu_new"
   layer_norm_epsilon: 1e-5
@@ -71,7 +61,7 @@ opt:
 
 learning:
 
-  epochs: 40
+  epochs: 2
   start_epoch: 0
 
   block_size_train: 6

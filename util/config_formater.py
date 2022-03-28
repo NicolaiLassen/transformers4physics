@@ -14,3 +14,4 @@ def sweep_decorate_config(cfg: DictConfig, sweep_params: Dict):
     cfg.embedding.backbone_dim = sweep_params["embedding.backbone_dim"]
     cfg.embedding.fc_dim = sweep_params["embedding.fc_dim"]
     cfg.embedding.embedding_dim = sweep_params["embedding.embedding_dim"]
+    return cfg
