@@ -39,7 +39,6 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         self.lr = cfg.learning.lr
         self.batch_size = cfg.learning.batch_size_train
 
-
         # viz
         self.viz = MicroMagViz(cfg.viz_dir)
 
@@ -190,8 +189,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         if mode == "val":
             print("DO EVEAL")
 
-        print(x.shape)
-        outputs = self.model_trainer(x[:,:-1],x[:,:1])
+        outputs = self.model_trainer(x[:, :-1, :],x[:, 1:, :])
         return outputs[0]
 
     def eval_states(self, pred_embeds: Tensor, x: Tensor):
