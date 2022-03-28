@@ -1,5 +1,8 @@
 
+import os
 import torch
+import h5py
+import numpy as np
 Tensor = torch.Tensor
 
 class PhysData():
@@ -17,7 +20,6 @@ def read_h5_dataset(
     n_data: int = -1,
 ) -> PhysData:
 
-    return PhysData(torch.rand(2, 14, 3, 32, 32), torch.rand(3), torch.rand(3))
     assert os.path.isfile(
         file_path), "Training HDF5 file {} not found".format(file_path)
 

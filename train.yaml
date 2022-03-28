@@ -1,14 +1,14 @@
 use_wandb: True
 use_sweep: True
 verbose: False
-train_autoregressive: True
+train_autoregressive: False
 train_embedding: True
 pin_mem: True
 
 seed: 2
 gpus: 1
 cpus: 1
-workers: 16
+workers: 24
 device: 'cuda'
 
 data_dir: '~/data'
@@ -53,10 +53,10 @@ learning:
   epochs: 40
   start_epoch: 0
 
-  block_size_train: 16
-  stride_train: 4
+  block_size_train: 6
+  stride_train: 6
   batch_size_train: 64
-  n_data_train: 30
+  n_data_train: 50
   
   batch_size_val: 16
   block_size_val: 32
