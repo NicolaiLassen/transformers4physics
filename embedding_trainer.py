@@ -8,28 +8,23 @@ import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
 import wandb
 from omegaconf import DictConfig
-from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader
 
-from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
     LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
-from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
-from transformer.phys_transformer import Physformer, PhysformerTrain
-from transformer.phys_transformer_gpt2 import PhysformerGPT2
+from embedding.embedding_model import EmbeddingModel
 from util.config_formater import sweep_decorate_config
-from util.data_loader import PhysData, read_h5_dataset
+from util.data_loader import read_h5_dataset
 
 Tensor = torch.Tensor
 
 
-class EmmbeddingPhysTrainer(pl.LightningModule):
+class EmbeddingPhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
@@ -42,17 +37,25 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
         self.train_dataset, self.val_dataset, self.test_dataset = \
             self.configure_dataset()
 
+        mu = torch.tensor([torch.mean(self.train_dataset[:, :, 0]), torch.mean(
+            self.train_dataset[:, :, 1]), torch.mean(self.train_dataset[:, :, 2])])
+        std = torch.tensor([torch.std(self.train_dataset[:, :, 0]), torch.std(
+            self.train_dataset[:, :, 1]), torch.std(self.train_dataset[:, :, 2])])
+
         # model
-        self.embedding_model = self.configure_embedding_model()
-        self.embedding_model.mu = self.train_dataset.mu
-        self.embedding_model.std = self.train_dataset.std
-        self.embedding_model_trainer = \
-            LandauLifshitzGilbertEmbeddingTrainer(self.embedding_model)
+        self.model = self.configure_embedding_model()
+        self.model.mu = mu
+        self.model.std = std
+        self.model_trainer = \
+            LandauLifshitzGilbertEmbeddingTrainer(self.model)
+
+    def save_model(self):
+        self.model.save_model("test")
 
     def forward(self, z: Tensor):
-        return self.embedding_model.embed(z)
+        return self.model.embed(z)
 
-    def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
+    def configure_dataset(self) -> Tuple[Tuple[Tensor, Tensor], Tensor, Tensor, Tensor]:
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
@@ -85,7 +88,7 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
     def configure_optimizers(self):
         cfg = self.hparams
 
-        model_parameters = self.embedding_model.parameters()
+        model_parameters = self.model.parameters()
 
         if cfg.opt.name == 'adamw':
             optimizer = optim.AdamW(model_parameters, lr=self.lr,
@@ -126,7 +129,7 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
     def train_dataloader(self):
         cfg = self.hparams
         return DataLoader(
-            self.train_dataset.data,
+            self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             persistent_workers=True,
@@ -137,7 +140,7 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
     def val_dataloader(self):
         cfg = self.hparams
         return DataLoader(
-            self.val_dataset.data,
+            self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             persistent_workers=True,
@@ -148,7 +151,7 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
     def test_dataloader(self):
         cfg = self.hparams
         return DataLoader(
-            self.test_dataset.data,
+            self.test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             persistent_workers=True,
@@ -168,8 +171,8 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
 
-        loss, loss_reconstruct = self.embedding_model_trainer.evaluate(x) \
-            if mode == "val" else self.embedding_model_trainer(x)
+        loss, loss_reconstruct = self.model_trainer.evaluate(x) \
+            if mode == "val" else self.model_trainer(x)
 
         self.log_dict({
             f'loss_reconstruct/{mode}': loss_reconstruct.item(),
@@ -181,7 +184,7 @@ class EmmbeddingPhysTrainer(pl.LightningModule):
 
 def train(cfg):
     pl.seed_everything(cfg.seed)
-    model = EmmbeddingPhysTrainer(cfg)
+    model = EmbeddingPhysTrainer(cfg)
 
     logger = None
     if cfg.use_wandb:

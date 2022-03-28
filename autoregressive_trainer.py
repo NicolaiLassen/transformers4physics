@@ -1,3 +1,4 @@
+from operator import mod
 from pathlib import Path
 from tabnanny import verbose
 from typing import Tuple
@@ -22,7 +23,7 @@ from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 from transformer.phys_transformer import Physformer, PhysformerTrain
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from util.config_formater import sweep_decorate_config
-from util.data_loader import PhysData, read_h5_dataset
+from util.data_loader import PhysData, read_and_embbed_h5_dataset
 from viz.viz_magnet import MicroMagViz
 
 Tensor = torch.Tensor
@@ -46,14 +47,10 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         self.viz = MicroMagViz(cfg.viz_dir)
 
         # models
-        self.embedding_model = self.configure_embedding_model()
-        self.embedding_model.mu = self.train_dataset.mu
-        self.embedding_model.std = self.train_dataset.std
-        self.embedding_model_trainer = \
-            LandauLifshitzGilbertEmbeddingTrainer(self.embedding_model)
-
+        self.embedding_model = self.configure_embedding_model(cfg.embedding.ckpt_path)
+    
         self.autoregressive_model = self.configure_autoregressive_model()
-        self.embedding_model_trainer = PhysformerTrain(self.autoregressive_model)
+        self.autoregressive_model_trainer = PhysformerTrain(self.autoregressive_model)
 
     def forward(self, z: Tensor):
         return self.autoregressive_model(z)
@@ -69,27 +66,32 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         val_path = "{}\\test.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
-        train_set = read_h5_dataset(train_path,
+        train_set = read_and_embbed_h5_dataset(train_path,
+                                    self.embedding_model,
                                     cfg.learning.block_size_train,
                                     self.batch_size,
                                     cfg.learning.stride_train,
                                     cfg.learning.n_data_train
                                     )
-        val_set = read_h5_dataset(val_path,
+        val_set = read_and_embbed_h5_dataset(val_path,
+                                  self.embedding_model,
                                   cfg.learning.block_size_val,
                                   self.batch_size,
                                   cfg.learning.stride_val,
                                   )
-        test_set = read_h5_dataset(test_path,
+        test_set = read_and_embbed_h5_dataset(test_path,
+                                   self.embedding_model,
                                    cfg.learning.block_size_val,
                                    self.batch_size,
                                    cfg.learning.stride_val,
                                    )
         return train_set, val_set, test_set
 
-    def configure_embedding_model(self) -> EmbeddingModel:
+    def configure_embedding_model(self, ckpt_path: str) -> EmbeddingModel:
         cfg = self.hparams
-        return LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg.embedding))
+        model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg.embedding))
+        model.load_model(ckpt_path)
+        return model
 
     def configure_autoregressive_model(self) -> Physformer:
         cfg = self.hparams
@@ -180,22 +182,12 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
+        if mode == "val":
+            print("DO EVEAL")
 
-        seq = torch.zeros(x.size(0), x.size(1), 140)
-
-        for t in range(x.size(1)):
-            e = self.embedding_model.embed(x[:, t])
-            seq[:, t] = e
-
-        h, p = self.autoregressive_model(seq)
-        print(p.shape)
-        # return self.embedding_step(x, mode)
-        # return self.autoregressive_step(x, mode)
-
-    def eval_step(self, x):
-        preds = torch.rand()
-        self.eval_states(preds, x)
-
+        outputs = self.autoregressive_model_trainer(x)
+        return outputs [0]
+        
     def eval_states(self, pred_embeds: Tensor, x: Tensor ):
         bsize = pred_embeds.size(0)
         tsize = pred_embeds.size(1)

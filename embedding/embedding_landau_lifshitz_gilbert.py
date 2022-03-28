@@ -36,7 +36,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
 
     model_name = "embedding_landau-lifshitz-gilbert"
 
-    def __init__(self, config: EmmbedingConfig) -> None:
+    def __init__(self, config: EmmbedingConfig = None) -> None:
         super().__init__(config)
 
         if config.backbone not in backbone_models.keys():
@@ -49,7 +49,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             embedding_dim=config.embedding_dim,
             fc_dim=config.fc_dim
         )
-        
+            
         # Learned Koopman operator
         self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
 

@@ -62,7 +62,7 @@ opt:
 
 learning:
 
-  epochs: 40
+  epochs: 100
   start_epoch: 0
 
   block_size_train: 16
