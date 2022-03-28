@@ -6,6 +6,7 @@ import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
+import torch.nn as nn
 import wandb
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -16,11 +17,17 @@ from torch.utils.data import DataLoader
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
+<<<<<<< HEAD:main.py
     LandauLifshitzGilbertEmbedding,
     LandauLifshitzGilbertEmbeddingTrainer,
 )
 from embedding.embedding_model import EmbeddingTrainingHead
 from transformer.phys_transformer import PhysformerTrain
+=======
+    LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
+from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+from transformer.phys_transformer import Physformer, PhysformerTrain
+>>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from util.config_formater import sweep_decorate_config
 from util.data_loader import PhysData, read_h5_dataset
@@ -29,13 +36,12 @@ from viz.viz_magnet import MicroMagViz
 Tensor = torch.Tensor
 
 
-class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
+class AutoRegressivePhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
         # hyper
         self.save_hyperparameters(cfg)
-        self.train_embedding = cfg.train_embedding
 
         self.lr = cfg.learning.lr
         self.batch_size = cfg.learning.batch_size_train
@@ -58,10 +64,11 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
             self.embedding_model
         )
 
-        if not self.train_embedding:
-            self.autoregressive_model = self.configure_autoregressive_model()
+        self.autoregressive_model = self.configure_autoregressive_model()
+        self.embedding_model_trainer = PhysformerTrain(self.autoregressive_model)
 
     def forward(self, z: Tensor):
+<<<<<<< HEAD:main.py
         assert (
             self.train_embedding
         ), "Cannot use autoregressive model when traning embed"
@@ -71,6 +78,11 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
         assert (
             self.train_embedding
         ), "Cannot use autoregressive model when traning embed"
+=======
+        return self.autoregressive_model(z)
+
+    def generate(self, past_tokens, seq_len, **kwargs):
+>>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
         return self.autoregressive_model(past_tokens, seq_len, kwargs)
 
     def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
@@ -102,22 +114,26 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
         )
         return train_set, val_set, test_set
 
-    def configure_embedding_model(self) -> EmbeddingTrainingHead:
+    def configure_embedding_model(self) -> EmbeddingModel:
         cfg = self.hparams
         return LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg.embedding))
 
-    def configure_autoregressive_model(self) -> PhysformerTrain:
+    def configure_autoregressive_model(self) -> Physformer:
         cfg = self.hparams
         return PhysformerGPT2(AutoregressiveConfig(cfg.autoregressive))
 
     def configure_optimizers(self):
         cfg = self.hparams
 
+<<<<<<< HEAD:main.py
         model_parameters = (
             self.embedding_model.parameters()
             if self.train_embedding
             else self.autoregressive_model.parameters()
         )
+=======
+        model_parameters = self.autoregressive_model.parameters()
+>>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
 
         if cfg.opt.name == "adamw":
             optimizer = optim.AdamW(
@@ -199,16 +215,13 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
 
-        if self.train_embedding:
-            return self.embedding_step(x, mode)
-        else:
-            return self.autoregressive_step(x, mode)
+        seq = torch.zeros(x.size(0), x.size(1), 140)
 
-    def autoregressive_step(self, x: Tensor, mode: str):
-        self.embedding_model.eval()
-        if mode == "val":
-            self.autoregressive_model.evaluate()
+        for t in range(x.size(1)):
+            e = self.embedding_model.embed(x[:, t])
+            seq[:, t] = e
 
+<<<<<<< HEAD:main.py
     def embedding_step(self, x: Tensor, mode: str):
         if mode == "val":
             loss, _, _ = self.embedding_model_trainer.evaluate(x)
@@ -227,11 +240,36 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
             on_step=False,
         )
         return loss
+=======
+        h, p = self.autoregressive_model(seq)
+        print(p.shape)
+        # return self.embedding_step(x, mode)
+        # return self.autoregressive_step(x, mode)
+
+    def eval_step(self, x):
+        preds = torch.rand()
+        self.eval_states(preds, x)
+
+    def eval_states(self, pred_embeds: Tensor, x: Tensor ):
+        bsize = pred_embeds.size(0)
+        tsize = pred_embeds.size(1)
+
+        x_in = pred_embeds.contiguous().view(-1, pred_embeds.size(-1))
+        out = self.embedding_model.recover(x_in)
+        out = out.view([bsize, tsize] + self.embedding_model.input_dims)
+        
+        mse = nn.MSELoss()
+        targets_error = mse(out, x)
+
+        ## PLOT
+
+        return targets_error
+>>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32:autoregressive_trainer.py
 
 
 def train(cfg):
     pl.seed_everything(cfg.seed)
-    model = LandauLifshitzGilbertPhysTrainer(cfg)
+    model = AutoRegressivePhysTrainer(cfg)
 
     logger = None
     if cfg.use_wandb:
@@ -290,12 +328,8 @@ def sweep_embedding(cfg: DictConfig):
 
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):
-    model = LandauLifshitzGilbertPhysTrainer(cfg)
-
-    b = torch.rand(2, 14, 3, 32, 32)
-    print(model.step(b, 0, "train"))
-
-    # train(cfg)
+    model = AutoRegressivePhysTrainer(cfg)
+    model.step(torch.rand(2, 16, 3, 32, 32), 0, "train")
 
 
 if __name__ == "__main__":

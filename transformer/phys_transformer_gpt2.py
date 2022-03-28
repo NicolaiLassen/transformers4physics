@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 Tensor = torch.Tensor
 LongTensor = torch.LongTensor
 
+
 class MLP(nn.Module):
     """Simple fully connected neural network layer.
     Includes activations function and dropout.
@@ -32,11 +33,13 @@ class MLP(nn.Module):
         n_state (int): dimensionality of input features
         config (PhysConfig): Phys-transformer config object
     """
-    def __init__(self, n_state: int, config: EmmbedingConfig) -> None:
+
+    def __init__(self, n_state: int, config: AutoregressiveConfig) -> None:
         """Constructor 
         """
         super().__init__()
-        nx = config.n_embd
+
+        nx = config.embedding_dim
         self.c_fc = Conv1D(n_state, nx)
         self.c_proj = Conv1D(nx, n_state)
         self.act = ACT2FN[config.activation_function]
@@ -62,23 +65,24 @@ class Block(nn.Module):
         config (PhysConfig): Phys-transformer config object
         scale (bool, optional): Scaled self-attention calculation. Defaults to False.
     """
-    def __init__(self, n_ctx: int, config: EmmbedingConfig, scale: bool = False) -> None:
+
+    def __init__(self, n_ctx: int, config: AutoregressiveConfig, scale: bool = False) -> None:
         """Constructor
         """
         super().__init__()
-        nx = config.n_embd
+        nx = config.embedding_dim
         self.ln_1 = nn.LayerNorm(nx, eps=config.layer_norm_epsilon)
         self.attn = MaskedAttention(nx, n_ctx, config, scale)
         self.ln_2 = nn.LayerNorm(nx, eps=config.layer_norm_epsilon)
         self.mlp = MLP(4 * nx, config)
 
     def forward(
-        self, 
-        x: Tensor, 
-        layer_past: List[Tensor] = None, 
-        attention_mask: LongTensor = None, 
-        head_mask: LongTensor = None, 
-        use_cache: bool = False, 
+        self,
+        x: Tensor,
+        layer_past: List[Tensor] = None,
+        attention_mask: LongTensor = None,
+        head_mask: LongTensor = None,
+        use_cache: bool = False,
         output_attentions: bool = False,
     ) -> List[Tensor]:
         """Forward pass
@@ -102,7 +106,7 @@ class Block(nn.Module):
             output_attentions=output_attentions,
         )
 
-        a = output_attn[0] 
+        a = output_attn[0]
         # Residual connection 1
         x = x + a
         # FCNN
@@ -113,12 +117,15 @@ class Block(nn.Module):
         outputs = [x] + output_attn[1:]
         return outputs  # x, present, (attentions)
 
-class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before base to overload
+
+# Mixins come first before base to overload
+class PhysformerGPT2(GenerationMixin, Physformer):
     """Transformer decoder model for modeling physics
     Args:
             config (PhysConfig): Phys-transformer config object
             model_name (str, optional): Model name. Defaults to None.
     """
+
     def __init__(self, config: AutoregressiveConfig, model_name: str = None) -> None:
         """Constructor        
         """
@@ -126,13 +133,17 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
         self.output_hidden_states = config.output_hidden_states
 
         self.drop = nn.Dropout(config.embd_pdrop)
-        self.h = nn.ModuleList([Block(config.n_ctx, config, scale=True) for _ in range(config.n_layer)])
-        self.ln_f = nn.LayerNorm(config.n_embd, eps=config.layer_norm_epsilon)
-        self.mlp_f = nn.Linear(config.n_embd, config.n_embd)
-        self.wpe = nn.Embedding(config.n_ctx, config.n_embd)
+
+        self.h = nn.ModuleList(
+            [Block(config.n_ctx, config, scale=True) for _ in range(config.n_layer)])
+
+        self.ln_f = nn.LayerNorm(config.embedding_dim,
+                                 eps=config.layer_norm_epsilon)
+        self.mlp_f = nn.Linear(config.embedding_dim, config.embedding_dim)
+        self.wpe = nn.Embedding(config.n_ctx, config.embedding_dim)
         self.apply(self._init_weights)
 
-        self.n_embd = config.n_embd
+        self.embedding_dim = config.embedding_dim
         # If custom transformer model name is provided, update it.
         if not model_name is None:
             self.model_name = "transformer_"+model_name
@@ -143,7 +154,7 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
         self,
         inputs_embeds: Tensor,
         position_ids: Tensor = None,
-        prop_embeds: Tensor =None,
+        prop_embeds: Tensor = None,
         past: List[List[Tensor]] = None,
         attention_mask: LongTensor = None,
         head_mask: LongTensor = None,
@@ -174,8 +185,9 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
             position_ids = position_ids.view(-1, input_shape[-1])
 
         if prop_embeds is not None:
-            assert inputs_embeds.size(0) == prop_embeds.size(0), 'Property embeddings do not match the size of the input'
-            prop_embeds = prop_embeds[:,:inputs_embeds.size(1)]
+            assert inputs_embeds.size(0) == prop_embeds.size(
+                0), 'Property embeddings do not match the size of the input'
+            prop_embeds = prop_embeds[:, :inputs_embeds.size(1)]
         else:
             prop_embeds = torch.zeros_like(inputs_embeds)
 
@@ -184,11 +196,13 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
             past = [None] * len(self.h)
         else:
             past_length = past[0][0].size(-2)
-            
+
         if position_ids is None:
             device = inputs_embeds.device
-            position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.float, device=device)
-            position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1]).repeat(inputs_embeds.size(0),1)
+            position_ids = torch.arange(
+                past_length, input_shape[-1] + past_length, dtype=torch.float, device=device)
+            position_ids = position_ids.unsqueeze(
+                0).view(-1, input_shape[-1]).repeat(inputs_embeds.size(0), 1)
 
         # Attention mask.
         if attention_mask is not None:
@@ -199,17 +213,21 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
             attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
 
             # Set mask to 0 for positions we want to attend and -10000 for ones we do not
-            attention_mask = attention_mask.to(dtype=next(self.parameters()).dtype)  # fp16 compatibility
+            attention_mask = attention_mask.to(dtype=next(
+                self.parameters()).dtype)  # fp16 compatibility
             attention_mask = (1.0 - attention_mask) * -10000.0
 
         # Function embeddings proposed in original transformer paper
         # http://papers.nips.cc/paper/7181-attention-is-all-you-need
         position_embeds = torch.zeros_like(inputs_embeds)
-        i = torch.arange(0, self.config.n_embd // 2, dtype=torch.float, device=inputs_embeds.device).unsqueeze(0).unsqueeze(0)
-        position_embeds[:, :, ::2] = torch.sin(position_ids.unsqueeze(-1) / 10000 ** (2 * i / self.config.n_embd))
-        i = i[:, :, self.config.n_embd % 2]
-        position_embeds[:, :, 1::2] = torch.cos(position_ids.unsqueeze(-1) / 10000 ** (2 * i / self.config.n_embd))
-        
+        i = torch.arange(0, self.config.embedding_dim // 2, dtype=torch.float,
+                         device=inputs_embeds.device).unsqueeze(0).unsqueeze(0)
+        position_embeds[:, :, ::2] = torch.sin(
+            position_ids.unsqueeze(-1) / 10000 ** (2 * i / self.config.embedding_dim))
+        i = i[:, :, self.config.embedding_dim % 2]
+        position_embeds[:, :, 1::2] = torch.cos(
+            position_ids.unsqueeze(-1) / 10000 ** (2 * i / self.config.embedding_dim))
+
         # Combine input embedding, position embeding and prop embeddings
         hidden_states = inputs_embeds + position_embeds + prop_embeds
         hidden_states = self.drop(hidden_states)
@@ -222,7 +240,8 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
         for i, (block, layer_past) in enumerate(zip(self.h, past)):
 
             if self.output_hidden_states:
-                all_hidden_states = all_hidden_states + (hidden_states.view(*output_shape),)
+                all_hidden_states = all_hidden_states + \
+                    (hidden_states.view(*output_shape),)
 
             outputs = block(
                 hidden_states,
@@ -254,8 +273,11 @@ class PhysformerGPT2(GenerationMixin, Physformer): # Mixins come first before ba
             outputs = outputs + (all_hidden_states,)
         if output_attentions:
             # let the number of heads free (-1) so we can extract attention even after head pruning
-            attention_output_shape = input_shape[:-1] + (-1,) + all_attentions[0].shape[-2:]
-            all_attentions = tuple(t.view(*attention_output_shape) for t in all_attentions)
+            attention_output_shape = input_shape[:-1] + \
+                (-1,) + all_attentions[0].shape[-2:]
+            all_attentions = tuple(t.view(*attention_output_shape)
+                                   for t in all_attentions)
             outputs = outputs + (all_attentions,)
-            
-        return outputs  # last hidden state, (presents), (all hidden_states), (attentions)
+
+        # last hidden state, (presents), (all hidden_states), (attentions)
+        return outputs

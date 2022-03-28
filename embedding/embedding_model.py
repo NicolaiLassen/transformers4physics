@@ -57,7 +57,7 @@ class EmbeddingModel(nn.Module):
 
     @property
     def embed_dims(self):
-        return self.config.n_embd
+        return self.config.embedding_dim
 
     @property
     def num_parameters(self):

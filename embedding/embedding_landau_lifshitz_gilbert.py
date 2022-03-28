@@ -8,12 +8,12 @@ from config.config_emmbeding import EmmbedingConfig
 from torch import Tensor, nn
 from torch.autograd import Variable
 
+from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+
 from .backbone.conv_backbone import ConvBackbone
+from .backbone.embedding_backbone import EmbeddingBackbone
 from .backbone.restnet_backbone import ResnetBackbone
 from .backbone.twins_svt_backbone import TwinsSVTBackbone
-from .backbone.embedding_backbone import EmbeddingBackbone
-
-from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 
 # Custom types
 Tensor = torch.Tensor
@@ -171,7 +171,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
     def forward(self, states: Tensor) -> FloatTuple:
         """Trains model for a single epoch
         Args:
-            states (Tensor): [B, T, res, res] Time-series feature tensor
+            states (Tensor): [B, T, H, W] Time-series feature tensor
         Returns:
             FloatTuple: Tuple containing:
 
@@ -179,6 +179,23 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 | (float): Reconstruction loss
         """
         self.embedding_model.train()
+        return self._forward(states) 
+
+    def evaluate(self, states: Tensor) -> FloatTuple:
+        """Evaluates the embedding models reconstruction error and returns its
+        predictions.
+        Args:
+            states (Tensor): [B, T, 3, H, W] Time-series feature tensor
+        Returns:
+            FloatTuple: Tuple containing:
+
+                | (float): Koopman based loss of current epoch
+                | (float): Reconstruction loss
+        """
+        self.embedding_model.eval()
+        return self._forward(states)
+
+    def _forward(self, states: Tensor):
         device = self.embedding_model.devices[0]
 
         loss_reconstruct = 0
@@ -209,32 +226,3 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
             g1_old = g1Pred
             
         return loss, loss_reconstruct
-
-    def evaluate(self, states: Tensor) -> Tuple[float, Tensor, Tensor]:
-        """Evaluates the embedding models reconstruction error and returns its
-        predictions.
-        Args:
-            states (Tensor): [B, T, 3, H, W] Time-series feature tensor
-        Returns:
-            Tuple[Float, Tensor, Tensor]: Test error, Predicted states, Target states
-        """
-        self.embedding_model.eval()
-        device = self.embedding_model.devices[0]
-
-        # Pull out targets from prediction dataset
-        yTarget = states[:,1:].to(device)
-        xInput = states[:,:-1].to(device)
-        yPred = torch.zeros(yTarget.size()).to(device)
-
-        mseLoss = nn.MSELoss()
-
-        # Test accuracy of one time-step
-        for i in range(xInput.size(1)):
-            xInput0 = xInput[:,i].to(device)
-            g0 = self.embedding_model.embed(xInput0)
-            yPred0 = self.embedding_model.recover(g0)
-            yPred[:,i] = yPred0.squeeze().detach()
-
-        test_loss = mseLoss(yTarget, yPred)
-
-        return test_loss, yPred, yTarget

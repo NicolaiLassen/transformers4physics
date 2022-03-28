@@ -1,14 +1,21 @@
-use_wandb: True
-use_sweep: True
+use_wandb: False
+use_sweep: False
 verbose: False
+<<<<<<< HEAD
 train_autoregressive: False
 train_embedding: True
+=======
+>>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32
 pin_mem: True
 
 seed: 2
 gpus: 1
 cpus: 1
+<<<<<<< HEAD
 workers: 24
+=======
+workers: 1
+>>>>>>> f1572a451ff980c7ff72a56e905d92f6a1158b32
 device: 'cuda'
 
 data_dir: '~/data'
@@ -29,16 +36,30 @@ embedding:
   image_size: 32
   
   channels: 3
-  backbone: "TwinsSVT"
+  backbone: "Conv"
  
   fc_dim: 256
   embedding_dim: 140
   backbone_dim: 128
 
+  state_dims: [2, 64, 128]
+
 autoregressive: 
   name: "GPT2" 
   pretrained: False
   ckpt_path: "./ckpt/" 
+
+  activation_function: "gelu_new"
+  layer_norm_epsilon: 1e-5
+  initializer_range: 0.01
+
+  embedding_dim: 140
+  n_ctx: 16
+  n_layer: 6
+  n_head: 4
+
+  output_hidden_states: False
+  output_attentions: False
 
 opt:
   name: 'adamw'
@@ -62,7 +83,7 @@ learning:
   block_size_val: 32
   stride_val: 32
   
-  lr: 1e-2
+  lr: 1e-3
   min_lr: 1e-3
   warmup_lr: 1e-3
   gamma: 0.995

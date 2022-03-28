@@ -31,7 +31,7 @@ class Physformer(nn.Module):
     def __init__(self, config, *inputs, **kwargs):
         super().__init__(*inputs, **kwargs)
         # Save config in model
-        self.config = config
+        self.config: AutoregressiveConfig = config
 
     @abstractmethod
     def forward(self):
@@ -158,10 +158,10 @@ class PhysformerTrain(Physformer):
         transformer_model (PhysformerBase): Initialized transformer model
     """
 
-    def __init__(self, config: AutoregressiveConfig, transformer_model: Physformer = None) -> None:
+    def __init__(self, transformer_model: Physformer = None) -> None:
         """Constructor
         """
-        super().__init__(config)
+        super().__init__()
         self.transformer = transformer_model
         self.transformer.apply(self._init_weights)
 
