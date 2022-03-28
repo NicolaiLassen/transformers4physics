@@ -33,7 +33,7 @@ if __name__ == '__main__':
         EmmbedingConfig(DictConfig({
             "image_size": 32,
             "channels": 3,
-            "backbone": "Conv",
+            "backbone": "TwinsSVT",
             "fc_dim": 64,
             "embedding_dim": 64,
             "backbone_dim": 64,
@@ -46,16 +46,17 @@ if __name__ == '__main__':
 
     print(sum(p.numel() for p in trainer_1.parameters()))
 
-    for i in range(10):
+    for i in range(100):
 
         optimizer.zero_grad()
 
         loss, _ = trainer_1(pil_to_tensor)
 
+        _, _ = trainer_1.evaluate(pil_to_tensor)
         loss.backward()
         optimizer.step()
 
-    print(loss)
+        print(loss)
 
     # model_2 = LandauLifshitzGilbertEmbeddingTrainer(
     #     EmmbedingConfig(DictConfig({

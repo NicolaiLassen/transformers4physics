@@ -1,3 +1,5 @@
+from enum import auto
+from gc import callbacks
 from pathlib import Path
 from tabnanny import verbose
 from typing import Tuple
@@ -6,6 +8,7 @@ import hydra
 import numpy as np
 import pytorch_lightning as pl
 import torch
+import torch.nn as nn
 import wandb
 from omegaconf import DictConfig
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -17,24 +20,21 @@ from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
     LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
-from embedding.embedding_model import EmbeddingTrainingHead
-from transformer.phys_transformer import PhysformerTrain
+from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
+from transformer.phys_transformer import Physformer, PhysformerTrain
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from util.config_formater import sweep_decorate_config
 from util.data_loader import PhysData, read_h5_dataset
-from viz.viz_magnet import MicroMagViz
 
 Tensor = torch.Tensor
 
 
-class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
+class EmmbeddingPhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
 
         # hyper
         self.save_hyperparameters(cfg)
-        self.train_embedding = cfg.train_embedding
-
         self.lr = cfg.learning.lr
         self.batch_size = cfg.learning.batch_size_train
 
@@ -42,26 +42,15 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
         self.train_dataset, self.val_dataset, self.test_dataset = \
             self.configure_dataset()
 
-        # viz
-        self.viz = MicroMagViz(cfg.viz_dir)
-
-        # models
+        # model
         self.embedding_model = self.configure_embedding_model()
         self.embedding_model.mu = self.train_dataset.mu
         self.embedding_model.std = self.train_dataset.std
         self.embedding_model_trainer = \
             LandauLifshitzGilbertEmbeddingTrainer(self.embedding_model)
 
-        if not self.train_embedding:
-            self.autoregressive_model = self.configure_autoregressive_model()
-
     def forward(self, z: Tensor):
-        assert self.train_embedding, "Cannot use autoregressive model when traning embed"
-        return self.autoregressive_model(z)
-
-    def generate(self, past_tokens, seq_len, **kwargs):
-        assert self.train_embedding, "Cannot use autoregressive model when traning embed"
-        return self.autoregressive_model(past_tokens, seq_len, kwargs)
+        return self.embedding_model.embed(z)
 
     def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
         cfg = self.hparams
@@ -89,19 +78,14 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
                                    )
         return train_set, val_set, test_set
 
-    def configure_embedding_model(self) -> EmbeddingTrainingHead:
+    def configure_embedding_model(self) -> EmbeddingModel:
         cfg = self.hparams
         return LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg.embedding))
-
-    def configure_autoregressive_model(self) -> PhysformerTrain:
-        cfg = self.hparams
-        return PhysformerGPT2(AutoregressiveConfig(cfg.autoregressive))
 
     def configure_optimizers(self):
         cfg = self.hparams
 
-        model_parameters = self.embedding_model.parameters() if self.train_embedding \
-            else self.autoregressive_model.parameters()
+        model_parameters = self.embedding_model.parameters()
 
         if cfg.opt.name == 'adamw':
             optimizer = optim.AdamW(model_parameters, lr=self.lr,
@@ -184,34 +168,20 @@ class LandauLifshitzGilbertPhysTrainer(pl.LightningModule):
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
 
-        if self.train_embedding:
-            return self.embedding_step(x, mode)
-        else:
-            return self.autoregressive_step(x, mode)
+        loss, loss_reconstruct = self.embedding_model_trainer.evaluate(x) \
+            if mode == "val" else self.embedding_model_trainer(x)
 
-    def autoregressive_step(self, x: Tensor, mode: str):
-        self.embedding_model.eval()
-        if mode == "val":
-            self.autoregressive_model.evaluate()
-
-    def embedding_step(self, x: Tensor, mode: str):
-        if mode == "val":
-            loss, _, _ = self.embedding_model_trainer.evaluate(x)
-            self.log_dict({f'embedding_loss/{mode}': loss.item()},
-                          on_epoch=True, on_step=False)
-            return loss
-
-        loss, loss_reconstruct = self.embedding_model_trainer(x)
         self.log_dict({
-            f'embedding_loss/{mode}': loss_reconstruct.item(),
-            f'embedding_loss_koopman/{mode}': loss.item(),
-        })
+            f'loss_reconstruct/{mode}': loss_reconstruct.item(),
+            f'loss_koopman/{mode}': loss.item(),
+        }, on_epoch=True, on_step=False)
+
         return loss
 
 
 def train(cfg):
     pl.seed_everything(cfg.seed)
-    model = LandauLifshitzGilbertPhysTrainer(cfg)
+    model = EmmbeddingPhysTrainer(cfg)
 
     logger = None
     if cfg.use_wandb:
@@ -230,14 +200,12 @@ def train(cfg):
     trainer = pl.Trainer(
         devices=1,
         accelerator="auto",
-        precision=16,
-        auto_lr_find=True,
         accumulate_grad_batches=1,
         gradient_clip_val=0.1,
         max_epochs=cfg.learning.epochs,
         gpus=cfg.gpus,
         logger=logger,
-        num_sanity_val_steps=0,
+        num_sanity_val_steps=2,
         log_every_n_steps=1,
         check_val_every_n_epoch=2,
     )
@@ -249,17 +217,7 @@ def train(cfg):
 
 
 @hydra.main(config_path=".", config_name="train.yaml")
-def sweep_autoregressive(cfg: DictConfig):
-    # wandb sweep autoregressive.yaml
-    sweep = None
-    with wandb.init(config=sweep):
-        sweep = wandb.config
-        cfg = sweep_decorate_config(cfg, sweep)
-        train(cfg)
-
-
-@hydra.main(config_path=".", config_name="train.yaml")
-def sweep_embedding(cfg: DictConfig):
+def sweep(cfg: DictConfig):
     # wandb sweep sweep_embed.yaml
     sweep = None
     with wandb.init(config=sweep):
@@ -270,12 +228,7 @@ def sweep_embedding(cfg: DictConfig):
 
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):
-    model = LandauLifshitzGilbertPhysTrainer(cfg)
-
-    b = torch.rand(2, 14, 3, 32, 32)
-    print(model.step(b, 0, "train"))
-
-    # train(cfg)
+    train(cfg)
 
 
 if __name__ == '__main__':
