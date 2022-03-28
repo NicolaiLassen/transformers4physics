@@ -13,6 +13,7 @@ from omegaconf import DictConfig
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader
+from callback import SaveCallback
 
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
@@ -34,8 +35,11 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.batch_size = cfg.learning.batch_size_train
 
         # dataset
-        self.train_dataset, self.val_dataset, self.test_dataset = \
-            self.configure_dataset()
+        (
+            self.train_dataset,
+            self.val_dataset,
+            self.test_dataset,
+        ) = self.configure_dataset()
 
         mu = torch.tensor([torch.mean(self.train_dataset[:, :, 0]), torch.mean(
             self.train_dataset[:, :, 1]), torch.mean(self.train_dataset[:, :, 2])])
@@ -51,6 +55,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
     def save_model(self):
         self.model.save_model("test")
+
+    def save_model(self, checkpoint_dir, filename):
+        self.embedding_model.save_model(save_directory=checkpoint_dir, filename=filename)
 
     def forward(self, z: Tensor):
         return self.model.embed(z)
@@ -209,8 +216,12 @@ def train(cfg):
         gpus=cfg.gpus,
         logger=logger,
         num_sanity_val_steps=2,
-        log_every_n_steps=1,
+        log_every_n_steps=15,
         check_val_every_n_epoch=2,
+        callbacks=SaveCallback(
+            dirpath='{}'.format(cfg.embedding.ckpt_path),
+            filename=cfg.embedding.display_name,
+        )
     )
 
     trainer.fit(model)
@@ -225,6 +236,8 @@ def sweep(cfg: DictConfig):
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
+        cfg.embedding.display_name = wandb.run.name
+        cfg.embedding.sweep_id = wandb.run.sweep_id
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
@@ -235,5 +248,5 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    main()
-    # wandb.agent("pezxi1k0", sweep_embedding, count=50, project="v1", entity="transformers4physics")
+    # main()
+    wandb.agent("gv398m8m", sweep, count=2, project="v1", entity="transformers4physics")

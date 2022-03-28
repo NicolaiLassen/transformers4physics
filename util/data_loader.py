@@ -51,7 +51,6 @@ def read_h5_dataset(
     n_data: int = -1,
 ) -> Tensor:
 
-    return torch.rand(2, 14, 3, 32, 32)
     assert os.path.isfile(
         file_path), "Training HDF5 file {} not found".format(file_path)
 

@@ -40,23 +40,26 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         self.batch_size = cfg.learning.batch_size_train
 
         # dataset
-        self.train_dataset, self.val_dataset, self.test_dataset = \
-            self.configure_dataset()
+        (
+            self.train_dataset,
+            self.val_dataset,
+            self.test_dataset,
+        ) = self.configure_dataset()
 
         # viz
         self.viz = MicroMagViz(cfg.viz_dir)
 
         # models
-        self.embedding_model = self.configure_embedding_model(cfg.embedding.ckpt_path)
-    
-        self.autoregressive_model = self.configure_autoregressive_model()
-        self.autoregressive_model_trainer = PhysformerTrain(self.autoregressive_model)
+        self.embedding_model = self.configure_embedding_model(
+            cfg.embedding.ckpt_path)
+        self.model = self.configure_autoregressive_model()
+        self.model_trainer = PhysformerTrain(self.model)
 
     def forward(self, z: Tensor):
-        return self.autoregressive_model(z)
+        return self.model(z)
 
     def generate(self, past_tokens, seq_len, **kwargs):
-        return self.autoregressive_model(past_tokens, seq_len, kwargs)
+        return self.model(past_tokens, seq_len, kwargs)
 
     def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
         cfg = self.hparams
@@ -67,24 +70,24 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         test_path = "{}\\test.h5".format(base_path)
 
         train_set = read_and_embbed_h5_dataset(train_path,
-                                    self.embedding_model,
-                                    cfg.learning.block_size_train,
-                                    self.batch_size,
-                                    cfg.learning.stride_train,
-                                    cfg.learning.n_data_train
-                                    )
+                                               self.embedding_model,
+                                               cfg.learning.block_size_train,
+                                               self.batch_size,
+                                               cfg.learning.stride_train,
+                                               cfg.learning.n_data_train
+                                               )
         val_set = read_and_embbed_h5_dataset(val_path,
-                                  self.embedding_model,
-                                  cfg.learning.block_size_val,
-                                  self.batch_size,
-                                  cfg.learning.stride_val,
-                                  )
+                                             self.embedding_model,
+                                             cfg.learning.block_size_val,
+                                             self.batch_size,
+                                             cfg.learning.stride_val,
+                                             )
         test_set = read_and_embbed_h5_dataset(test_path,
-                                   self.embedding_model,
-                                   cfg.learning.block_size_val,
-                                   self.batch_size,
-                                   cfg.learning.stride_val,
-                                   )
+                                              self.embedding_model,
+                                              cfg.learning.block_size_val,
+                                              self.batch_size,
+                                              cfg.learning.stride_val,
+                                              )
         return train_set, val_set, test_set
 
     def configure_embedding_model(self, ckpt_path: str) -> EmbeddingModel:
@@ -100,14 +103,17 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
     def configure_optimizers(self):
         cfg = self.hparams
 
-        model_parameters = self.autoregressive_model.parameters()
+        model_parameters = self.model.parameters()
 
-        if cfg.opt.name == 'adamw':
-            optimizer = optim.AdamW(model_parameters, lr=self.lr,
-                                    betas=(cfg.opt.beta0,
-                                           cfg.opt.beta1), eps=cfg.opt.eps,
-                                    weight_decay=cfg.opt.weight_decay)
-        elif cfg.opt.name == 'adam':
+        if cfg.opt.name == "adamw":
+            optimizer = optim.AdamW(
+                model_parameters,
+                lr=self.lr,
+                betas=(cfg.opt.beta0, cfg.opt.beta1),
+                eps=cfg.opt.eps,
+                weight_decay=cfg.opt.weight_decay,
+            )
+        elif cfg.opt.name == "adam":
             optimizer = optim.Adam(
                 model_parameters, lr=self.lr, weight_decay=1e-8)
         else:
@@ -116,16 +122,13 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         if cfg.learning.sched is not None:
             lr_scheduler = None
 
-            if cfg.learning.sched == 'exponential':
+            if cfg.learning.sched == "exponential":
                 lr_scheduler = optim.lr_scheduler.ExponentialLR(
-                    optimizer,
-                    gamma=cfg.learning.gamma
+                    optimizer, gamma=cfg.learning.gamma
                 )
-            elif cfg.learning.sched == 'cosine':
+            elif cfg.learning.sched == "cosine":
                 lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer,
-                    eta_min=cfg.learning.min_lr,
-                    T_max=cfg.learning.epochs
+                    optimizer, eta_min=cfg.learning.min_lr, T_max=cfg.learning.epochs
                 )
 
             start_epoch = 0
@@ -146,7 +149,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
             shuffle=True,
             persistent_workers=True,
             pin_memory=cfg.pin_mem,
-            num_workers=cfg.workers
+            num_workers=cfg.workers,
         )
 
     def val_dataloader(self):
@@ -157,7 +160,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
             shuffle=False,
             persistent_workers=True,
             pin_memory=cfg.pin_mem,
-            num_workers=cfg.workers
+            num_workers=1,
         )
 
     def test_dataloader(self):
@@ -168,38 +171,38 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
             shuffle=False,
             persistent_workers=True,
             pin_memory=cfg.pin_mem,
-            num_workers=cfg.workers
+            num_workers=1,
         )
 
     def training_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='train')
+        return self.step(batch=batch, batch_idx=batch_idx, mode="train")
 
     def validation_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='val')
+        return self.step(batch=batch, batch_idx=batch_idx, mode="val")
 
     def test_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='test')
+        return self.step(batch=batch, batch_idx=batch_idx, mode="test")
 
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
         if mode == "val":
             print("DO EVEAL")
 
-        outputs = self.autoregressive_model_trainer(x)
-        return outputs [0]
-        
-    def eval_states(self, pred_embeds: Tensor, x: Tensor ):
+        outputs = self.model_trainer(x)
+        return outputs[0]
+
+    def eval_states(self, pred_embeds: Tensor, x: Tensor):
         bsize = pred_embeds.size(0)
         tsize = pred_embeds.size(1)
 
         x_in = pred_embeds.contiguous().view(-1, pred_embeds.size(-1))
         out = self.embedding_model.recover(x_in)
         out = out.view([bsize, tsize] + self.embedding_model.input_dims)
-        
+
         mse = nn.MSELoss()
         targets_error = mse(out, x)
 
-        ## PLOT
+        # PLOT
 
         return targets_error
 
@@ -214,9 +217,9 @@ def train(cfg):
             wandb.init(
                 name=cfg.experiment,
                 project=cfg.project,
-                entity='transformers4physics',
+                entity="transformers4physics",
                 notes=cfg.notes,
-                config=cfg
+                config=cfg,
             )
         logger = WandbLogger(log_model=True)
         logger.watch(model)
@@ -233,7 +236,7 @@ def train(cfg):
         gpus=cfg.gpus,
         logger=logger,
         num_sanity_val_steps=0,
-        log_every_n_steps=1,
+        log_every_n_steps=50,
         check_val_every_n_epoch=2,
     )
 
@@ -244,21 +247,13 @@ def train(cfg):
 
 
 @hydra.main(config_path=".", config_name="train.yaml")
-def sweep_autoregressive(cfg: DictConfig):
+def sweep(cfg: DictConfig):
     # wandb sweep autoregressive.yaml
     sweep = None
     with wandb.init(config=sweep):
         sweep = wandb.config
-        cfg = sweep_decorate_config(cfg, sweep)
-        train(cfg)
-
-
-@hydra.main(config_path=".", config_name="train.yaml")
-def sweep_embedding(cfg: DictConfig):
-    # wandb sweep sweep_embed.yaml
-    sweep = None
-    with wandb.init(config=sweep):
-        sweep = wandb.config
+        cfg.embedding.display_name = wandb.run.name
+        cfg.embedding.sweep_id = wandb.run.sweep_id
         cfg = sweep_decorate_config(cfg, sweep)
         train(cfg)
 
@@ -269,6 +264,12 @@ def main(cfg: DictConfig):
     model.step(torch.rand(2, 16, 3, 32, 32), 0, "train")
 
 
-if __name__ == '__main__':
-    main()
-    # wandb.agent("pezxi1k0", sweep_embedding, count=50, project="v1", entity="transformers4physics")
+if __name__ == "__main__":
+    # main()
+    wandb.agent(
+        "gv398m8m",
+        sweep,
+        count=50,
+        project="v1",
+        entity="transformers4physics",
+    )
