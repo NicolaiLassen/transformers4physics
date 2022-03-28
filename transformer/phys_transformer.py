@@ -161,7 +161,7 @@ class PhysformerTrain(Physformer):
     def __init__(self, transformer_model: Physformer = None) -> None:
         """Constructor
         """
-        super().__init__()
+        super().__init__(transformer_model.config)
         self.transformer = transformer_model
         self.transformer.apply(self._init_weights)
 

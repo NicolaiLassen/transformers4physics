@@ -18,8 +18,8 @@ project: "v1"
 notes: "Staic field"
 
 embedding:
-  sweep_id: ''
-  display_name: ''
+  sweep_id: 'no_id'
+  display_name: 'no_name'
   name: 'koopman'
   pretrained: False
   ckpt_path: "./ckpt/"
@@ -28,16 +28,17 @@ embedding:
   channels: 3
   backbone: "Conv"
  
-  fc_dim: 256
-  embedding_dim: 140
-  backbone_dim: 128
+  fc_dim: 32
+  embedding_dim: 32
+  backbone_dim: 32
 
   state_dims: [2, 64, 128]
 
 autoregressive: 
   name: "GPT2" 
   pretrained: False
-  ckpt_path: "./ckpt/model_name" 
+  ckpt_path: "./ckpt/model_name"
+  embedding_model_ckpt_path: "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-03-28\\15-21-11\\ckpt\\no_name.pth" 
 
   activation_function: "gelu_new"
   layer_norm_epsilon: 1e-5

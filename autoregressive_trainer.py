@@ -23,7 +23,7 @@ from embedding.embedding_model import EmbeddingModel, EmbeddingTrainingHead
 from transformer.phys_transformer import Physformer, PhysformerTrain
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 from util.config_formater import sweep_decorate_config
-from util.data_loader import PhysData, read_and_embbed_h5_dataset
+from util.data_loader import read_and_embbed_h5_dataset
 from viz.viz_magnet import MicroMagViz
 
 Tensor = torch.Tensor
@@ -39,6 +39,17 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         self.lr = cfg.learning.lr
         self.batch_size = cfg.learning.batch_size_train
 
+
+        # viz
+        self.viz = MicroMagViz(cfg.viz_dir)
+
+        # models
+        self.embedding_model = self.configure_embedding_model(
+            cfg.autoregressive.embedding_model_ckpt_path)
+        self.embedding_model.eval()
+        self.model = self.configure_autoregressive_model()
+        self.model_trainer = PhysformerTrain(self.model)
+        
         # dataset
         (
             self.train_dataset,
@@ -46,22 +57,13 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
             self.test_dataset,
         ) = self.configure_dataset()
 
-        # viz
-        self.viz = MicroMagViz(cfg.viz_dir)
-
-        # models
-        self.embedding_model = self.configure_embedding_model(
-            cfg.embedding.ckpt_path)
-        self.model = self.configure_autoregressive_model()
-        self.model_trainer = PhysformerTrain(self.model)
-
     def forward(self, z: Tensor):
         return self.model(z)
 
     def generate(self, past_tokens, seq_len, **kwargs):
         return self.model(past_tokens, seq_len, kwargs)
 
-    def configure_dataset(self) -> Tuple[PhysData, PhysData, PhysData]:
+    def configure_dataset(self) -> Tuple[Tensor, Tensor, Tensor]:
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
@@ -71,7 +73,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
         train_set = read_and_embbed_h5_dataset(train_path,
                                                self.embedding_model,
-                                               cfg.learning.block_size_train,
+                                               cfg.autoregressive.n_ctx,
                                                self.batch_size,
                                                cfg.learning.stride_train,
                                                cfg.learning.n_data_train
@@ -188,7 +190,8 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         if mode == "val":
             print("DO EVEAL")
 
-        outputs = self.model_trainer(x)
+        print(x.shape)
+        outputs = self.model_trainer(x[:,:-1],x[:,:1])
         return outputs[0]
 
     def eval_states(self, pred_embeds: Tensor, x: Tensor):
@@ -260,16 +263,15 @@ def sweep(cfg: DictConfig):
 
 @hydra.main(config_path=".", config_name="train.yaml")
 def main(cfg: DictConfig):
-    model = AutoRegressivePhysTrainer(cfg)
-    model.step(torch.rand(2, 16, 3, 32, 32), 0, "train")
+    train(cfg)
 
 
 if __name__ == "__main__":
-    # main()
-    wandb.agent(
-        "gv398m8m",
-        sweep,
-        count=50,
-        project="v1",
-        entity="transformers4physics",
-    )
+    main()
+    # wandb.agent(
+    #     "gv398m8m",
+    #     sweep,
+    #     count=50,
+    #     project="v1",
+    #     entity="transformers4physics",
+    # )

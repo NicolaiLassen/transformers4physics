@@ -183,7 +183,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         return loss
     
     def save_model(self, checkpoint_dir="./ckpt", filename="embed"):
-        self.embedding_model.save_model(save_directory=checkpoint_dir, filename=filename)
+        self.model.save_model(save_directory=checkpoint_dir, filename=filename)
 
 
 
