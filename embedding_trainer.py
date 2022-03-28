@@ -13,8 +13,8 @@ from omegaconf import DictConfig
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader
-from callback import SaveCallback
 
+from callback import SaveCallback
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
     LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
@@ -52,12 +52,6 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.model.std = std
         self.model_trainer = \
             LandauLifshitzGilbertEmbeddingTrainer(self.model)
-
-    def save_model(self):
-        self.model.save_model("test")
-
-    def save_model(self, checkpoint_dir, filename):
-        self.embedding_model.save_model(save_directory=checkpoint_dir, filename=filename)
 
     def forward(self, z: Tensor):
         return self.model.embed(z)
@@ -187,6 +181,10 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         }, on_epoch=True, on_step=False)
 
         return loss
+    
+    def save_model(self, checkpoint_dir="./ckpt", filename="embed"):
+        self.embedding_model.save_model(save_directory=checkpoint_dir, filename=filename)
+
 
 
 def train(cfg):
@@ -248,5 +246,5 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    # main()
-    wandb.agent("gv398m8m", sweep, count=2, project="v1", entity="transformers4physics")
+    main()
+    # wandb.agent("gv398m8m", sweep, count=2, project="v1", entity="transformers4physics")
