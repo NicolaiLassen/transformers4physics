@@ -1,4 +1,3 @@
-__all__ = ['args']
-
-from .config_phys import PhysConfig
-from .args import *
+from .phys_config import PhysConfig
+from .config_emmbeding import EmmbedingConfig
+from .config_autoregressive import AutoregressiveConfig

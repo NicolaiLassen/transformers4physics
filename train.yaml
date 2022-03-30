@@ -1,33 +1,56 @@
-# general
 use_wandb: False
-seed: 0
+use_sweep: False
+verbose: False
+pin_mem: True
+
+seed: 2
 gpus: 1
 cpus: 1
-num_sampels: 5
+workers: 16
+device: 'cuda'
+
 data_dir: '~/data'
+viz_dir: '~/data/viz/'
 dataset: 'prism_grid_dataset_224.hdf5'
-batch_size: 1
-val_batch_size: 1
-recovery_interval: 0
-checkpoint_path: './ckpt/'
-check_val_every_n_epoch: 5
-checkpoint_hist: 1
-workers: 1
-pin_mem: False
-experiment: "koopman_GPT2_0_search"
+
+experiment: "koopman_Backbone_search_0"
 project: "v1"
 notes: "Staic field"
+
+embedding:
+  sweep_id: 'no_id'
+  display_name: 'no_name'
+  name: 'koopman'
+  pretrained: False
+  ckpt_path: "./ckpt/"
+  image_size: 32
+  
+  channels: 3
+  backbone: "Conv"
+ 
+  fc_dim: 32
+  embedding_dim: 32
+  backbone_dim: 32
+
+  state_dims: [2, 64, 128]
 
 autoregressive: 
   name: "GPT2" 
   pretrained: False
+  ckpt_path: "./ckpt/model_name"
+  embedding_model_ckpt_path: "C:\\Users\\s175407\\Desktop\\transformers4physics\\outputs\\2022-03-28\\22-57-28\\ckpt\\no_name.pth" 
 
-embedding:
-  name: 'koopman'
-  pretrained: False
-  tune: 
-    backbone: ['conv', 'attention']
-     
+  activation_function: "gelu_new"
+  layer_norm_epsilon: 1e-5
+  initializer_range: 0.01
+
+  embedding_dim: 32
+  n_ctx: 16
+  n_layer: 6
+  n_head: 8
+
+  output_hidden_states: False
+  output_attentions: False
 
 opt:
   name: 'adamw'
@@ -35,28 +58,25 @@ opt:
   momentum: 0.9
   beta0: 0.9
   beta1: 0.999
-  weight_decay: 0.05
-  clip_grad: null
-  clip_mode: 'norm'
+  weight_decay: 1e-8
 
-lr:
-  sched: 'cosine'
+learning:
+
+  epochs: 50
+  start_epoch: 0
+
+  block_size_train: 6
+  stride_train: 6
+  batch_size_train: 64
+  n_data_train: 50
+  
+  batch_size_val: 16
+  block_size_val: 32
+  stride_val: 32
+  
   lr: 1e-3
-  noise: null
-  noise_pct: 0.67
-  noise_std: 1.0
-  cycle_mul: 1.0
-  cycle_decay: 0.5
-  cycle_limit: 1
+  min_lr: 1e-3
+  warmup_lr: 1e-3
+  gamma: 0.995
   k_decay: 1.0
-  warmup_lr: 1e-6
-  min_lr: 1e-6
-  epochs: 100
-  epoch_repeats: 0
-  start_epoch: null
-  decay_epochs: 50
-  warmup_epochs: 5
-  cooldown_epochs: 25
-  patience_epochs: 10
-  decay_rate: 0.1
-  multistep_milestones: [25, 50, 75, 100]
+  sched: 'exponential'
