@@ -9,7 +9,6 @@ from embedding.embedding_model import EmbeddingModel
 
 Tensor = torch.Tensor
 
-
 def read_and_embbed_h5_dataset(
     file_path: str,
     embedder: EmbeddingModel,
