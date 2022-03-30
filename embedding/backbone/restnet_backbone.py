@@ -32,11 +32,11 @@ class LambdaLayer(nn.Module):
         return self.lambd(x)
 
 
-class BasicBlockDown(nn.Module):
+class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(self, in_planes, planes, stride=1):
-        super(BasicBlockDown, self).__init__()
+        super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(
             in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -57,38 +57,6 @@ class BasicBlockDown(nn.Module):
         out += self.shortcut(x)
         out = F.relu(out)
         return out
-
-
-class BasicBlockUp(nn.Module):
-    expansion = 1
-
-    def __init__(self, in_planes, planes, stride=1):
-        super(BasicBlockUp, self).__init__()
-
-        self.conv1 = nn.ConvTranspose2d(
-            in_planes, planes, kernel_size=3, stride=stride, padding=1,
-            output_padding=1 if stride != 1 else 0, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-
-        self.conv2 = nn.ConvTranspose2d(
-            planes, planes, kernel_size=3, padding=1, stride=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.shortcut = nn.Sequential()
-
-        if stride != 1 or in_planes != planes:
-            self.shortcut = nn.Sequential(
-                nn.ConvTranspose2d(in_planes, self.expansion * planes,
-                                   kernel_size=1, output_padding=1 if stride != 1 else 0, stride=stride, bias=False),
-                nn.BatchNorm2d(self.expansion * planes),
-            )
-
-    def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.conv2(out)
-        out += self.shortcut(x)
-        out = F.relu(out)
-        return out
-
 
 class ResNet(nn.Module):
     def __init__(self, block, num_blocks, backbone_dims):
@@ -120,9 +88,8 @@ class ResNet(nn.Module):
         out = self.layer3(out)
         return out
 
-
 def resnetDown6(backbone_dims=[]):
-    return ResNet(BasicBlockDown, [1, 1, 1], backbone_dims)
+    return ResNet(BasicBlock, [1, 1, 1], backbone_dims)
 
 
 class ResnetBackbone(EmbeddingBackbone):

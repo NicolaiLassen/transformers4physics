@@ -10,7 +10,6 @@ github: https://github.com/zabaras/transformer-physx
 import logging
 import os
 from abc import abstractmethod
-from distutils.command.config import config
 
 import torch
 import torch.nn as nn
