@@ -47,7 +47,7 @@ autoregressive:
   embedding_dim: 32
   n_ctx: 16
   n_layer: 6
-  n_head: 4
+  n_head: 8
 
   output_hidden_states: False
   output_attentions: False
@@ -62,7 +62,7 @@ opt:
 
 learning:
 
-  epochs: 2
+  epochs: 50
   start_epoch: 0
 
   block_size_train: 6

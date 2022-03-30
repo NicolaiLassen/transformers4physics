@@ -186,10 +186,15 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
-        if mode == "val":
-            print("DO EVEAL")
+        
+        outputs = self.model_trainer.evaluate(x[:, :1], x) \
+           if mode == "val" else self.model_trainer(x[:, :-1],x[:, 1:])
 
-        outputs = self.model_trainer(x[:, :-1, :],x[:, 1:, :])
+        self.log_dict({
+            f'loss_reconstruct/{mode}': outputs[0].item(),
+            f'loss_koopman/{mode}': outputs[0].item(),
+        }, on_epoch=True, on_step=False)
+
         return outputs[0]
 
     def eval_states(self, pred_embeds: Tensor, x: Tensor):
