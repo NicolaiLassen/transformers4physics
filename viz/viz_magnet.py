@@ -23,8 +23,6 @@ import matplotlib as mpl
 import numpy as np
 import torch
 
-mpl.use('agg')
-
 Tensor = torch.Tensor
 
 class MicroMagViz(Viz):
@@ -47,7 +45,7 @@ class MicroMagViz(Viz):
             plt.grid()
             plt.show()
 
-        timescale = 1 if kwargs['timescale'] is None else kwargs['timescale']
+        timescale = 1 if 'timescale' not in kwargs else kwargs['timescale']
         # Convert to numpy array
         y_pred = y_pred.detach().cpu().numpy()
         y_target = y_target.detach().cpu().numpy()

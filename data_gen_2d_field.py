@@ -12,9 +12,8 @@ def generate_sequence(
     timesteps=500,
     use_CUDA=False,
     show=True,
-    alpha=4.42e3,
-    gamma=2.21e5,
     field_micro_t=[0, 0, 0],
+    time_per_step = 4e-12,
 ) -> np.ndarray:
     assert timesteps % 50 == 0, 'Timesteps must be multiple of 50'
     mu0 = 4*np.pi*1e-7
@@ -24,20 +23,19 @@ def generate_sequence(
     problem.set_use_CUDA(use_CUDA)
 
     problem.grid_L = grid_L
-    problem.alpha = alpha
-    problem.gamma = gamma
+    # Note, alpha = 0.02 gives a lambda val equal to 4.42e3
+    problem.alpha = 4.42e3
+    problem.gamma = 2.21e5
     problem.setTimeDis = 10
-    problem.Ms = 8.0e5
 
     # Material properties
-    problem.A0 = 1.3e-11
-    problem.Ms = 8.0e5
+    # problem.A0 = 1.3e-11
+    # problem.Ms = 8.0e5
 
     timesteps = timesteps
-    t_end = 4e-12*timesteps
-    # Hyst_dir = 1 / mu0 * np.array([-25, 5, 0]) / 1000
+    t_end = time_per_step*timesteps
     Hyst_dir = 1 / mu0 * np.array(field_micro_t) / 1000
-    def HextFct(t): return np.expand_dims(t > -1, 0).T * Hyst_dir
+    HextFct = lambda t: np.expand_dims(t > -1, 0).T * Hyst_dir
     problem.set_Hext(HextFct, np.linspace(0, t_end, 2000))
 
     M_out = np.zeros(shape=(timesteps, problem.m0.shape[0], 1, 3))
@@ -75,30 +73,27 @@ def generate_data_set(
     use_CUDA=False,
     seed=None,
     field_interval=[-50, 50],
-    alpha=4.42e3,
-    gamma=2.21e5,
     grid_L=[500e-9, 500e-9, 3e-9],
+    time_per_step = 4e-12,
 ):
     rng = np.random.default_rng(seed)
     hf = h5py.File(save_to_file, 'w')
     for i in range(num_sequences):
         print('Generating sequence: {}/{}'.format(i+1, num_sequences))
-        field = (field_interval[1]-field_interval[0]) * \
-            rng.random((3)) - field_interval[1]
+        field = np.zeros(3)
+        field[0:2] = (field_interval[1]-field_interval[0]) * \
+            rng.random((2)) - field_interval[1]
         seq = generate_sequence(
             rng,
             res=res,
             timesteps=timesteps,
             use_CUDA=use_CUDA,
-            show=False,
-            alpha=alpha,
+            show=True,
             field_micro_t=field,
-            gamma=gamma,
             grid_L=grid_L,
+            time_per_step=time_per_step,
         )
-        seq = seq.swapaxes(1, 2).reshape(
-            timesteps, 3, res[0], res[1],
-        ).swapaxes(2, 3)
+        seq = seq.reshape(timesteps, res[0], res[1], 3).swapaxes(1,3).swapaxes(2,3)
         g = hf.create_group(str(i))
         g.create_dataset('sequence', data=seq)
         g.create_dataset('field', data=field)
@@ -110,9 +105,8 @@ if __name__ == '__main__':
         './mag_data_with_field.h5',
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        alpha=0.02,
-        gamma=2.21e5,
         num_sequences=1,
-        timesteps=100,
+        timesteps=250,
         seed=42,
+        field_interval=[-25,25],
     )

@@ -58,9 +58,7 @@ def generate_data_set(save_to_file, res=[36, 36, 1], num_sequences=4, timesteps=
         print('Generating sequence: {}/{}'.format(i+1, num_sequences))
         seq = generate_sequence(
             rng, res=res, timesteps=timesteps, use_CUDA=use_CUDA, show=False)
-        seq = seq.swapaxes(1, 2).reshape(
-            timesteps, 3, res[0], res[1],
-        ).swapaxes(2, 3)
+        seq = seq.reshape(timesteps, res[0], res[1], 3).swapaxes(1,3).swapaxes(2,3)
         hf.create_dataset(str(i),data=seq)
     hf.close()
 
