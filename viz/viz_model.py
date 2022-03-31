@@ -27,7 +27,7 @@ class Viz(object):
         self.plot_dir = plot_dir
 
     @abstractmethod
-    def plotPrediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
+    def plot_prediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
         """Plots model prediction and target values
         Args:
             y_pred (Tensor): prediction tensor
@@ -40,7 +40,7 @@ class Viz(object):
         raise NotImplementedError("plotPrediction not initialized by child class.")
 
     @abstractmethod
-    def plotEmbeddingPrediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
+    def plot_embedding_prediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
         """Plots model prediction and target values during the embedding training
         Args:
             y_pred (Tensor): mini-batch of prediction tensor
@@ -52,7 +52,7 @@ class Viz(object):
         """
         raise NotImplementedError("plotEmbeddingPrediction not initialized by child class.")
 
-    def saveFigure(self, plot_dir: str = None, file_name: str = 'plot', savepng: bool = True, savepdf: bool = False) -> None:
+    def save_figure(self, plot_dir: str = None, file_name: str = 'plot', savepng: bool = True, savepdf: bool = False) -> None:
         """Saves active matplotlib figure to file
         Args:
             plot_dir (str, optional): Directory to save plot at, will use class plot_dir if none provided. Defaults to None.

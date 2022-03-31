@@ -1,0 +1,12 @@
+program: train.py
+name: autoregressive_sweep
+entity: transformers4physics
+project: v1
+method: random
+metric:
+  goal: minimize
+  name: loss
+parameters:
+
+command:
+  - ${args_no_hyphens}

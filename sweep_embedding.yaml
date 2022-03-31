@@ -1,0 +1,32 @@
+program: train.py
+name: embedding_backbone_sweep_1
+entity: transformers4physics
+project: v1
+method: random
+metric:
+  goal: minimize
+  name: loss/val
+parameters:
+  embedding.backbone: 
+    values:
+    - 'ResNet'
+    - 'TwinsSVT'
+    - 'Conv'
+  embedding.backbone_dim:
+    values:
+    - 64
+    - 128
+    - 256
+  embedding.embedding_dim:
+    values: 
+    - 64
+    - 128
+    - 256
+  embedding.fc_dim:
+    values: 
+    - 64
+    - 128
+    - 256
+    
+command:
+  - ${args_no_hyphens}

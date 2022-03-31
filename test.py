@@ -1,138 +1,109 @@
-"""
-=====
-Training embedding model for the Lorenz numerical example.
-This is a built-in model from the paper.
-Distributed by: Notre Dame SCAI Lab (MIT Liscense)
-- Associated publication:
-url: https://arxiv.org/abs/2010.03957
-doi: 
-github: https://github.com/zabaras/transformer-physx
-=====
-"""
 
+from omegaconf import DictConfig
+from torch.nn import MultiheadAttention
 
-import argparse
-import logging
-
-import torch
-import h5py
-
-from torch.optim.lr_scheduler import ExponentialLR
-
-from config.config_phys import PhysConfig
-from data_utils.enn_data_handler import LorenzDataHandler
-from embeddings.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
-from embeddings.embedding_model import EmbeddingTrainingHead
-import numpy as np
-
-from embeddings.enn_trainer import EmbeddingTrainer
-from vit_pytorch.twins_svt import TwinsSVT
-
-
-logger = logging.getLogger(__name__)
-
+from config.config_emmbeding import EmmbedingConfig
+from embedding.embedding_landau_lifshitz_gilbert import \
+    LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
 if __name__ == '__main__':
-    lr = 1e-3
-    epochs = 200
-    embed = 32
+    import os
 
-    data = np.load("./data/cube36_2d.npy").squeeze()
-    data = data.swapaxes(1,2).reshape(500,3,36,36)
-    data = data.swapaxes(2,3)
-    print(data.shape)
+    import h5py
+    # import matplotlib.pyplot as plt
+    import numpy as np
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+    import torchvision.transforms as transforms
+    # with h5py.File(val_path, "r") as f:
+    #     for key in f.keys():
+    #         data_series = torch.Tensor(f[key])
+    #         print(data_series)
+    # exit()
+    from PIL import Image
 
-    model = TwinsSVT(
-        num_classes = 1000,       # number of output classes
-        s1_emb_dim = 64,          # stage 1 - patch embedding projected dimension
-        s1_patch_size = 3,        # stage 1 - patch size for patch embedding
-        s1_local_patch_size = 3,  # stage 1 - patch size for local attention
-        s1_global_k = 3,          # stage 1 - global attention key / value reduction factor, defaults to 7 as specified in paper
-        s1_depth = 1,             # stage 1 - number of transformer blocks (local attn -> ff -> global attn -> ff)
-        s2_emb_dim = 128,         # stage 2 (same as above)
-        s2_patch_size = 2,
-        s2_local_patch_size = 3,
-        s2_global_k = 3,
-        s2_depth = 1,
-        s3_emb_dim = 256,         # stage 3 (same as above)
-        s3_patch_size = 1,
-        s3_local_patch_size = 1,
-        s3_global_k = 1,
-        s3_depth = 5,
-        s4_emb_dim = 512,         # stage 4 (same as above)
-        s4_patch_size = 2,
-        s4_local_patch_size = 1,
-        s4_global_k = 1,
-        s4_depth = 4,
-        peg_kernel_size = 3,      # positional encoding generator kernel size
-        dropout = 0.              # dropout
+    # base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
+    # val_path = "{}\\val.h5".format(base_path)
+    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
+    # img = Image.open(
+    #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
+    pil_to_tensor = torch.rand(1, 16, 3, 32, 32).cuda()
+    model_1 = LandauLifshitzGilbertEmbedding(
+        EmmbedingConfig(DictConfig({
+            "image_size": 32,
+            "channels": 3,
+            "backbone": "TwinsSVT",
+            "fc_dim": 64,
+            "embedding_dim": 64,
+            "backbone_dim": 64,
+        }))
     )
 
-    td = torch.from_numpy(data).float()
+    trainer_1 = LandauLifshitzGilbertEmbeddingTrainer(model_1)
 
-    model(td)
+    optimizer = optim.Adam(trainer_1.parameters(), lr=0.001)
 
-    exit(0)
+    print(sum(p.numel() for p in trainer_1.parameters()))
 
-    # Setup logging
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        level=logging.INFO)
+    for i in range(100):
 
-    if(torch.cuda.is_available()):
-        use_cuda = "cuda"
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    logger.info("Torch device: {}".format(device))
+        optimizer.zero_grad()
 
-    # Set up data-loaders
-    data_handler = LorenzDataHandler()
-    training_loader = data_handler.createTrainingLoader(
-        batch_size=16,
-        block_size=64,
-        stride=64,
-        ndata=1,
-        file_path='./tests/koopman_git_2/magnet_data_train.h5',
-    )
-    testing_loader = data_handler.createTestingLoader(
-        batch_size=1,
-        block_size=64,
-        ndata=4,
-        file_path='./tests/koopman_git_2/magnet_data_train.h5',
-    )
+        loss, _ = trainer_1(pil_to_tensor)
 
-    # Set up model
-    cfg = PhysConfig(
-        n_ctx=64,
-        n_embd=embed,
-        n_layer=4,
-        n_head=4,
-        state_dims=[3],
-        activation_function="gelu_new",
-        initializer_range=0.05,
-    )
-    model = LandauLifshitzGilbertEmbeddingTrainer(
-        config=cfg,
-    ).to(device)
+        _, _ = trainer_1.evaluate(pil_to_tensor)
+        loss.backward()
+        optimizer.step()
 
-    mu, std = data_handler.norm_params
-    hf = h5py.File('./tests/koopman_git_2/magnet_norm_params.h5', 'w')
-    hf.create_dataset('dataset_1', data=np.array([mu.detach().cpu().numpy(),std.detach().cpu().numpy()]))
-    hf.close()
-    model.embedding_model.mu = mu.to(device)
-    model.embedding_model.std = std.to(device)
+        print(loss)
 
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=lr, weight_decay=1e-8)
-    scheduler = ExponentialLR(optimizer, gamma=0.995)
+    # model_2 = LandauLifshitzGilbertEmbeddingTrainer(
+    #     EmmbedingConfig(DictConfig({
+    #         "image_size": 32,
+    #         "channels": 3,
+    #         "backbone": "Conv",
+    #         "fc_dim": 64,
+    #         "embedding_dim": 64,
+    #         "backbone_dim": 64,
+    #     }))
+    # ).cuda()
 
-    args = argparse.ArgumentParser
-    args.device = device
-    args.epoch_start = 0
-    args.seed = 2
-    args.epochs = epochs
-    args.save_steps = 25
-    args.ckpt_dir = './checkpoints/mag_model_koop/'
+    # optimizer = optim.Adam(model_2.parameters(), lr=0.001)
+    # print(sum(p.numel() for p in model_2.parameters()))
 
-    trainer = EmbeddingTrainer(model, args, (optimizer, scheduler))
-    
-    trainer.train(training_loader, testing_loader)
+    # for i in range(10):
+
+    #     optimizer.zero_grad()
+
+    #     loss, _ = model_2(pil_to_tensor)
+
+    #     loss.backward()
+    #     optimizer.step()
+
+    # print(loss)
+
+    # model_3 = LandauLifshitzGilbertEmbeddingTrainer(
+    #     EmmbedingConfig(DictConfig({
+    #         "image_size": 32,
+    #         "channels": 3,
+    #         "backbone": "ResNet",
+    #         "fc_dim": 64,
+    #         "embedding_dim": 64,
+    #         "backbone_dim": 64,
+    #     }))
+    # ).cuda()
+
+    # optimizer = optim.Adam(model_3.parameters(), lr=0.001)
+    # print(sum(p.numel() for p in model_3.parameters()))
+
+    # for i in range(10):
+
+    #     optimizer.zero_grad()
+
+    #     loss, _ = model_3(pil_to_tensor)
+
+    #     loss.backward()
+    #     optimizer.step()
+
+    # print(loss)
