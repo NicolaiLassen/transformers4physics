@@ -106,7 +106,7 @@ if __name__ == '__main__':
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
         num_sequences=1,
-        timesteps=250,
+        timesteps=400,
         seed=42,
         field_interval=[-25,25],
     )

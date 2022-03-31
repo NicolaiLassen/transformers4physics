@@ -7,5 +7,6 @@ matplotlib.use('qtagg')
 
 hf = h5py.File('mag_data_with_field.h5', 'r')
 print(hf['0']['field'][:])
+print(hf['0']['sequence'].shape)
 viz = MicroMagViz()
-viz.plot_prediction(torch.tensor(hf['0']['sequence'][:]), torch.tensor(hf['0']['sequence'][:]),timescale=1e-9)
+viz.plot_prediction(torch.tensor(hf['0']['sequence'][:]), torch.tensor(hf['0']['sequence'][:]),timescale=400*4e-12)
