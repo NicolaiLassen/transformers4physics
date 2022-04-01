@@ -23,14 +23,15 @@ embedding:
   name: 'koopman'
   pretrained: False
   ckpt_path: "./ckpt/"
-  image_size: 32
+  image_size_x: 64
+  image_size_y: 16
   
-  channels: 6
+  channels: 5
   backbone: "Conv"
  
-  fc_dim: 32
-  embedding_dim: 32
-  backbone_dim: 32
+  fc_dim: 64
+  embedding_dim: 128
+  backbone_dim: 64
 
   state_dims: [2, 64, 128]
 

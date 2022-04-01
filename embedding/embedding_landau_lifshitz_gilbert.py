@@ -46,7 +46,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             )
 
         self.backbone: EmbeddingBackbone = backbone_models[config.backbone](
-            img_size=config.image_size,
+            img_size=[config.image_size_x, config.image_size_y],
             backbone_dim=config.backbone_dim,
             embedding_dim=config.embedding_dim,
             fc_dim=config.fc_dim,
@@ -56,7 +56,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         # Learned Koopman operator
         # self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
         self.k_matrix_diag = nn.Sequential(
-            nn.Linear(3, 50), nn.ReLU(), nn.Linear(50, config.embedding_dim)
+            nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, config.embedding_dim)
         )
 
         # Off-diagonal indices
@@ -76,7 +76,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             np.where(~np.eye(config.embedding_dim, dtype=bool))[1]
         )
         self.k_matrix_t = nn.Sequential(
-            nn.Linear(3, 50), nn.ReLU(), nn.Linear(50, self.xidx.size(0))
+            nn.Linear(2, 100), nn.ReLU(), nn.Linear(100, self.xidx.size(0))
         )
 
         # Normalization occurs inside the model
@@ -98,7 +98,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 x,
                 field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
-                field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
             ],
             dim=1,
         )
@@ -117,13 +117,12 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             (Tensor): [B, config.n_embd] Koopman observables
         """
-        print(field)
         x = torch.cat(
             [
                 x,
                 field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
-                field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
             ],
             dim=1,
         )
@@ -211,7 +210,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         """Trains model for a single epoch
         Args:
             states (Tensor): [B, T, H, W] Time-series feature tensor
-            field (Tensor): [B, 3] External fields
+            field (Tensor): [B, 3] External fields (same across a batch)
         Returns:
             FloatTuple: Tuple containing:
 
@@ -226,7 +225,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         predictions.
         Args:
             states (Tensor): [B, T, 3, H, W] Time-series feature tensor
-            field (Tensor): [B, 3] External fields
+            field (Tensor): [B, 3] External fields (same across a batch)
         Returns:
             FloatTuple: Tuple containing:
 
