@@ -32,12 +32,12 @@ cfg.image_size = [64,16]
 cfg.backbone_dim = 64
 cfg.embedding_dim = 4
 cfg.fc_dim = 64
-field = torch.tensor([1.0,2.0,3.0])
+field = torch.tensor([[1.0,2.0,3.0],[3.0,2.0,1.0]])
 abe = LandauLifshitzGilbertEmbedding(
     EmmbedingConfig(cfg),
 )
 
-x = torch.rand(1,3,64,16)
+x = torch.rand(2,3,64,16)
 y = abe.embed(x, field)
 yh = abe.koopman_operation(y, field)
 xh = abe.recover(yh)

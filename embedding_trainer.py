@@ -59,8 +59,8 @@ class EmbeddingPhysTrainer(pl.LightningModule):
     def configure_dataset(self) -> Tuple[Tuple[Tensor, Tensor], Tensor, Tensor, Tensor]:
         cfg = self.hparams
 
-        base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
-        train_path = "{}\\train.h5".format(base_path)
+        base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
+        train_path = "{}\\test.h5".format(base_path)
         val_path = "{}\\test.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
@@ -68,7 +68,8 @@ class EmbeddingPhysTrainer(pl.LightningModule):
                                     cfg.learning.block_size_train,
                                     self.batch_size,
                                     cfg.learning.stride_train,
-                                    cfg.learning.n_data_train
+                                    # cfg.learning.n_data_train
+                                    1
                                     )
         val_set = read_h5_dataset(val_path,
                                   cfg.learning.block_size_val,
