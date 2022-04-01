@@ -25,7 +25,7 @@ embedding:
   ckpt_path: "./ckpt/"
   image_size: 32
   
-  channels: 3
+  channels: 6
   backbone: "Conv"
  
   fc_dim: 32

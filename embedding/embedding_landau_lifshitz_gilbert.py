@@ -47,37 +47,48 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             img_size=config.image_size,
             backbone_dim=config.backbone_dim,
             embedding_dim=config.embedding_dim,
-            fc_dim=config.fc_dim
+            fc_dim=config.fc_dim,
+            channels=config.channels,
         )
             
         # Learned Koopman operator
-        self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
+        # self.k_matrix_diag = nn.Parameter(torch.ones(config.embedding_dim))
+        self.k_matrix_diag = nn.Sequential(nn.Linear(3,50),nn.ReLU(), nn.Linear(50,config.embedding_dim))
 
         # Off-diagonal indices
-        xidx = []
-        yidx = []
-        for i in range(1, 10):
-            yidx.append(np.arange(i, self.config.embedding_dim))
-            xidx.append(np.arange(0, self.config.embedding_dim - i))
+        # xidx = []
+        # yidx = []
+        # for i in range(1, 10):
+        #     yidx.append(np.arange(i, self.config.embedding_dim))
+        #     xidx.append(np.arange(0, self.config.embedding_dim - i))
 
-        self.xidx = torch.LongTensor(np.concatenate(xidx))
-        self.yidx = torch.LongTensor(np.concatenate(yidx))
-        self.k_matrix_ut = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
+        # self.xidx = torch.LongTensor(np.concatenate(xidx))
+        # self.yidx = torch.LongTensor(np.concatenate(yidx))
+        # self.k_matrix_ut = nn.Parameter(0.01 * torch.rand(self.xidx.size(0)))
+        self.xidx = torch.LongTensor(np.where(~np.eye(config.embedding_dim,dtype=bool))[0])
+        self.yidx = torch.LongTensor(np.where(~np.eye(config.embedding_dim,dtype=bool))[1])
+        self.k_matrix_t = nn.Sequential(nn.Linear(3,50), nn.ReLU(), nn.Linear(50,self.xidx.size(0)))
         
         # Normalization occurs inside the model
-        self.register_buffer('mu', torch.zeros(3))
-        self.register_buffer('std', torch.ones(3))
+        self.register_buffer('mu', torch.zeros(config.channels))
+        self.register_buffer('std', torch.ones(config.channels))
 
-    def forward(self, x: Tensor) -> TensorTuple:
+    def forward(self, x: Tensor, field: Tensor) -> TensorTuple:
         """Forward pass
         Args:
             x (Tensor): [B, 3, H, W] Input feature tensor
-            field (Tensor): [B] the current external field
+            field (Tensor): [B, 3] the current external field
         Returns:
             (TensorTuple): Tuple containing:
                 | (Tensor): [B, config.n_embd] Koopman observables
                 | (Tensor): [B, 3, H, W] Recovered feature tensor
         """
+        x = torch.cat([
+            x, 
+            field[0].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:,:1]),
+            field[1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:,:1]),
+            field[2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:,:1]),
+        ], dim=1)
         x = self._normalize(x)
         g = self.backbone.embed(x)
         # Decode
@@ -85,13 +96,19 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         xhat = self._unnormalize(out)
         return g, xhat
 
-    def embed(self, x: Tensor) -> Tensor:
+    def embed(self, x: Tensor, field: Tensor) -> Tensor:
         """Embeds tensor of state variables to Koopman observables
         Args:
             x (Tensor): [B, 3, H, W] Input feature tensor
         Returns:
             (Tensor): [B, config.n_embd] Koopman observables
         """
+        x = torch.cat([
+            x, 
+            field[0].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:,:1]),
+            field[1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:,:1]),
+            field[2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:,:1]),
+        ], dim=1)
         x = self._normalize(x)
         g = self.backbone.embed(x)
         return g
@@ -107,7 +124,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         x = self._unnormalize(out)
         return x
 
-    def koopman_operation(self, g: Tensor) -> Tensor:
+    def koopman_operation(self, g: Tensor, field: Tensor) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
@@ -118,12 +135,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         k_matrix = Variable(torch.zeros(
             g.size(0), self.config.embedding_dim, self.config.embedding_dim)).to(self.devices[0])
         # Populate the off diagonal terms
-        k_matrix[:, self.xidx, self.yidx] = self.k_matrix_ut
-        k_matrix[:, self.yidx, self.xidx] = -self.k_matrix_ut
+        k_matrix[:, self.xidx, self.yidx] = self.k_matrix_t(field)
 
         # Populate the diagonal
         ind = np.diag_indices(k_matrix.shape[1])
-        k_matrix[:, ind[0], ind[1]] = self.k_matrix_diag
+        k_matrix[:, ind[0], ind[1]] = self.k_matrix_diag(field)
 
         # Apply Koopman operation
         g_next = torch.bmm(k_matrix, g.unsqueeze(-1))

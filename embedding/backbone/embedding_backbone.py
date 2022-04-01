@@ -1,10 +1,11 @@
 from abc import abstractmethod
+from typing import List
 import torch.nn as nn
 
 class EmbeddingBackbone(nn.Module):
     def __init__(self,
         channels: int = 3,
-        img_size: int = 32,
+        img_size: List[int] = [32, 32],
         backbone_dim: int = 128,
         embedding_dim: int = 128,
         fc_dim: int = 128,
