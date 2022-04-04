@@ -188,7 +188,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         l3: Penalty weight for the decay of the koopman operator, prevents overfitting
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1, l3=1e-2):
+    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2):
         super().__init__()
         self.embedding_model = embedding_model
         self.l1 = l1
