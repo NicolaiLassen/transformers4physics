@@ -188,7 +188,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         l3: Penalty weight for the decay of the koopman operator, prevents overfitting
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e4, l3=1e-2):
+    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1, l3=1e-2):
         super().__init__()
         self.embedding_model = embedding_model
         self.l1 = l1
@@ -236,9 +236,6 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         g0, xRec0 = self.embedding_model(xin0, field)
 
         loss = self.l2 * mseLoss(xin0, xRec0)
-        # print('0: {}'.format(loss))
-        # print('xin0 nan:{}'.format(torch.any(torch.isnan(xin0))))
-        # print('xRec0 nan:{}'.format(torch.any(torch.isnan(xRec0))))
         loss_reconstruct = loss_reconstruct + self.l1 * mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
@@ -258,9 +255,6 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 + self.l3
                 * torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
             )
-            # print('{} l1: {}'.format(t0,mseLoss(xgRec1, xin0)))
-            # print('{} l2: {}'.format(t0,mseLoss(xRec1, xin0)))
-            # print('{} l3: {}'.format(t0,torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))))
 
 
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()

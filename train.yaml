@@ -29,9 +29,9 @@ embedding:
   channels: 5
   backbone: "ResNet"
  
-  fc_dim: 32
-  embedding_dim: 32
-  backbone_dim: 32
+  fc_dim: 128
+  embedding_dim: 128
+  backbone_dim: 192
 
   state_dims: [2, 64, 128]
 
@@ -63,7 +63,7 @@ opt:
 
 learning:
 
-  epochs: 30
+  epochs: 300
   start_epoch: 0
 
   block_size_train: 4
