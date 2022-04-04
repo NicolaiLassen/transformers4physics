@@ -17,10 +17,10 @@ tests/run_time_v0/__pycache__/swin.cpython-38.pyc
 *.pyc
 **/__pycache__
 <<<<<<< HEAD
+<<<<<<< HEAD
 *.h5
-=======
 /.venv/*
 /wandb
 /wandb/*
 .vscode/settings.json
->>>>>>> 63bb8738890febb2850e05cfcadc994eafd4e083
+

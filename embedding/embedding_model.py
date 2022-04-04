@@ -13,12 +13,9 @@ from abc import abstractmethod
 
 import torch
 import torch.nn as nn
-<<<<<<< HEAD:embeddings/embedding_model.py
-from config.config_phys import PhysConfig
-=======
-from config.config_emmbeding import EmmbedingConfig
->>>>>>> 63bb8738890febb2850e05cfcadc994eafd4e083:embedding/embedding_model.py
 
+
+from config.config_emmbeding import EmmbedingConfig
 logger = logging.getLogger(__name__)
 
 

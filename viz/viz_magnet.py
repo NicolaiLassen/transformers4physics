@@ -23,8 +23,6 @@ import matplotlib as mpl
 import numpy as np
 import torch
 
-mpl.use('agg')
-
 Tensor = torch.Tensor
 
 class MicroMagViz(Viz):
@@ -45,9 +43,8 @@ class MicroMagViz(Viz):
             plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,2,:,:].reshape(seq_len,-1), axis=1), 'bx')
             plt.title(title)
             plt.grid()
-            plt.show()
 
-        timescale = 1 if kwargs['timescale'] is None else kwargs['timescale']
+        timescale = 1 if 'timescale' not in kwargs else kwargs['timescale']
         # Convert to numpy array
         y_pred = y_pred.detach().cpu().numpy()
         y_target = y_target.detach().cpu().numpy()
@@ -56,6 +53,7 @@ class MicroMagViz(Viz):
 
         _plot(y_target, seq_len, 'Target')
         _plot(y_pred, seq_len, 'Pred')
+        plt.show()
 
     def make_gif(self,
                        y_pred: Tensor,
