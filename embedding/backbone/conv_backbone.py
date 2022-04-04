@@ -88,7 +88,6 @@ class ConvBackbone(EmbeddingBackbone):
             nn.ConvTranspose2d(
                 backbone_dims[0], 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
             ),
-            nn.LeakyReLU(0.02, inplace=True)
         )
 
     def observable_net(self, x):

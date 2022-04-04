@@ -36,24 +36,23 @@ class MicroMagViz(Viz):
         self.coords = b
 
     def plot_prediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
-        def _plot(y, seq_len, title):
-            plt.clf()
-            plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,0,:,:].reshape(seq_len,-1), axis=1), 'rx')
-            plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,1,:,:].reshape(seq_len,-1), axis=1), 'gx')
-            plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,2,:,:].reshape(seq_len,-1), axis=1), 'bx')
-            plt.title(title)
-            plt.grid()
-            plt.show()
+        def _plot(y, seq_len, title, ax):
+            ax.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,0,:,:].reshape(seq_len,-1), axis=1), 'rx')
+            ax.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,1,:,:].reshape(seq_len,-1), axis=1), 'gx')
+            ax.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,2,:,:].reshape(seq_len,-1), axis=1), 'bx')
+            ax.set_title(title)
+            ax.grid()
 
         timescale = 1 if 'timescale' not in kwargs else kwargs['timescale']
         # Convert to numpy array
         y_pred = y_pred.detach().cpu().numpy()
         y_target = y_target.detach().cpu().numpy()
-        res = y_pred.shape[2]*y_pred.shape[3]
         seq_len = y_pred.shape[0]
 
-        _plot(y_target, seq_len, 'Target')
-        _plot(y_pred, seq_len, 'Pred')
+        figure, axis = plt.subplots(1,2)
+        _plot(y_target, seq_len, 'Target', axis[0])
+        _plot(y_pred, seq_len, 'Pred', axis[1])
+        plt.show()
 
     def make_gif(self,
                        y_pred: Tensor,

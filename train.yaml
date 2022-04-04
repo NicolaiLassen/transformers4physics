@@ -29,9 +29,9 @@ embedding:
   channels: 5
   backbone: "Conv"
  
-  fc_dim: 64
-  embedding_dim: 128
-  backbone_dim: 64
+  fc_dim: 256
+  embedding_dim: 256
+  backbone_dim: 192
 
   state_dims: [2, 64, 128]
 
@@ -63,17 +63,17 @@ opt:
 
 learning:
 
-  epochs: 50
+  epochs: 300
   start_epoch: 0
 
-  block_size_train: 6
-  stride_train: 6
+  block_size_train: 4
+  stride_train: 4
   batch_size_train: 64
   n_data_train: 50
   
-  batch_size_val: 16
-  block_size_val: 32
-  stride_val: 32
+  batch_size_val: 1
+  block_size_val: 400
+  stride_val: 400
   
   lr: 1e-3
   min_lr: 1e-3

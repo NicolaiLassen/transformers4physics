@@ -23,6 +23,7 @@ from embedding.embedding_landau_lifshitz_gilbert import (
 from embedding.embedding_model import EmbeddingModel
 from util.config_formater import sweep_decorate_config
 from util.data_loader import read_h5_dataset
+from viz.viz_magnet import MicroMagViz
 
 Tensor = torch.Tensor
 
@@ -30,6 +31,8 @@ Tensor = torch.Tensor
 class EmbeddingPhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
+
+        self.viz = MicroMagViz()
 
         # hyper
         self.save_hyperparameters(cfg)
@@ -78,7 +81,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
         train_path = "{}\\train.h5".format(base_path)
-        val_path = "{}\\test.h5".format(base_path)
+        val_path = "{}\\train.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
         train_set = read_h5_dataset(
@@ -87,19 +90,21 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             self.batch_size,
             cfg.learning.stride_train,
             # cfg.learning.n_data_train
-            50,
+            1,
         )
         val_set = read_h5_dataset(
             val_path,
             cfg.learning.block_size_val,
             self.batch_size,
             cfg.learning.stride_val,
+            1,
         )
         test_set = read_h5_dataset(
             test_path,
             cfg.learning.block_size_val,
             self.batch_size,
             cfg.learning.stride_val,
+            1,
         )
         return train_set, val_set, test_set
 
@@ -192,6 +197,11 @@ class EmbeddingPhysTrainer(pl.LightningModule):
     def step(self, batch, batch_idx: int, mode: str):
         x = batch
 
+        if(mode=='val'):
+            s = x["states"][0]
+            f = x["fields"]
+            self.viz.plot_prediction(self.model.forward(s,f)[1],s)
+
         loss, loss_reconstruct = (
             self.model_trainer.evaluate(x["states"], x["fields"])
             if mode == "val"
@@ -238,9 +248,9 @@ def train(cfg):
         max_epochs=cfg.learning.epochs,
         gpus=cfg.gpus,
         logger=logger,
-        num_sanity_val_steps=0,
+        num_sanity_val_steps=1,
         log_every_n_steps=15,
-        check_val_every_n_epoch=2,
+        check_val_every_n_epoch=50,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,
