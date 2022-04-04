@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import List
 
 import torch.nn as nn
 
@@ -11,7 +12,7 @@ class ConvBackbone(EmbeddingBackbone):
     def __init__(
         self,
         channels: int = 3,
-        img_size: int = 32,
+        img_size: List[int] = [32, 32],
         backbone_dim: int = 128,
         embedding_dim: int = 128,
         fc_dim: int = 128,
@@ -20,7 +21,7 @@ class ConvBackbone(EmbeddingBackbone):
 
         print("Backbone: {}".format(self.model_name))
 
-        final_patch_size = int(img_size / 8)
+        final_patch_size = [img_size[0] // 8, img_size[1] // 8]
         self.final_patch_size = final_patch_size
         self.backbone_dim = backbone_dim
         self.embedding_dim = embedding_dim
@@ -58,7 +59,7 @@ class ConvBackbone(EmbeddingBackbone):
         )
 
         self.observable_net_fc_layers = nn.Sequential(
-            nn.Linear(backbone_dims[2]*final_patch_size**2, fc_dim),
+            nn.Linear(backbone_dims[2]*self.final_patch_size[0]*self.final_patch_size[1], fc_dim),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(fc_dim, embedding_dim),
             nn.LayerNorm(embedding_dim, eps=1e-5),
@@ -67,7 +68,7 @@ class ConvBackbone(EmbeddingBackbone):
         self.recovery_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim, fc_dim),
             nn.LeakyReLU(1.0, inplace=True),
-            nn.Linear(fc_dim, backbone_dim*final_patch_size**2),
+            nn.Linear(fc_dim, backbone_dim*self.final_patch_size[0]*self.final_patch_size[1]),
             nn.LeakyReLU(0.02, inplace=True),
         )
 
@@ -87,7 +88,6 @@ class ConvBackbone(EmbeddingBackbone):
             nn.ConvTranspose2d(
                 backbone_dims[0], 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
             ),
-            nn.LeakyReLU(0.02, inplace=True)
         )
 
     def observable_net(self, x):
@@ -112,7 +112,7 @@ class ConvBackbone(EmbeddingBackbone):
     def recover(self, x):
         out = self.recovery_net_fc(x)
         out = out.view(-1, self.backbone_dim,
-                       self.final_patch_size, self.final_patch_size)
+                       self.final_patch_size[0], self.final_patch_size[1])
         out = self.recovery_net(out)
         return out
 

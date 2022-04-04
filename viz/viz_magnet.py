@@ -36,6 +36,7 @@ class MicroMagViz(Viz):
         self.coords = b
 
     def plot_prediction(self, y_pred: Tensor, y_target: Tensor, plot_dir: str = None, **kwargs) -> None:
+<<<<<<< HEAD
         def _plot(y, seq_len, title):
             plt.clf()
             plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,0,:,:].reshape(seq_len,-1), axis=1), 'rx')
@@ -43,16 +44,29 @@ class MicroMagViz(Viz):
             plt.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,2,:,:].reshape(seq_len,-1), axis=1), 'bx')
             plt.title(title)
             plt.grid()
+=======
+        def _plot(y, seq_len, title, ax):
+            ax.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,0,:,:].reshape(seq_len,-1), axis=1), 'rx')
+            ax.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,1,:,:].reshape(seq_len,-1), axis=1), 'gx')
+            ax.plot(np.arange(seq_len)/seq_len * timescale, np.mean(y[:,2,:,:].reshape(seq_len,-1), axis=1), 'bx')
+            ax.set_title(title)
+            ax.grid()
+>>>>>>> 2ab5df061c47d37879dd31619e4a45084c0dd9f2
 
         timescale = 1 if 'timescale' not in kwargs else kwargs['timescale']
         # Convert to numpy array
         y_pred = y_pred.detach().cpu().numpy()
         y_target = y_target.detach().cpu().numpy()
-        res = y_pred.shape[2]*y_pred.shape[3]
         seq_len = y_pred.shape[0]
 
+<<<<<<< HEAD
         _plot(y_target, seq_len, 'Target')
         _plot(y_pred, seq_len, 'Pred')
+=======
+        figure, axis = plt.subplots(1,2)
+        _plot(y_target, seq_len, 'Target', axis[0])
+        _plot(y_pred, seq_len, 'Pred', axis[1])
+>>>>>>> 2ab5df061c47d37879dd31619e4a45084c0dd9f2
         plt.show()
 
     def make_gif(self,

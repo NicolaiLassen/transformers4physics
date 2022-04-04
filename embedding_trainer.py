@@ -17,10 +17,13 @@ from torch.utils.data import DataLoader
 from callback import SaveCallback
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
-    LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer)
+    LandauLifshitzGilbertEmbedding,
+    LandauLifshitzGilbertEmbeddingTrainer,
+)
 from embedding.embedding_model import EmbeddingModel
 from util.config_formater import sweep_decorate_config
 from util.data_loader import read_h5_dataset
+from viz.viz_magnet import MicroMagViz
 
 Tensor = torch.Tensor
 
@@ -28,6 +31,8 @@ Tensor = torch.Tensor
 class EmbeddingPhysTrainer(pl.LightningModule):
     def __init__(self, cfg):
         super().__init__()
+
+        self.viz = MicroMagViz()
 
         # hyper
         self.save_hyperparameters(cfg)
@@ -41,17 +46,32 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             self.test_dataset,
         ) = self.configure_dataset()
 
-        mu = torch.tensor([torch.mean(self.train_dataset[:, :, 0]), torch.mean(
-            self.train_dataset[:, :, 1]), torch.mean(self.train_dataset[:, :, 2])])
-        std = torch.tensor([torch.std(self.train_dataset[:, :, 0]), torch.std(
-            self.train_dataset[:, :, 1]), torch.std(self.train_dataset[:, :, 2])])
+        mu = torch.tensor(
+            [
+                torch.mean(self.train_dataset[:]["states"][:, :, 0]),
+                torch.mean(self.train_dataset[:]["states"][:, :, 1]),
+                torch.mean(self.train_dataset[:]["states"][:, :, 2]),
+                torch.mean(self.train_dataset[:]["fields"][:, 0]),
+                torch.mean(self.train_dataset[:]["fields"][:, 1]),
+                # torch.mean(self.train_dataset[:]["fields"][:, 2]),
+            ]
+        )
+        std = torch.tensor(
+            [
+                torch.std(self.train_dataset[:]["states"][:, :, 0]),
+                torch.std(self.train_dataset[:]["states"][:, :, 1]),
+                torch.std(self.train_dataset[:]["states"][:, :, 2]),
+                torch.std(self.train_dataset[:]["fields"][:, 0]),
+                torch.std(self.train_dataset[:]["fields"][:, 1]),
+                # torch.std(self.train_dataset[:]["fields"][:, 2]),
+            ]
+        )
 
         # model
         self.model = self.configure_embedding_model()
         self.model.mu = mu
         self.model.std = std
-        self.model_trainer = \
-            LandauLifshitzGilbertEmbeddingTrainer(self.model)
+        self.model_trainer = LandauLifshitzGilbertEmbeddingTrainer(self.model)
 
     def forward(self, z: Tensor):
         return self.model.embed(z)
@@ -59,27 +79,32 @@ class EmbeddingPhysTrainer(pl.LightningModule):
     def configure_dataset(self) -> Tuple[Tuple[Tensor, Tensor], Tensor, Tensor, Tensor]:
         cfg = self.hparams
 
-        base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
+        base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
         train_path = "{}\\train.h5".format(base_path)
         val_path = "{}\\test.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
-        train_set = read_h5_dataset(train_path,
-                                    cfg.learning.block_size_train,
-                                    self.batch_size,
-                                    cfg.learning.stride_train,
-                                    cfg.learning.n_data_train
-                                    )
-        val_set = read_h5_dataset(val_path,
-                                  cfg.learning.block_size_val,
-                                  self.batch_size,
-                                  cfg.learning.stride_val,
-                                  )
-        test_set = read_h5_dataset(test_path,
-                                   cfg.learning.block_size_val,
-                                   self.batch_size,
-                                   cfg.learning.stride_val,
-                                   )
+        train_set = read_h5_dataset(
+            train_path,
+            cfg.learning.block_size_train,
+            self.batch_size,
+            cfg.learning.stride_train,
+            cfg.learning.n_data_train
+        )
+        val_set = read_h5_dataset(
+            val_path,
+            cfg.learning.block_size_val,
+            self.batch_size,
+            cfg.learning.stride_val,
+            1,
+        )
+        test_set = read_h5_dataset(
+            test_path,
+            cfg.learning.block_size_val,
+            self.batch_size,
+            cfg.learning.stride_val,
+            1,
+        )
         return train_set, val_set, test_set
 
     def configure_embedding_model(self) -> EmbeddingModel:
@@ -91,30 +116,29 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
         model_parameters = self.model.parameters()
 
-        if cfg.opt.name == 'adamw':
-            optimizer = optim.AdamW(model_parameters, lr=self.lr,
-                                    betas=(cfg.opt.beta0,
-                                           cfg.opt.beta1), eps=cfg.opt.eps,
-                                    weight_decay=cfg.opt.weight_decay)
-        elif cfg.opt.name == 'adam':
-            optimizer = optim.Adam(
-                model_parameters, lr=self.lr, weight_decay=1e-8)
+        if cfg.opt.name == "adamw":
+            optimizer = optim.AdamW(
+                model_parameters,
+                lr=self.lr,
+                betas=(cfg.opt.beta0, cfg.opt.beta1),
+                eps=cfg.opt.eps,
+                weight_decay=cfg.opt.weight_decay,
+            )
+        elif cfg.opt.name == "adam":
+            optimizer = optim.Adam(model_parameters, lr=self.lr, weight_decay=1e-8)
         else:
             raise NotImplementedError()
 
         if cfg.learning.sched is not None:
             lr_scheduler = None
 
-            if cfg.learning.sched == 'exponential':
+            if cfg.learning.sched == "exponential":
                 lr_scheduler = optim.lr_scheduler.ExponentialLR(
-                    optimizer,
-                    gamma=cfg.learning.gamma
+                    optimizer, gamma=cfg.learning.gamma
                 )
-            elif cfg.learning.sched == 'cosine':
+            elif cfg.learning.sched == "cosine":
                 lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-                    optimizer,
-                    eta_min=cfg.learning.min_lr,
-                    T_max=cfg.learning.epochs
+                    optimizer, eta_min=cfg.learning.min_lr, T_max=cfg.learning.epochs
                 )
 
             start_epoch = 0
@@ -135,7 +159,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             shuffle=True,
             persistent_workers=True,
             pin_memory=cfg.pin_mem,
-            num_workers=cfg.workers
+            num_workers=cfg.workers,
         )
 
     def val_dataloader(self):
@@ -146,7 +170,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             shuffle=False,
             persistent_workers=True,
             pin_memory=cfg.pin_mem,
-            num_workers=cfg.workers
+            num_workers=cfg.workers,
         )
 
     def test_dataloader(self):
@@ -157,34 +181,44 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             shuffle=False,
             persistent_workers=True,
             pin_memory=cfg.pin_mem,
-            num_workers=cfg.workers
+            num_workers=cfg.workers,
         )
 
     def training_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='train')
+        return self.step(batch=batch, batch_idx=batch_idx, mode="train")
 
     def validation_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='val')
+        return self.step(batch=batch, batch_idx=batch_idx, mode="val")
 
     def test_step(self, batch, batch_idx):
-        return self.step(batch=batch, batch_idx=batch_idx, mode='test')
+        return self.step(batch=batch, batch_idx=batch_idx, mode="test")
 
-    def step(self, batch: Tensor, batch_idx: int, mode: str):
+    def step(self, batch, batch_idx: int, mode: str):
         x = batch
+        s = x["states"]
+        f = x["fields"]
 
-        loss, loss_reconstruct = self.model_trainer.evaluate(x) \
-            if mode == "val" else self.model_trainer(x)
+        if(mode=='val'):
+            self.viz.plot_prediction(self.model(s[0],f[0].unsqueeze(0))[1],s[0])
 
-        self.log_dict({
-            f'loss_reconstruct/{mode}': loss_reconstruct.item(),
-            f'loss_koopman/{mode}': loss.item(),
-        }, on_epoch=True, on_step=False)
+        loss, loss_reconstruct = (
+            self.model_trainer.evaluate(s, f)
+            if mode == "val"
+            else self.model_trainer(s, f)
+        )
 
+        self.log_dict(
+            {
+                f"loss_reconstruct/{mode}": loss_reconstruct.item(),
+                f"loss_koopman/{mode}": loss.item(),
+            },
+            on_epoch=True,
+            on_step=False,
+        )
         return loss
-    
+
     def save_model(self, checkpoint_dir="./ckpt", filename="embed"):
         self.model.save_model(save_directory=checkpoint_dir, filename=filename)
-
 
 
 def train(cfg):
@@ -197,9 +231,9 @@ def train(cfg):
             wandb.init(
                 name=cfg.experiment,
                 project=cfg.project,
-                entity='transformers4physics',
+                entity="transformers4physics",
                 notes=cfg.notes,
-                config=cfg
+                config=cfg,
             )
         logger = WandbLogger(log_model=True)
         logger.watch(model)
@@ -213,13 +247,13 @@ def train(cfg):
         max_epochs=cfg.learning.epochs,
         gpus=cfg.gpus,
         logger=logger,
-        num_sanity_val_steps=2,
+        num_sanity_val_steps=1,
         log_every_n_steps=15,
-        check_val_every_n_epoch=2,
+        check_val_every_n_epoch=15,
         callbacks=SaveCallback(
-            dirpath='{}'.format(cfg.embedding.ckpt_path),
+            dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,
-        )
+        ),
     )
 
     trainer.fit(model)
@@ -245,6 +279,6 @@ def main(cfg: DictConfig):
     train(cfg)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
     # wandb.agent("gv398m8m", sweep, count=2, project="v1", entity="transformers4physics")

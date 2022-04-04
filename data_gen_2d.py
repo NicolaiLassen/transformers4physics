@@ -65,4 +65,4 @@ def generate_data_set(save_to_file, res=[36, 36, 1], num_sequences=4, timesteps=
 
 
 if __name__ == '__main__':
-    generate_data_set('./magnet_data_32x32.h5', res=[32, 32, 1], num_sequences=150, timesteps=500, seed = 42)
+    generate_data_set('./magnet_data_32x32_train.h5', res=[32, 32, 1], num_sequences=150, timesteps=500, seed = 42)

@@ -20,7 +20,8 @@ class EmmbedingConfig(PhysConfig):
         self.backbone = cfg.backbone if cfg.backbone else "TwinsSVT"
        
         self.channels = cfg.channels if cfg.channels else 3
-        self.image_size = cfg.image_size if cfg.image_size else 32
+        self.image_size_x = cfg.image_size_x if cfg.image_size_x else 32
+        self.image_size_y = cfg.image_size_y if cfg.image_size_y else 32
         
         self.backbone_dim = cfg.backbone_dim if cfg.backbone_dim else 64
         self.embedding_dim = cfg.embedding_dim if cfg.embedding_dim else 128
