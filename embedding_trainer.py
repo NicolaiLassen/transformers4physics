@@ -196,20 +196,17 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
     def step(self, batch, batch_idx: int, mode: str):
         x = batch
+        s = x["states"]
+        f = x["fields"]
 
         if(mode=='val'):
-            s = x["states"][0]
-            f = x["fields"][0].unsqueeze(0)
-            self.viz.plot_prediction(self.model(s,f)[1],s)
+            self.viz.plot_prediction(self.model(s[0],f[0].unsqueeze(0))[1],s[0])
 
         loss, loss_reconstruct = (
-            self.model_trainer.evaluate(x["states"], x["fields"])
+            self.model_trainer.evaluate(s, f)
             if mode == "val"
-            else self.model_trainer(x["states"], x["fields"])
+            else self.model_trainer(s, f)
         )
-
-        if(mode=='val'):
-            print(loss)
 
         self.log_dict(
             {

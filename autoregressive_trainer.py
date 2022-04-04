@@ -59,8 +59,20 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
     def forward(self, z: Tensor):
         return self.model(z)
 
-    def generate(self, past_tokens, seq_len, **kwargs):
-        return self.model(past_tokens, seq_len, kwargs)
+    def generate(self, inputs_embeds, max_length, **kwargs):
+        cur_len = inputs_embeds.shape[1]
+
+        while cur_len < max_length:
+
+            outputs = self.forward(inputs_embeds)
+            
+            next_output = outputs[0][:,-1:]
+
+            # add past output embedding and increase length by one
+            inputs_embeds = torch.cat([inputs_embeds, next_output], dim=1)
+            cur_len = cur_len + 1
+
+        return inputs_embeds
 
     def configure_dataset(self) -> Tuple[Tensor, Tensor, Tensor]:
         cfg = self.hparams
@@ -186,6 +198,12 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
+
+        if(mode=='val'):
+            # TODO CTX
+            gen = self.generate(x[:1, :2, :], 16)
+            pred_states = self.embedding_model.recover(gen)
+            self.viz.plot_prediction(pred_states, pred_states)
         
         outputs = self.model_trainer.evaluate(x[:, :1], x) \
            if mode == "val" else self.model_trainer(x[:, :-1],x[:, 1:])
@@ -207,8 +225,6 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
         mse = nn.MSELoss()
         targets_error = mse(out, x)
-
-        # PLOT
 
         return targets_error
 
@@ -243,7 +259,7 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=50,
-        check_val_every_n_epoch=2,
+        check_val_every_n_epoch=1,
     )
 
     trainer.fit(model)

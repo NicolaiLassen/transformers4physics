@@ -10,6 +10,28 @@ from torch.utils.data.dataset import Dataset
 
 Tensor = torch.Tensor
 
+class MagDataset(Dataset):
+    def __init__(self, examples, fields):
+        self.examples = examples
+        self.fields = fields
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, i):
+        return {"states": self.examples[i], "fields": self.fields[i]}
+
+class MagAutoDataset(Dataset):
+    def __init__(self, examples, fields):
+        self.examples = examples
+        self.fields = fields
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, i):
+        return {"states": self.examples[i], "fields": self.fields[i]}
+
 def read_and_embbed_h5_dataset(
     file_path: str,
     embedder: EmbeddingModel,
@@ -45,18 +67,6 @@ def read_and_embbed_h5_dataset(
         batch_size = data.size(0)
 
     return data
-
-class MagDataset(Dataset):
-    def __init__(self, examples, fields):
-        self.examples = examples
-        self.fields = fields
-
-    def __len__(self):
-        return len(self.examples)
-
-    def __getitem__(self, i):
-        return {"states": self.examples[i], "fields": self.fields[i]}
-
 
 def read_h5_dataset(
     file_path: str,
