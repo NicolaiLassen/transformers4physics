@@ -89,8 +89,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             cfg.learning.block_size_train,
             self.batch_size,
             cfg.learning.stride_train,
-            # cfg.learning.n_data_train
-            5,
+            cfg.learning.n_data_train
         )
         val_set = read_h5_dataset(
             val_path,

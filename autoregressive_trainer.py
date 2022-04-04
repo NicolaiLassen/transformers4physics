@@ -1,5 +1,6 @@
 from operator import mod
 from pathlib import Path
+from pyexpat import model
 from tabnanny import verbose
 from typing import Tuple
 
@@ -60,15 +61,16 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         return self.model(z)
 
     def generate(self, inputs_embeds, max_length, **kwargs):
+        cfg = self.hparams
         cur_len = inputs_embeds.shape[1]
 
         while cur_len < max_length:
-
-            outputs = self.forward(inputs_embeds)
-            
+            outputs = self.model.forward(
+                inputs_embeds=inputs_embeds[:, -cfg.autoregressive.n_ctx:],
+                **kwargs
+            )
+        
             next_output = outputs[0][:,-1:]
-
-            # add past output embedding and increase length by one
             inputs_embeds = torch.cat([inputs_embeds, next_output], dim=1)
             cur_len = cur_len + 1
 
@@ -84,7 +86,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
         train_set = read_and_embbed_h5_dataset(train_path,
                                                self.embedding_model,
-                                               cfg.autoregressive.n_ctx,
+                                               cfg.learning.block_size_train,
                                                self.batch_size,
                                                cfg.learning.stride_train,
                                                cfg.learning.n_data_train
@@ -157,7 +159,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
     def train_dataloader(self):
         cfg = self.hparams
         return DataLoader(
-            self.train_dataset.data,
+            self.train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
             persistent_workers=True,
@@ -168,7 +170,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
     def val_dataloader(self):
         cfg = self.hparams
         return DataLoader(
-            self.val_dataset.data,
+            self.val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             persistent_workers=True,
@@ -179,7 +181,7 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
     def test_dataloader(self):
         cfg = self.hparams
         return DataLoader(
-            self.test_dataset.data,
+            self.test_dataset,
             batch_size=self.batch_size,
             shuffle=False,
             persistent_workers=True,
@@ -198,15 +200,16 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
     def step(self, batch: Tensor, batch_idx: int, mode: str):
         x = batch
+        s = x["states"]
+        e = x["embedded"]
 
         if(mode=='val'):
-            # TODO CTX
-            gen = self.generate(x[:1, :2, :], 16)
+            gen = self.generate(e[:1, :50], 400)
             pred_states = self.embedding_model.recover(gen)
-            self.viz.plot_prediction(pred_states, pred_states)
+            self.viz.plot_prediction(pred_states, self.embedding_model.recover(e[:1]))
         
-        outputs = self.model_trainer.evaluate(x[:, :1], x) \
-           if mode == "val" else self.model_trainer(x[:, :-1],x[:, 1:])
+        outputs = self.model_trainer.evaluate(e[:, :1], e) \
+           if mode == "val" else self.model_trainer(e[:, :-1],e[:, 1:])
 
         self.log_dict({
             f'loss_reconstruct/{mode}': outputs[0].item(),
@@ -250,7 +253,6 @@ def train(cfg):
     trainer = pl.Trainer(
         devices=1,
         accelerator="auto",
-        precision=16,
         auto_lr_find=True,
         accumulate_grad_batches=1,
         gradient_clip_val=0.1,
@@ -259,7 +261,7 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=50,
-        check_val_every_n_epoch=1,
+        check_val_every_n_epoch=10
     )
 
     trainer.fit(model)
