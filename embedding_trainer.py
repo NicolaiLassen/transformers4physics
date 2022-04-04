@@ -78,7 +78,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
     def forward(self, z: Tensor):
         return self.model.embed(z)
 
-    def configure_dataset(self) -> Tuple[Tuple[Tensor, Tensor], Tensor, Tensor, Tensor]:
+    def configure_dataset(self) -> Tuple[Tensor, Tensor, Tensor]:
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
