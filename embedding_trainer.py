@@ -90,7 +90,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             self.batch_size,
             cfg.learning.stride_train,
             # cfg.learning.n_data_train
-            20,
+            5,
         )
         val_set = read_h5_dataset(
             val_path,
@@ -199,7 +199,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
         if(mode=='val'):
             s = x["states"][0]
-            f = x["fields"]
+            f = x["fields"][0].unsqueeze(0)
             self.viz.plot_prediction(self.model(s,f)[1],s)
 
         loss, loss_reconstruct = (
