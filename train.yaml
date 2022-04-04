@@ -39,7 +39,7 @@ autoregressive:
   name: "GPT2" 
   pretrained: False
   ckpt_path: "./ckpt/model_name"
-  embedding_model_ckpt_path: "C:\\Users\\s175407\\Desktop\\transformers4physics\\outputs\\2022-03-28\\22-57-28\\ckpt\\no_name.pth" 
+  embedding_model_ckpt_path: "C:\\Users\\s175407\\Desktop\\transformers4physics\\outputs\\2022-04-04\\21-46-27\\ckpt\\no_name.pth" 
 
   activation_function: "gelu_new"
   layer_norm_epsilon: 1e-5

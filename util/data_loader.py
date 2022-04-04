@@ -26,11 +26,15 @@ def read_and_embbed_h5_dataset(
 
         n_seq = 0
         for key in f.keys():
-            data_series = embedder.embed(torch.Tensor(np.array(f[key])))
+            data_series = torch.Tensor(np.array(f[key]['sequence']))
+            fields = torch.Tensor(np.array(f[key]['field'][:2])).unsqueeze(0)
+
+            with torch.no_grad():
+                embedded_series = embedder.embed(data_series, fields).cpu()
 
             # Truncate in block of block_size
             for i in range(0,  data_series.size(0) - block_size + 1, stride):
-                seq.append(data_series[i: i + block_size].unsqueeze(0))
+                seq.append(embedded_series[i: i + block_size].unsqueeze(0))
 
             n_seq = n_seq + 1
             if(n_data > 0 and n_seq >= n_data):  # If we have enough time-series samples break loop
