@@ -28,7 +28,6 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     # "vit": ViTBackbone
 }
 
-
 class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     """Embedding Koopman model for Landau-Lifshitz-Gilbert
     Args:

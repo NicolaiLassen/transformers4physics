@@ -3,7 +3,7 @@ use_sweep: False
 verbose: False
 pin_mem: True
 
-seed: 2
+seed: 1
 gpus: 1
 cpus: 1
 workers: 16
