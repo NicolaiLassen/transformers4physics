@@ -13,8 +13,9 @@ from abc import abstractmethod
 
 import torch
 import torch.nn as nn
-from config.config_emmbeding import EmmbedingConfig
 
+
+from config.config_emmbeding import EmmbedingConfig
 logger = logging.getLogger(__name__)
 
 

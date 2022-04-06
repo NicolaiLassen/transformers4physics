@@ -66,7 +66,6 @@ def mish(x: Tensor) -> Tensor:
     """
     return x * torch.tanh(torch.nn.functional.softplus(x))
 
-
 def linear_act(x: Tensor) -> Tensor:
     """Linear activate function
     """

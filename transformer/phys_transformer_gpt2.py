@@ -150,6 +150,8 @@ class PhysformerGPT2(GenerationMixin, Physformer):
 
         logger.info('Number of parameters: {}'.format(self._num_parameters()))
 
+
+    ## TODO: CHECK IF THIS IS CORRECT
     def forward(
         self,
         inputs_embeds: Tensor,
