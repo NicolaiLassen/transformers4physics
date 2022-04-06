@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from einops import rearrange
 from torch import einsum, nn
+
+from embedding.backbone.recovery_net import RecoveryNet
 from .embedding_backbone import EmbeddingBackbone
 
 
@@ -249,23 +251,8 @@ class TwinsSVTBackbone(nn.Module):
             nn.LeakyReLU(0.02, inplace=True),
         )
 
-        self.recovery_net_layers = nn.Sequential(
-            nn.ConvTranspose2d(
-                backbone_dim,  backbone_dims[1], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
-            ),
-            nn.BatchNorm2d(backbone_dims[1]),
-            nn.LeakyReLU(0.02, inplace=True),
+        self.recovery_net_layers = RecoveryNet(backbone_dims).net
 
-            nn.ConvTranspose2d(
-                backbone_dims[1], backbone_dims[0], kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
-            ),
-            nn.BatchNorm2d(backbone_dims[0]),
-            nn.LeakyReLU(0.02, inplace=True),
-
-            nn.ConvTranspose2d(
-                backbone_dims[0], 3, kernel_size=3, stride=2, padding=1, padding_mode="zeros", output_padding=1
-            ),
-        )
 
     def observable_net(self, x):
         return self.observable_net_layers(x)
