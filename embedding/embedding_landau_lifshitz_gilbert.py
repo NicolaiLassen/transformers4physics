@@ -28,6 +28,7 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     # "vit": ViTBackbone
 }
 
+
 class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     """Embedding Koopman model for Landau-Lifshitz-Gilbert
     Args:
@@ -58,8 +59,31 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             nn.Linear(4, 75), nn.ReLU(), nn.Linear(75, config.embedding_dim)
         )
 
-        self.triu_indices = torch.triu_indices(config.embedding_dim, config.embedding_dim)
-        self.tril_indices = torch.tril_indices(config.embedding_dim, config.embedding_dim)
+        # Off-diagonal indices
+        if config.koopman_bandwidth < 0 or config.koopman_bandwidth >= config.embedding_dim:
+            xidx = []
+            yidx = []
+            for i in range(1, config.embedding_dim):
+                xidx.append(np.arange(i, config.embedding_dim))
+                yidx.append(np.arange(0, config.embedding_dim - i))
+            self.triu_indices = torch.LongTensor(
+                [np.concatenate(xidx), np.concatenate(yidx)]
+            )
+            self.tril_indices = torch.LongTensor(
+                [np.concatenate(yidx), np.concatenate(xidx)]
+            )
+        else:
+            xidx = []
+            yidx = []
+            for i in range(1, config.koopman_bandwidth + 1):
+                xidx.append(np.arange(i, config.embedding_dim))
+                yidx.append(np.arange(0, config.embedding_dim - i))
+            self.triu_indices = torch.LongTensor(
+                [np.concatenate(xidx), np.concatenate(yidx)]
+            )
+            self.tril_indices = torch.LongTensor(
+                [np.concatenate(yidx), np.concatenate(xidx)]
+            )
         self.k_matrix_ut = nn.Sequential(
             nn.Linear(4, 75), nn.ReLU(), nn.Linear(75, self.triu_indices[0].size(0))
         )
@@ -84,8 +108,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         x = torch.cat(
             [
                 x,
-                field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
-                field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                field[:, :1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                field[:, 1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 A0.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 Ms.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
@@ -110,8 +134,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         x = torch.cat(
             [
                 x,
-                field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
-                field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                field[:, :1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                field[:, 1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 A0.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 Ms.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
@@ -133,7 +157,9 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         x = self._unnormalize(out)
         return x
 
-    def koopman_operation(self, g: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> Tensor:
+    def koopman_operation(
+        self, g: Tensor, field: Tensor, A0: Tensor, Ms: Tensor
+    ) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
@@ -145,13 +171,15 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
         ).to(self.devices[0])
         field, A0, Ms = self._normalize_features(field, A0, Ms)
-        k_in = torch.cat([field,A0,Ms], dim=1)
+        k_in = torch.cat([field, A0, Ms], dim=1)
         # Populate the off diagonal terms
         k_matrix[:, self.triu_indices[0], self.triu_indices[1]] = self.k_matrix_ut(k_in)
         k_matrix[:, self.tril_indices[0], self.tril_indices[1]] = self.k_matrix_lt(k_in)
 
         # Populate the diagonal
-        k_matrix[:, self.diag_indices[0], self.diag_indices[1]] = self.k_matrix_diag(k_in)
+        k_matrix[:, self.diag_indices[0], self.diag_indices[1]] = self.k_matrix_diag(
+            k_in
+        )
 
         # Apply Koopman operation
         g_next = torch.bmm(k_matrix, g.unsqueeze(-1))
@@ -177,11 +205,15 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return self.k_matrix_diag
 
     def _normalize(self, x):
-        x = (x - self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) / self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        x = (x - self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) / self.std.unsqueeze(
+            0
+        ).unsqueeze(-1).unsqueeze(-1)
         return x
 
     def _unnormalize(self, x: Tensor) -> Tensor:
-        return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[
+            :3
+        ].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
     def _normalize_features(self, field, A0, Ms):
         field = (field - self.mu[3:5].unsqueeze(0)) / self.std[3:5].unsqueeze(0)
@@ -206,7 +238,9 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         self.l2 = l2
         self.l3 = l3
 
-    def forward(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> FloatTuple:
+    def forward(
+        self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor
+    ) -> FloatTuple:
         """Trains model for a single epoch
         Args:
             states (Tensor): [B, T, H, W] Time-series feature tensor
@@ -220,7 +254,9 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         self.embedding_model.train()
         return self._forward(states, field, A0, Ms)
 
-    def evaluate(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> FloatTuple:
+    def evaluate(
+        self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor
+    ) -> FloatTuple:
         """Evaluates the embedding models reconstruction error and returns its
         predictions.
         Args:
@@ -267,8 +303,8 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 * torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
             )
 
-
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
             g1_old = g1Pred
 
-        return loss/states.size(1), loss_reconstruct/states.size(1)
+        return loss / states.size(1), loss_reconstruct / states.size(1)
+
