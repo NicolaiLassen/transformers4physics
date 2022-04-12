@@ -12,16 +12,18 @@ from torch.utils.data.dataset import Dataset
 Tensor = torch.Tensor
 
 class MagDataset(Dataset):
-    def __init__(self, examples, fields, embedded=None):
+    def __init__(self, examples, fields, A0, Ms, embedded=None):
         self.examples = examples
         self.fields = fields
+        self.A0 = A0
+        self.Ms = Ms
         self.embedded =  embedded if embedded is not None else torch.zeros((examples.size(0))) 
 
     def __len__(self):
         return len(self.examples)
 
     def __getitem__(self, i):
-        return {"states": self.examples[i], "fields": self.fields[i], "embedded": self.embedded[i]}
+        return {"states": self.examples[i], "fields": self.fields[i], "A0": self.A0[i], "Ms": self.Ms[i], "embedded": self.embedded[i]}
 
 def read_and_embbed_h5_dataset(
     file_path: str,
@@ -80,6 +82,8 @@ def read_h5_dataset(
 
     seq = []
     fields = []
+    A0 = []
+    Ms = []
     with h5py.File(file_path, "r") as f:
 
         n_seq = 0
@@ -89,6 +93,8 @@ def read_h5_dataset(
             for i in range(0,  data_series.size(0) - block_size + 1, stride):
                 seq.append(data_series[i: i + block_size].unsqueeze(0))
                 fields.append(torch.Tensor(np.array(f[key]['field'][:2])).unsqueeze(0))
+                A0.append(torch.Tensor([f[key]['A0'][()]]).unsqueeze(0))
+                Ms.append(torch.Tensor([f[key]['Ms'][()]]).unsqueeze(0))
 
             n_seq = n_seq + 1
             if(n_data > 0 and n_seq >= n_data):  # If we have enough time-series samples break loop
@@ -96,7 +102,10 @@ def read_h5_dataset(
 
     seq_tensor = torch.cat(seq,dim=0)
     fields_tensor = torch.cat(fields,dim=0)
-    data = MagDataset(seq_tensor, fields_tensor)
+    A0_tensor = torch.cat(A0, dim=0)
+    Ms_tensor = torch.cat(Ms, dim=0)
+
+    data = MagDataset(seq_tensor, fields_tensor, A0_tensor, Ms_tensor)
     if seq_tensor.size(0) < batch_size:
         batch_size = seq_tensor.size(0)
 

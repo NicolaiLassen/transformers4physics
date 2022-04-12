@@ -129,12 +129,12 @@ def generate_data_set(
 
 if __name__ == "__main__":
     generate_data_set(
-        "./mag_data_field_material_train.h5",
+        "./mag_data_field_material_test.h5",
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=150,
+        num_sequences=10,
         timesteps=400,
-        seed=42,
+        seed=3,
         field_interval=[-25, 25],
         use_choices=True,
         A0_choices=[

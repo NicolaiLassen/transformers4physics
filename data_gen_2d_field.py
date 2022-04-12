@@ -82,7 +82,7 @@ def generate_data_set(
         print('Generating sequence: {}/{}'.format(i+1, num_sequences))
         field = np.zeros(3)
         field[0:2] = (field_interval[1]-field_interval[0]) * \
-            rng.random((2)) - field_interval[1]
+            rng.random((2)) + field_interval[0]
         seq = generate_sequence(
             rng,
             res=res,
@@ -105,7 +105,7 @@ if __name__ == '__main__':
         './mag_data_with_field_train.h5',
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=150,
+        num_sequences=50,
         timesteps=400,
         seed=42,
         field_interval=[-25,25],

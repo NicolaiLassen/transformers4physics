@@ -55,23 +55,23 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         # Learned Koopman operator
         self.diag_indices = np.diag_indices(config.embedding_dim)
         self.k_matrix_diag = nn.Sequential(
-            nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, config.embedding_dim)
+            nn.Linear(4, 75), nn.ReLU(), nn.Linear(75, config.embedding_dim)
         )
 
         self.triu_indices = torch.triu_indices(config.embedding_dim, config.embedding_dim)
         self.tril_indices = torch.tril_indices(config.embedding_dim, config.embedding_dim)
         self.k_matrix_ut = nn.Sequential(
-            nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, self.triu_indices[0].size(0))
+            nn.Linear(4, 75), nn.ReLU(), nn.Linear(75, self.triu_indices[0].size(0))
         )
         self.k_matrix_lt = nn.Sequential(
-            nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, self.tril_indices[0].size(0))
+            nn.Linear(4, 75), nn.ReLU(), nn.Linear(75, self.tril_indices[0].size(0))
         )
 
         # Normalization occurs inside the model
         self.register_buffer("mu", torch.zeros(config.channels))
         self.register_buffer("std", torch.ones(config.channels))
 
-    def forward(self, x: Tensor, field: Tensor) -> TensorTuple:
+    def forward(self, x: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> TensorTuple:
         """Forward pass
         Args:
             x (Tensor): [B, 3, H, W] Input feature tensor
@@ -87,6 +87,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                A0.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                Ms.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
             ],
             dim=1,
         )
@@ -97,7 +99,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         xhat = self._unnormalize(out)
         return g, xhat
 
-    def embed(self, x: Tensor, field: Tensor) -> Tensor:
+    def embed(self, x: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> Tensor:
         """Embeds tensor of state variables to Koopman observables
         Args:
             x (Tensor): [B, 3, H, W] Input feature tensor
@@ -110,6 +112,8 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 x,
                 field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                A0.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                Ms.unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
                 # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
             ],
             dim=1,
@@ -129,7 +133,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         x = self._unnormalize(out)
         return x
 
-    def koopman_operation(self, g: Tensor, field: Tensor) -> Tensor:
+    def koopman_operation(self, g: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
@@ -140,12 +144,14 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         k_matrix = Variable(
             torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
         ).to(self.devices[0])
+        field, A0, Ms = self._normalize_features(field, A0, Ms)
+        k_in = torch.cat([field,A0,Ms], dim=1)
         # Populate the off diagonal terms
-        k_matrix[:, self.triu_indices[0], self.triu_indices[1]] = self.k_matrix_ut(field)
-        k_matrix[:, self.tril_indices[0], self.tril_indices[1]] = self.k_matrix_lt(field)
+        k_matrix[:, self.triu_indices[0], self.triu_indices[1]] = self.k_matrix_ut(k_in)
+        k_matrix[:, self.tril_indices[0], self.tril_indices[1]] = self.k_matrix_lt(k_in)
 
         # Populate the diagonal
-        k_matrix[:, self.diag_indices[0], self.diag_indices[1]] = self.k_matrix_diag(field)
+        k_matrix[:, self.diag_indices[0], self.diag_indices[1]] = self.k_matrix_diag(k_in)
 
         # Apply Koopman operation
         g_next = torch.bmm(k_matrix, g.unsqueeze(-1))
@@ -177,6 +183,12 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
     def _unnormalize(self, x: Tensor) -> Tensor:
         return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
+    def _normalize_features(self, field, A0, Ms):
+        field = (field - self.mu[3:5].unsqueeze(0)) / self.std[3:5].unsqueeze(0)
+        A0 = (A0 - self.mu[5].unsqueeze(0)) / self.std[5].unsqueeze(0)
+        Ms = (Ms - self.mu[6].unsqueeze(0)) / self.std[6].unsqueeze(0)
+        return field, A0, Ms
+
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
@@ -194,7 +206,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         self.l2 = l2
         self.l3 = l3
 
-    def forward(self, states: Tensor, field: Tensor) -> FloatTuple:
+    def forward(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> FloatTuple:
         """Trains model for a single epoch
         Args:
             states (Tensor): [B, T, H, W] Time-series feature tensor
@@ -206,9 +218,9 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 | (float): Reconstruction loss
         """
         self.embedding_model.train()
-        return self._forward(states, field)
+        return self._forward(states, field, A0, Ms)
 
-    def evaluate(self, states: Tensor, field: Tensor) -> FloatTuple:
+    def evaluate(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor) -> FloatTuple:
         """Evaluates the embedding models reconstruction error and returns its
         predictions.
         Args:
@@ -221,9 +233,9 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 | (float): Reconstruction loss
         """
         self.embedding_model.eval()
-        return self._forward(states, field)
+        return self._forward(states, field, A0, Ms)
 
-    def _forward(self, states: Tensor, field: Tensor):
+    def _forward(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor):
         device = self.embedding_model.devices[0]
 
         loss_reconstruct = 0
@@ -232,7 +244,7 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         xin0 = states[:, 0].to(device)  # Time-step
 
         # Model forward for initial time-step
-        g0, xRec0 = self.embedding_model(xin0, field)
+        g0, xRec0 = self.embedding_model(xin0, field, A0, Ms)
 
         loss = self.l2 * mseLoss(xin0, xRec0)
         loss_reconstruct = loss_reconstruct + self.l1 * mseLoss(xin0, xRec0).detach()
@@ -242,9 +254,9 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         # Loop through time-series
         for t0 in range(1, states.shape[1]):
             xin0 = states[:, t0, :, :].to(device)  # Next time-step
-            _, xRec1 = self.embedding_model(xin0, field)
+            _, xRec1 = self.embedding_model(xin0, field, A0, Ms)
 
-            g1Pred = self.embedding_model.koopman_operation(g1_old, field)
+            g1Pred = self.embedding_model.koopman_operation(g1_old, field, A0, Ms)
             xgRec1 = self.embedding_model.recover(g1Pred)
 
             loss = (

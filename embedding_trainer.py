@@ -53,6 +53,8 @@ class EmbeddingPhysTrainer(pl.LightningModule):
                 torch.mean(self.train_dataset[:]["states"][:, :, 2]),
                 torch.mean(self.train_dataset[:]["fields"][:, 0]),
                 torch.mean(self.train_dataset[:]["fields"][:, 1]),
+                torch.mean(self.train_dataset[:]["A0"]),
+                torch.mean(self.train_dataset[:]["Ms"]),
                 # torch.mean(self.train_dataset[:]["fields"][:, 2]),
             ]
         )
@@ -63,6 +65,8 @@ class EmbeddingPhysTrainer(pl.LightningModule):
                 torch.std(self.train_dataset[:]["states"][:, :, 2]),
                 torch.std(self.train_dataset[:]["fields"][:, 0]),
                 torch.std(self.train_dataset[:]["fields"][:, 1]),
+                torch.std(self.train_dataset[:]["A0"]),
+                torch.std(self.train_dataset[:]["Ms"]),
                 # torch.std(self.train_dataset[:]["fields"][:, 2]),
             ]
         )
@@ -82,9 +86,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
-        train_path = "{}\\train.h5".format(base_path)
-        val_path = "{}\\train.h5".format(base_path)
-        test_path = "{}\\test.h5".format(base_path)
+        train_path = "{}\\material_train.h5".format(base_path)
+        val_path = "{}\\material_test.h5".format(base_path)
+        test_path = "{}\\material_test.h5".format(base_path)
 
         train_set = read_h5_dataset(
             train_path,
@@ -199,14 +203,16 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         x = batch
         s = x["states"]
         f = x["fields"]
+        a0 = x["A0"]
+        ms = x["Ms"]
 
         if(mode=='val'):
-            self.viz.plot_prediction(self.model(s[0],f[0].unsqueeze(0))[1],s[0])
+            self.viz.plot_prediction(self.model(s[0],f[0].unsqueeze(0),a0[0].unsqueeze(0),ms[0].unsqueeze(0))[1],s[0])
 
         loss, loss_reconstruct = (
-            self.model_trainer.evaluate(s, f)
+            self.model_trainer.evaluate(s, f, a0, ms)
             if mode == "val"
-            else self.model_trainer(s, f)
+            else self.model_trainer(s, f, a0, ms)
         )
 
         self.log_dict(
@@ -251,7 +257,7 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=15,
-        check_val_every_n_epoch=100,
+        check_val_every_n_epoch=500,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,
