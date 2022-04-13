@@ -1,109 +1,160 @@
+from pickletools import optimize
+import os
 
-from omegaconf import DictConfig
-from torch.nn import MultiheadAttention
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
-from config.config_emmbeding import EmmbedingConfig
-from embedding.embedding_landau_lifshitz_gilbert import \
-    LandauLifshitzGilbertEmbedding, LandauLifshitzGilbertEmbeddingTrainer
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from vit_pytorch import MAE, crossformer
+import matplotlib.pyplot as plt
+
+from PIL import Image
+import torchvision.transforms.functional as TF
+from torchvision.transforms import Resize, Compose
+
+from embedding.backbone.conv_backbone import ConvBackbone
+
+import torch
+from torch import nn
+
+from einops import rearrange, repeat
+from einops.layers.torch import Rearrange
+
+# helpers
+
+def pair(t):
+    return t if isinstance(t, tuple) else (t, t)
+
+# classes
+
+class PreNorm(nn.Module):
+    def __init__(self, dim, fn):
+        super().__init__()
+        self.norm = nn.LayerNorm(dim)
+        self.fn = fn
+    def forward(self, x, **kwargs):
+        return self.fn(self.norm(x), **kwargs)
+
+class FeedForward(nn.Module):
+    def __init__(self, dim, hidden_dim, dropout = 0.):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(dim, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, dim),
+            nn.Dropout(dropout)
+        )
+    def forward(self, x):
+        return self.net(x)
+
+class Attention(nn.Module):
+    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+        super().__init__()
+        inner_dim = dim_head *  heads
+        project_out = not (heads == 1 and dim_head == dim)
+
+        self.heads = heads
+        self.scale = dim_head ** -0.5
+
+        self.attend = nn.Softmax(dim = -1)
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dim, dim),
+            nn.Dropout(dropout)
+        ) if project_out else nn.Identity()
+
+    def forward(self, x):
+        qkv = self.to_qkv(x).chunk(3, dim = -1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+
+        dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
+
+        attn = self.attend(dots)
+
+        out = torch.matmul(attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        return self.to_out(out)
+
+class Transformer(nn.Module):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+        super().__init__()
+        self.layers = nn.ModuleList([])
+        for _ in range(depth):
+            self.layers.append(nn.ModuleList([
+                PreNorm(dim, Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout)),
+                PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout))
+            ]))
+    def forward(self, x):
+        for attn, ff in self.layers:
+            x = attn(x) + x
+            x = ff(x) + x
+        return x
+
+def split_tensor(tensor, tile_size=32):
+    mask = torch.ones_like(tensor)
+    # use torch.nn.Unfold
+    stride  = tile_size//2
+    unfold  = nn.Unfold(kernel_size=(tile_size, tile_size), stride=stride)
+
+    # Apply to mask and original image
+    mask_p  = unfold(mask)
+    patches = unfold(tensor)
+	
+    patches = patches.reshape(3, tile_size, tile_size, -1).permute(3, 0, 1, 2)
+    if tensor.is_cuda:
+        patches_base = torch.zeros(patches.size(), device=tensor.get_device())
+    else: 
+        patches_base = torch.zeros(patches.size())
+	
+    tiles = []
+    for t in range(patches.size(0)):
+         tiles.append(patches[[t], :, :, :])
+
+    return tiles, mask_p, patches_base, (tensor.size(2), tensor.size(3))
+
+def rebuild_tensor(tensor_list, mask_t, base_tensor, t_size, tile_size=32):
+    stride  = tile_size//2  
+    # base_tensor here is used as a container
+
+    for t, tile in enumerate(tensor_list):
+         print(tile.size())
+         base_tensor[[t], :, :] = tile  
+	 
+    base_tensor = base_tensor.permute(1, 2, 3, 0).reshape(3*tile_size*tile_size, base_tensor.size(0)).unsqueeze(0)
+    fold = nn.Fold(output_size=(t_size[0], t_size[1]), kernel_size=(tile_size, tile_size), stride=stride)
+   
+    # https://discuss.pytorch.org/t/seemlessly-blending-tensors-together/65235/2?u=bowenroom
+    output_tensor = fold(base_tensor)/fold(mask_t)
+    # output_tensor = fold(base_tensor)
+    return output_tensor
+
 if __name__ == '__main__':
-    import os
 
-    import h5py
-    # import matplotlib.pyplot as plt
-    import numpy as np
-    import torch
-    import torch.nn as nn
-    import torch.optim as optim
-    import torchvision.transforms as transforms
-    # with h5py.File(val_path, "r") as f:
-    #     for key in f.keys():
-    #         data_series = torch.Tensor(f[key])
-    #         print(data_series)
-    # exit()
-    from PIL import Image
+    image = Image.open('C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\dog.jpg')
+    image = image.resize((128, 128), resample=0)
+    x = TF.to_tensor(image).unsqueeze(0)
+    
 
-    # base_path = "C:\\Users\\s174270\\Documents\\datasets\\32x32 with field"
-    # val_path = "{}\\val.h5".format(base_path)
-    os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+    print(x[0].shape)
+    plt.imshow( x[0].permute(1, 2, 0)  )
+    plt.show()
 
-    # img = Image.open(
-    #   "C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\models\\embedding\\test.jpg")
-    pil_to_tensor = torch.rand(1, 16, 3, 32, 32).cuda()
-    model_1 = LandauLifshitzGilbertEmbedding(
-        EmmbedingConfig(DictConfig({
-            "image_size": 32,
-            "channels": 3,
-            "backbone": "TwinsSVT",
-            "fc_dim": 64,
-            "embedding_dim": 64,
-            "backbone_dim": 64,
-        }))
-    )
+    tiles, _, _, _ = split_tensor(x, 32)
 
-    trainer_1 = LandauLifshitzGilbertEmbeddingTrainer(model_1)
+    fine_grained = ConvBackbone(img_size=32)
 
-    optimizer = optim.Adam(trainer_1.parameters(), lr=0.001)
+    patch_b = torch.stack(tiles)
+    
+    # shuffel idx
+    for i in range(patch_b.size(0)):
+        tile = tiles[i]
+        fine_grained_o = fine_grained.embed(tile)
+    
+    print(fine_grained_o.shape)
 
-    print(sum(p.numel() for p in trainer_1.parameters()))
-
-    for i in range(100):
-
-        optimizer.zero_grad()
-
-        loss, _ = trainer_1(pil_to_tensor)
-
-        _, _ = trainer_1.evaluate(pil_to_tensor)
-        loss.backward()
-        optimizer.step()
-
-        print(loss)
-
-    # model_2 = LandauLifshitzGilbertEmbeddingTrainer(
-    #     EmmbedingConfig(DictConfig({
-    #         "image_size": 32,
-    #         "channels": 3,
-    #         "backbone": "Conv",
-    #         "fc_dim": 64,
-    #         "embedding_dim": 64,
-    #         "backbone_dim": 64,
-    #     }))
-    # ).cuda()
-
-    # optimizer = optim.Adam(model_2.parameters(), lr=0.001)
-    # print(sum(p.numel() for p in model_2.parameters()))
-
-    # for i in range(10):
-
-    #     optimizer.zero_grad()
-
-    #     loss, _ = model_2(pil_to_tensor)
-
-    #     loss.backward()
-    #     optimizer.step()
-
-    # print(loss)
-
-    # model_3 = LandauLifshitzGilbertEmbeddingTrainer(
-    #     EmmbedingConfig(DictConfig({
-    #         "image_size": 32,
-    #         "channels": 3,
-    #         "backbone": "ResNet",
-    #         "fc_dim": 64,
-    #         "embedding_dim": 64,
-    #         "backbone_dim": 64,
-    #     }))
-    # ).cuda()
-
-    # optimizer = optim.Adam(model_3.parameters(), lr=0.001)
-    # print(sum(p.numel() for p in model_3.parameters()))
-
-    # for i in range(10):
-
-    #     optimizer.zero_grad()
-
-    #     loss, _ = model_3(pil_to_tensor)
-
-    #     loss.backward()
-    #     optimizer.step()
-
-    # print(loss)
+import vit_pytorch.vit
