@@ -45,7 +45,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             )
 
         self.backbone: EmbeddingBackbone = backbone_models[config.backbone](
-            img_size=[config.image_size_x, config.image_size_y],
+            img_size=(config.image_size_x, config.image_size_y),
             backbone_dim=config.backbone_dim,
             embedding_dim=config.embedding_dim,
             fc_dim=config.fc_dim,
