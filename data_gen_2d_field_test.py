@@ -82,7 +82,7 @@ def generate_data_set(
         print('Generating sequence: {}/{}'.format(i+1, num_sequences))
         field = np.zeros(3)
         field[0:2] = (field_interval[1]-field_interval[0]) * \
-            rng.random((2)) - field_interval[1]
+            rng.random((2)) + field_interval[0]
         seq = generate_sequence(
             rng,
             res=res,

@@ -58,8 +58,31 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, config.embedding_dim)
         )
 
-        self.triu_indices = torch.triu_indices(config.embedding_dim, config.embedding_dim)
-        self.tril_indices = torch.tril_indices(config.embedding_dim, config.embedding_dim)
+        # Off-diagonal indices
+        if config.koopman_bandwidth < 0 or config.koopman_bandwidth >= config.embedding_dim:
+            xidx = []
+            yidx = []
+            for i in range(1, config.embedding_dim):
+                xidx.append(np.arange(i, config.embedding_dim))
+                yidx.append(np.arange(0, config.embedding_dim - i))
+            self.triu_indices = torch.LongTensor(
+                [np.concatenate(xidx), np.concatenate(yidx)]
+            )
+            self.tril_indices = torch.LongTensor(
+                [np.concatenate(yidx), np.concatenate(xidx)]
+            )
+        else:
+            xidx = []
+            yidx = []
+            for i in range(1, config.koopman_bandwidth + 1):
+                xidx.append(np.arange(i, config.embedding_dim))
+                yidx.append(np.arange(0, config.embedding_dim - i))
+            self.triu_indices = torch.LongTensor(
+                [np.concatenate(xidx), np.concatenate(yidx)]
+            )
+            self.tril_indices = torch.LongTensor(
+                [np.concatenate(yidx), np.concatenate(xidx)]
+            )
         self.k_matrix_ut = nn.Sequential(
             nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, self.triu_indices[0].size(0))
         )
