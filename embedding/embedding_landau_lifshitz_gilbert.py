@@ -136,6 +136,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
+        field = self._normalize_features(field)
         # Koopman operator
         k_matrix = Variable(
             torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
@@ -176,6 +177,10 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
 
     def _unnormalize(self, x: Tensor) -> Tensor:
         return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+
+    def _normalize_features(self, field):
+        field = (field - self.mu[3:5].unsqueeze(0)) / self.std[3:5].unsqueeze(0)
+        return field
 
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
