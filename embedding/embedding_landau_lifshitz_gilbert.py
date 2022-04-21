@@ -275,7 +275,15 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         device = self.embedding_model.devices[0]
 
         loss_reconstruct = 0
-        mseLoss = nn.MSELoss()
+        # mseLoss = nn.MSELoss()
+        mse = nn.MSELoss()
+        z_penalty = 6
+        def mseLoss(y,x):
+            lossX = mse(y[:,0],x[:,0])
+            lossY = mse(y[:,1],x[:,1])
+            lossZ = z_penalty * mse(y[:,2],x[:,2])
+            loss = torch.mean(torch.stack([lossX,lossY,lossZ]))
+            return loss
 
         xin0 = states[:, 0].to(device)  # Time-step
 
