@@ -251,7 +251,7 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=15,
-        check_val_every_n_epoch=100,
+        check_val_every_n_epoch=150,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,
