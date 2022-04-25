@@ -212,15 +212,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return x
 
     def _unnormalize(self, x: Tensor) -> Tensor:
+        # Return vectors to unnormalized sizes
         x = self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        # xn = torch.linalg.vector_norm(x,dim=1,keepdim=True)
-        # x = x.div(xn)
+        # Ensure vectors are unit vectors
         x = F.normalize(x, p=2, dim=1)
-        
         return x
-        # return self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[
-        #     :3
-        # ].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
 
     def _normalize_features(self, field, A0, Ms):
         field = (field - self.mu[3:5].unsqueeze(0)) / self.std[3:5].unsqueeze(0)
