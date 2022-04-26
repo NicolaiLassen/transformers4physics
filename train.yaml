@@ -67,10 +67,10 @@ learning:
   epochs: 300
   start_epoch: 0
 
-  block_size_train: 4
-  stride_train: 4
-  batch_size_train: 64
-  n_data_train: 3
+  block_size_train: 6
+  stride_train: 6
+  batch_size_train: 256
+  n_data_train: 50
   
   batch_size_val: 1
   block_size_val: 400

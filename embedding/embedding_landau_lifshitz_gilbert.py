@@ -212,10 +212,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return x
 
     def _unnormalize(self, x: Tensor) -> Tensor:
-        # Return vectors to unnormalized sizes
         x = self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        # Ensure vectors are unit vectors
-        x = F.normalize(x, p=2, dim=1)
         return x
 
     def _normalize_features(self, field, A0, Ms):
@@ -232,14 +229,16 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         l1: Penalty weight for the reconstruction
         l2: Penalty weight for the dynamics in the koopman sequences
         l3: Penalty weight for the decay of the koopman operator, prevents overfitting
+        l4: Penalty weight for ensuring unit vectors in the output
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2):
+    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2, l4=100):
         super().__init__()
         self.embedding_model = embedding_model
         self.l1 = l1
         self.l2 = l2
         self.l3 = l3
+        self.l4 = l4
 
     def forward(
         self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor
@@ -272,28 +271,24 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 | (float): Reconstruction loss
         """
         self.embedding_model.eval()
-        return self._forward(states, field, A0, Ms)
+        return self._forward(states, field, A0, Ms, ev=True)
 
-    def _forward(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor):
+    def _forward(self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor, ev = False):
         device = self.embedding_model.devices[0]
 
         loss_reconstruct = 0
-        # mseLoss = nn.MSELoss()
-        mse = nn.MSELoss()
-        z_penalty = 6
-        def mseLoss(y,x):
-            lossX = mse(y[:,0],x[:,0])
-            lossY = mse(y[:,1],x[:,1])
-            lossZ = z_penalty * mse(y[:,2],x[:,2])
-            loss = torch.mean(torch.stack([lossX,lossY,lossZ]))
-            return loss
+        mseLoss = nn.MSELoss()
 
         xin0 = states[:, 0].to(device)  # Time-step
 
         # Model forward for initial time-step
         g0, xRec0 = self.embedding_model(xin0, field, A0, Ms)
+        normsX = xRec0.reshape(-1,3)
+        normsX = torch.sqrt(torch.einsum('ij,ij->j',normsX.T, normsX.T))
+        ones = torch.ones((normsX.shape[0])).to(device)
 
-        loss = self.l2 * mseLoss(xin0, xRec0)
+        loss = self.l2 * mseLoss(xin0, xRec0) 
+        + self.l4 * mseLoss(normsX, ones)
         loss_reconstruct = loss_reconstruct + self.l1 * mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
@@ -306,12 +301,20 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
             g1Pred = self.embedding_model.koopman_operation(g1_old, field, A0, Ms)
             xgRec1 = self.embedding_model.recover(g1Pred)
 
+            normsX = xRec1.swapaxes(1,3).reshape(-1,3)
+            normsG = xgRec1.swapaxes(1,3).reshape(-1,3)
+            normsX = torch.sqrt(torch.einsum('ij,ij->j',normsX.T, normsX.T))
+            normsG = torch.sqrt(torch.einsum('ij,ij->j',normsG.T, normsG.T))
+            ones = torch.ones((normsX.shape[0])).to(device)
+
             loss = (
                 loss
                 + self.l1 * mseLoss(xgRec1, xin0)
                 + self.l2 * mseLoss(xRec1, xin0)
                 + self.l3
                 * torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
+                + self.l4 * mseLoss(normsX, ones)
+                + self.l4 * mseLoss(normsG, ones)
             )
 
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
