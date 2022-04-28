@@ -6,7 +6,7 @@ from magtense import magtense, micromag_problem
 
 
 def generate_sequence(
-    rng,
+    s_state,
     res=[36, 36, 1],
     grid_L=[500e-9, 500e-9, 3e-9],
     timesteps=500,
@@ -25,12 +25,12 @@ def generate_sequence(
     problem.grid_L = grid_L
     # Note, alpha = 0.02 gives a lambda val equal to 4.42e3
     problem.alpha = 4.42e3
-    problem.gamma = 2.21e5
+    problem.gamma = 2.211e5
     problem.setTimeDis = 10
 
     # Material properties
-    # problem.A0 = 1.3e-11
-    # problem.Ms = 8.0e5
+    problem.A0 = 1.3e-11
+    problem.Ms = 8.0e5
 
     timesteps = timesteps
     t_end = time_per_step*timesteps
@@ -42,9 +42,10 @@ def generate_sequence(
     t_out = np.zeros(shape=(timesteps))
 
     # Starting state
-    for i in range(problem.m0.shape[0]):
-        v = 2 * rng.random((3)) - 1
-        problem.m0[i] = 1 / np.linalg.norm(v) * v
+    s_state = s_state.swapaxes(1,2)
+    s_state = s_state.reshape(3,-1)
+    s_state = s_state.swapaxes(0,1)
+    problem.m0 = s_state
 
     for n_t in range(timesteps//50):
         dt = t_end / (timesteps // 50)
@@ -67,6 +68,7 @@ def generate_sequence(
 
 def generate_data_set(
     save_to_file,
+    s_state = None,
     res=[36, 36, 1],
     num_sequences=4,
     timesteps=500,
@@ -84,7 +86,7 @@ def generate_data_set(
         field[0:2] = (field_interval[1]-field_interval[0]) * \
             rng.random((2)) + field_interval[0]
         seq = generate_sequence(
-            rng,
+            s_state = s_state,
             res=res,
             timesteps=timesteps,
             use_CUDA=use_CUDA,
@@ -103,12 +105,15 @@ def generate_data_set(
 
 
 if __name__ == '__main__':
+    f = h5py.File('./s_state.h5', 'r')
+    s_state = np.array(f['s_state'])
     generate_data_set(
-        './data_train.h5',
+        './field_s_state_test.h5',
+        s_state = s_state,
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=50,
+        num_sequences=5,
         timesteps=400,
-        seed=42,
+        seed=500,
         field_interval=[-25,25],
     )

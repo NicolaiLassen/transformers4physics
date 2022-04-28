@@ -201,7 +201,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
 
     def _unnormalize(self, x: Tensor) -> Tensor:
         x = self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-        # x = F.normalize(x,p=2,dim=1)
+        x = F.normalize(x,p=2,dim=1)
         return x
 
     def _normalize_features(self, field):

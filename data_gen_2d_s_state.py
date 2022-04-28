@@ -9,6 +9,7 @@ def generate_s_state(
     res=[36, 36, 1],
     NIST_field=1,
     use_CUDA=False,
+    show = False,
 ) -> np.ndarray:
     mu0 = 4*np.pi*1e-7
 
@@ -22,6 +23,9 @@ def generate_s_state(
 
     problem_ini.alpha = 4.42e3
     problem_ini.gamma = 0
+    problem_ini.A0 = 1.3e-11
+    problem_ini.Ms = 8.0e5
+    problem_ini.K0 = 0
 
     # Initial magnetization
     problem_ini.m0[:] = (1 / np.sqrt(3))
@@ -45,14 +49,31 @@ def generate_s_state(
         M_ini_out[n_t*50:(n_t+1)*50] = M.copy()
         t_ini_out[n_t*50:(n_t+1)*50] = t.copy()
 
+    if show:
+        # plt.plot(t_ini_out, np.mean(M_ini_out[:, :, 0, 0], axis=1), 'rx')
+        # plt.plot(t_ini_out, np.mean(M_ini_out[:, :, 0, 1], axis=1), 'gx')
+        # plt.plot(t_ini_out, np.mean(M_ini_out[:, :, 0, 2], axis=1), 'bx')
+        print(np.mean(M_ini_out[-1, :, 0, 0]))
+        print(np.mean(M_ini_out[-1, :, 0, 1]))
+        print(np.mean(M_ini_out[-1, :, 0, 2]))
+        # plt.show()
+
     return M_ini_out
 
 if __name__ == '__main__':
     res = [64,16,1]
-    hf = h5py.File('./s_state.h5', 'w')
     seq = generate_s_state(
         res=res,
+        show=True,
     )
-    seq = seq.reshape(200, res[0], res[1], 3).swapaxes(1,3).swapaxes(2,3)
-    hf.create_dataset('m',data=seq)
-    hf.close()
+    seq = seq.swapaxes(2,3)
+    seq = seq.swapaxes(1,2)
+    seq = seq.reshape(200,3,res[1],res[0]).swapaxes(2,3)
+    s_state = seq[-1]
+    plt.figure(figsize=(8, 2), dpi=80)
+    plt.quiver(s_state[0].swapaxes(0,1), s_state[1].swapaxes(0,1), pivot='mid', )
+    plt.show()
+    print(s_state.shape)
+    # hf = h5py.File('./s_state.h5', 'w')
+    # hf.create_dataset('s_state',data=s_state)
+    # hf.close()
