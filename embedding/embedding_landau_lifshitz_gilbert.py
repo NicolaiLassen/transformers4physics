@@ -79,10 +79,10 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                 xidx.append(np.arange(i, config.embedding_dim))
                 yidx.append(np.arange(0, config.embedding_dim - i))
             self.triu_indices = torch.LongTensor(
-                [np.concatenate(xidx), np.concatenate(yidx)]
+                np.array([np.concatenate(xidx), np.concatenate(yidx)])
             )
             self.tril_indices = torch.LongTensor(
-                [np.concatenate(yidx), np.concatenate(xidx)]
+                np.array([np.concatenate(yidx), np.concatenate(xidx)])
             )
         self.k_matrix_ut = nn.Sequential(
             nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, self.triu_indices[0].size(0))
