@@ -9,9 +9,11 @@ from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmb
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
-    f = h5py.File(base + '\\field_s_state_test.h5')
-    sample = np.array(f['3']['sequence'])
-    field = np.array( f['3']['field'])
+    f = h5py.File(base + '\\material_s_state_test.h5')
+    sample = np.array(f['0']['sequence'])
+    field = np.array( f['0']['field'])
+    A0 = np.array( f['0']['A0'])
+    Ms = np.array( f['0']['Ms'])
     print(sample.shape)
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
     # plt.show()
@@ -23,24 +25,28 @@ if __name__ == '__main__':
     cfg.input_dims = [2, 64, 128]
     cfg.backbone= "ResNet"
     cfg.backbone_dim = 160
-    cfg.channels= 5
+    cfg.channels= 7
     cfg.ckpt_path= ""
     cfg.config_name= ""
-    cfg.embedding_dim= 256
+    cfg.embedding_dim= 128
     cfg.fc_dim= 160
     cfg.image_size_x= 64
     cfg.image_size_y= 16
-    cfg.koopman_bandwidth= 23
+    cfg.koopman_bandwidth= 10
     model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg),
     ).cuda()
-    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-28\\19-24-38\ckpt\\no_name.pth')
+    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-29\\17-15-11\ckpt\\no_name.pth')
     model.eval()
     print(sample.shape)
     sample_t = torch.tensor(sample).float().cuda()
     field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
     field_t[:] = torch.tensor(field)
-    a = model.embed(sample_t, field_t)
+    A0_t = torch.zeros((sample_t.size(0),1)).float().cuda()
+    A0_t[:] = torch.tensor(A0)
+    Ms_t = torch.zeros((sample_t.size(0),1)).float().cuda()
+    Ms_t[:] = torch.tensor(Ms)
+    a = model.embed(sample_t, field_t, A0_t, Ms_t)
     recon = model.recover(a)
     recon = recon.detach().cpu().numpy()
     plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
