@@ -1,3 +1,4 @@
+from gc import callbacks
 from operator import mod
 from pathlib import Path
 from pyexpat import model
@@ -15,6 +16,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch import optim
 from torch.utils.data import DataLoader
+from callback import AutoregressiveSaveCallback
 
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
@@ -47,6 +49,8 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         self.embedding_model = self.configure_embedding_model(
             cfg.autoregressive.embedding_model_ckpt_path)
         self.embedding_model.eval()
+        for param in self.embedding_model.parameters():
+            param.requires_grad = False
         self.model = self.configure_autoregressive_model()
         self.model_trainer = PhysformerTrain(self.model)
         
@@ -80,9 +84,9 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
-        train_path = "{}\\train.h5".format(base_path)
-        val_path = "{}\\test.h5".format(base_path)
-        test_path = "{}\\test.h5".format(base_path)
+        train_path = "{}\\field_s_state.h5".format(base_path)
+        val_path = "{}\\field_s_state_test.h5".format(base_path)
+        test_path = "{}\\field_s_state_test.h5".format(base_path)
 
         train_set = read_and_embbed_h5_dataset(train_path,
                                                self.embedding_model,
@@ -231,7 +235,6 @@ class AutoRegressivePhysTrainer(pl.LightningModule):
 
         return targets_error
 
-
 def train(cfg):
     pl.seed_everything(cfg.seed)
     model = AutoRegressivePhysTrainer(cfg)
@@ -261,7 +264,10 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=50,
-        check_val_every_n_epoch=10
+        check_val_every_n_epoch=500,
+        callbacks = AutoregressiveSaveCallback(
+            dirpath="./ckpt/",
+        ),
     )
 
     trainer.fit(model)

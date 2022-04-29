@@ -1,3 +1,4 @@
+import torch
 from .phys_config import PhysConfig
 
 
@@ -33,3 +34,17 @@ class AutoregressiveConfig(PhysConfig):
 
         self.output_hidden_states = cfg.output_hidden_states if cfg.output_hidden_states else False
         self.output_attentions = cfg.output_attentions if cfg.output_attentions else False
+
+        self.bos_token_id = None
+        self.num_beams = 1
+        self.length_penalty = 1.0
+        self.early_stopping = False
+        self.num_beam_groups = 1
+        self.do_sample = False
+        self.num_return_sequences = 1
+        self.pad_token_id = None
+        self.eos_token_id = None
+        self.output_scores = None
+        self.return_dict_in_generate = None
+
+        self.is_encoder_decoder = False

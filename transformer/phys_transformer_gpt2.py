@@ -14,9 +14,10 @@ import torch
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from torch import nn
+# from transformers.generation_utils import GenerationMixin
+from .generate_utils import GenerationMixin
 
 from .attention import MaskedAttention
-from .generate_utils import GenerationMixin
 from .phys_transformer import Physformer
 from .phys_transformer_functions import ACT2FN, Conv1D
 
