@@ -86,9 +86,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
-        train_path = "{}\\material_train.h5".format(base_path)
-        val_path = "{}\\material_test.h5".format(base_path)
-        test_path = "{}\\material_test.h5".format(base_path)
+        train_path = "{}\\material_s_state_train.h5".format(base_path)
+        val_path = "{}\\material_s_state_test.h5".format(base_path)
+        test_path = "{}\\material_s_state_test.h5".format(base_path)
 
         train_set = read_h5_dataset(
             train_path,
@@ -255,9 +255,9 @@ def train(cfg):
         max_epochs=cfg.learning.epochs,
         gpus=cfg.gpus,
         logger=logger,
-        num_sanity_val_steps=1,
+        num_sanity_val_steps=0,
         log_every_n_steps=15,
-        check_val_every_n_epoch=10,
+        check_val_every_n_epoch=50,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,

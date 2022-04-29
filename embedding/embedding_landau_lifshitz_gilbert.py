@@ -167,12 +167,11 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
-        field = self._normalize_features(field)
+        field, A0, Ms = self._normalize_features(field, A0, Ms)
         # Koopman operator
         k_matrix = Variable(
             torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
         ).to(self.devices[0])
-        field, A0, Ms = self._normalize_features(field, A0, Ms)
         k_in = torch.cat([field, A0, Ms], dim=1)
         # Populate the off diagonal terms
         k_matrix[:, self.triu_indices[0], self.triu_indices[1]] = self.k_matrix_ut(k_in)
