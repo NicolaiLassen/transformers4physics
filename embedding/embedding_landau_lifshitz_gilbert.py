@@ -167,6 +167,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         Returns:
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
+        field = self._normalize_features(field)
         # Koopman operator
         k_matrix = Variable(
             torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
@@ -213,6 +214,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
 
     def _unnormalize(self, x: Tensor) -> Tensor:
         x = self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        x = F.normalize(x,p=2,dim=1)
         return x
 
     def _normalize_features(self, field, A0, Ms):
@@ -220,7 +222,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         A0 = (A0 - self.mu[5].unsqueeze(0)) / self.std[5].unsqueeze(0)
         Ms = (Ms - self.mu[6].unsqueeze(0)) / self.std[6].unsqueeze(0)
         return field, A0, Ms
-
 
 class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
@@ -320,5 +321,4 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()
             g1_old = g1Pred
 
-        return loss / states.size(1), loss_reconstruct / states.size(1)
-
+        return loss/states.size(1), loss_reconstruct/states.size(1)
