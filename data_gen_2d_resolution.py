@@ -92,7 +92,9 @@ def generate_data_set(
             grid_L=grid_L,
             time_per_step=time_per_step,
         )
-        seq = seq.reshape(timesteps, res[0], res[1], 3).swapaxes(1,3).swapaxes(2,3)
+        seq = seq.swapaxes(2,3)
+        seq = seq.swapaxes(1,2)
+        seq = seq.reshape(timesteps,3,res[1],res[0]).swapaxes(2,3)
         g = hf.create_group(str(i))
         g.create_dataset('sequence', data=seq)
         g.create_dataset('field', data=field)
