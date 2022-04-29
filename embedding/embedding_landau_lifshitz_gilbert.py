@@ -232,13 +232,12 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         l4: Penalty weight for ensuring unit vectors in the output
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2, l4=100):
+    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2):
         super().__init__()
         self.embedding_model = embedding_model
         self.l1 = l1
         self.l2 = l2
         self.l3 = l3
-        self.l4 = l4
 
     def forward(
         self, states: Tensor, field: Tensor, A0: Tensor, Ms: Tensor
@@ -288,7 +287,6 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         ones = torch.ones((normsX.shape[0])).to(device)
 
         loss = self.l2 * mseLoss(xin0, xRec0) 
-        + self.l4 * mseLoss(normsX, ones)
         loss_reconstruct = loss_reconstruct + self.l1 * mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
@@ -313,8 +311,6 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 + self.l2 * mseLoss(xRec1, xin0)
                 + self.l3
                 * torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
-                + self.l4 * mseLoss(normsX, ones)
-                + self.l4 * mseLoss(normsG, ones)
             )
 
             loss_reconstruct = loss_reconstruct + mseLoss(xRec1, xin0).detach()

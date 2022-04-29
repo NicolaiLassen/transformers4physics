@@ -69,7 +69,7 @@ learning:
 
   block_size_train: 4
   stride_train: 4
-  batch_size_train: 256
+  batch_size_train: 64
   n_data_train: 50
   
   batch_size_val: 1

@@ -77,6 +77,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.model.std = std
         self.model_trainer = LandauLifshitzGilbertEmbeddingTrainer(
             self.model,
+            l1=1e2,
+            l2=1e2,
+            l3=1e-2,
         )
 
     def forward(self, z: Tensor):
