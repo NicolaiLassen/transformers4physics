@@ -6,7 +6,7 @@ from magtense import magtense, micromag_problem
 
 
 def generate_sequence(
-    rng,
+    s_state,
     res=[36, 36, 1],
     grid_L=[500e-9, 500e-9, 3e-9],
     timesteps=500,
@@ -46,9 +46,10 @@ def generate_sequence(
     t_out = np.zeros(shape=(timesteps))
 
     # Starting state
-    for i in range(problem.m0.shape[0]):
-        v = 2 * rng.random((3)) - 1
-        problem.m0[i] = 1 / np.linalg.norm(v) * v
+    s_state = s_state.swapaxes(1,2)
+    s_state = s_state.reshape(3,-1)
+    s_state = s_state.swapaxes(0,1)
+    problem.m0 = s_state
 
     for n_t in range(timesteps // 50):
         dt = t_end / (timesteps // 50)
@@ -71,13 +72,13 @@ def generate_sequence(
 
 def generate_data_set(
     save_to_file,
+    s_states,
     res=[36, 36, 1],
     num_sequences=4,
     timesteps=500,
     use_CUDA=False,
     seed=None,
     field_interval=[-50, 50],
-    use_choices=False,
     A0_interval=[1.3e-11, 1.99e-11],
     Ms_interval=[8.0e5, 1.71e6],
     K0_interval=[0, 0],
@@ -95,17 +96,15 @@ def generate_data_set(
         field[0:2] = (field_interval[1] - field_interval[0]) * rng.random(
             (2)
         ) + field_interval[0]
-        if use_choices:
-            idx = rng.choice(len(A0_choices))
-            A0 = A0_choices[idx]
-            Ms = Ms_choices[idx]
-            K0 = K0_choices[idx]
-        else:
-            A0 = (A0_interval[1] - A0_interval[0]) * rng.random() + A0_interval[1]
-            Ms = (Ms_interval[1] - Ms_interval[0]) * rng.random() + Ms_interval[1]
-            K0 = (K0_interval[1] - K0_interval[0]) * rng.random() + K0_interval[1]
+
+        idx = rng.choice(len(A0_choices))
+        A0 = A0_choices[idx]
+        Ms = Ms_choices[idx]
+        K0 = K0_choices[idx]
+        s_state = s_states[idx]
+        
         seq = generate_sequence(
-            rng,
+            s_state=s_state,
             res=res,
             timesteps=timesteps,
             use_CUDA=use_CUDA,
@@ -117,7 +116,9 @@ def generate_data_set(
             Ms=Ms,
             K0=K0,
         )
-        seq = seq.reshape(timesteps, res[0], res[1], 3).swapaxes(1, 3).swapaxes(2, 3)
+        seq = seq.swapaxes(2,3)
+        seq = seq.swapaxes(1,2)
+        seq = seq.reshape(timesteps,3,res[1],res[0]).swapaxes(2,3)
         g = hf.create_group(str(i))
         g.create_dataset("sequence", data=seq)
         g.create_dataset("field", data=field)
@@ -128,15 +129,18 @@ def generate_data_set(
 
 
 if __name__ == "__main__":
+    f = h5py.File('./s_state_materials.h5')
+    s_states = np.array(f['s_states'])
+    f.close()
     generate_data_set(
-        "./mag_data_field_material_test.h5",
+        "./mag_data_field_material_s_state_train.h5",
+        s_states,
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=10,
+        num_sequences=2,
         timesteps=400,
-        seed=3,
+        seed=42,
         field_interval=[-25, 25],
-        use_choices=True,
         A0_choices=[
             22e-12,
             31e-12,
@@ -169,8 +173,5 @@ if __name__ == "__main__":
             0,
             0,
             0,
-        ]
-        # A0_interval=[1.3e-11, 1.99e-11],
-        # Ms_interval = [8.0e5, 8.0e5],
-        # K0_interval = [0, 0],
+        ],
     )

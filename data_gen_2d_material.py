@@ -117,7 +117,9 @@ def generate_data_set(
             Ms=Ms,
             K0=K0,
         )
-        seq = seq.reshape(timesteps, res[0], res[1], 3).swapaxes(1, 3).swapaxes(2, 3)
+        seq = seq.swapaxes(2,3)
+        seq = seq.swapaxes(1,2)
+        seq = seq.reshape(timesteps,3,res[1],res[0]).swapaxes(2,3)
         g = hf.create_group(str(i))
         g.create_dataset("sequence", data=seq)
         g.create_dataset("field", data=field)
