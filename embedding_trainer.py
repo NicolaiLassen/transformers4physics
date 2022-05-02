@@ -5,6 +5,7 @@ from tabnanny import verbose
 from typing import Tuple
 
 import hydra
+import h5py
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -74,9 +75,11 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.model_trainer = LandauLifshitzGilbertEmbeddingTrainer(
             self.model,
             l1=1e1,
-            l2=1.5e1,
+            l2=1e1,
             l3=1e-2
         )
+
+        self.losses = []
 
     def forward(self, z: Tensor):
         return self.model.embed(z)
@@ -220,10 +223,14 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             on_epoch=True,
             on_step=False,
         )
+        self.losses.append(loss.detach().cpu().numpy())
         return loss
 
     def save_model(self, checkpoint_dir="./ckpt", filename="embed"):
         self.model.save_model(save_directory=checkpoint_dir, filename=filename)
+        f = h5py.File('./losses.h5', 'w')
+        f.create_dataset('losses', data=np.array(self.losses))
+        f.close()
 
 
 def train(cfg):
@@ -254,7 +261,7 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=15,
-        check_val_every_n_epoch=250,
+        check_val_every_n_epoch=55555,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,

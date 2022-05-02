@@ -11,9 +11,9 @@ from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmb
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     f = h5py.File(base + '\\field_s_state_test.h5')
-    sample = np.array(f['3']['sequence'])
-    field = np.array( f['3']['field'])
-    print(sample.shape)
+    sample = np.array(f['4']['sequence'])
+    field = np.array( f['4']['field'])
+    # print(sample.shape)
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
     # plt.show()
     class Object(object):
@@ -31,13 +31,13 @@ if __name__ == '__main__':
     cfg.fc_dim= 160
     cfg.image_size_x= 64
     cfg.image_size_y= 16
-    cfg.koopman_bandwidth= 5
+    cfg.koopman_bandwidth= 7
     model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg),
     ).cuda()
-    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-29\\16-56-21\\ckpt\\no_name.pth')
+    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-30\\15-47-40\\ckpt\\no_name.pth')
     model.eval()
-    print(sample.shape)
+    # print(sample.shape)
     sample_t = torch.tensor(sample).float().cuda()
     field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
     field_t[:] = torch.tensor(field)

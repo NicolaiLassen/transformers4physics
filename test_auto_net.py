@@ -11,7 +11,7 @@ from transformer.phys_transformer_gpt2 import PhysformerGPT2
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
-    f = h5py.File(base + '\\field_s_state.h5')
+    f = h5py.File(base + '\\field_s_state_test.h5')
     sample = np.array(f['0']['sequence'])
     field = np.array( f['0']['field'])
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
@@ -27,31 +27,31 @@ if __name__ == '__main__':
     cfg.channels= 5
     cfg.ckpt_path= ""
     cfg.config_name= ""
-    cfg.embedding_dim= 256
+    cfg.embedding_dim= 128
     cfg.fc_dim= 160
     cfg.image_size_x= 64
     cfg.image_size_y= 16
-    cfg.koopman_bandwidth= 23
+    cfg.koopman_bandwidth= 5
     model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg),
     ).cuda()
-    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-29\\16-21-50\\ckpt\\embedding.pth')
+    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-30\\12-48-55\\ckpt\\embedding.pth')
     model.eval()
     for p in model.parameters():
         p.requires_grad = False
 
     cfg_auto = Object()
     cfg_auto.activation_function = "gelu_new"
-    cfg_auto.embedding_dim = 256
+    cfg_auto.embedding_dim = 128
     cfg_auto.n_ctx = 16
-    cfg_auto.n_layer = 6
+    cfg_auto.n_layer = 8
     cfg_auto.n_head = 4
     cfg_auto.output_hidden_states = False
     cfg_auto.output_attentions = False
 
     autoregressive = PhysformerGPT2(AutoregressiveConfig(cfg_auto)).cuda()
     
-    autoregressive.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-29\\16-21-50\\ckpt\\transformer_model0.pth')
+    autoregressive.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-30\\12-48-55\\ckpt\\transformer_model0.pth')
     autoregressive.eval()
     for p in autoregressive.parameters():
         p.requires_grad = False
@@ -60,7 +60,7 @@ if __name__ == '__main__':
     field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
     field_t[:] = torch.tensor(field)
 
-    init = model.embed(sample_t[0:4], field_t[0:4])
+    init = model.embed(sample_t[0:16], field_t[0:16])
     init = init.unsqueeze(0)
     emb_seq = autoregressive.generate(init,max_length=400)
     emb_seq = emb_seq[0][0]
