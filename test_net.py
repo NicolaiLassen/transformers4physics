@@ -10,7 +10,7 @@ from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmb
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
-    f = h5py.File(base + '\\field_s_state_test.h5')
+    f = h5py.File(base + '\\field_s_state_test_large.h5')
     sample = np.array(f['4']['sequence'])
     field = np.array( f['4']['field'])
     # print(sample.shape)
@@ -23,19 +23,19 @@ if __name__ == '__main__':
     cfg.state_dims = [2, 64, 128]
     cfg.input_dims = [2, 64, 128]
     cfg.backbone= "ResNet"
-    cfg.backbone_dim = 160
+    cfg.backbone_dim = 192
     cfg.channels= 5
     cfg.ckpt_path= ""
     cfg.config_name= ""
     cfg.embedding_dim= 128
-    cfg.fc_dim= 160
+    cfg.fc_dim= 192
     cfg.image_size_x= 64
     cfg.image_size_y= 16
     cfg.koopman_bandwidth= 7
     model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg),
     ).cuda()
-    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-30\\15-47-40\\ckpt\\no_name.pth')
+    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-05-02\\22-10-54\\ckpt\\no_name.pth')
     model.eval()
     # print(sample.shape)
     sample_t = torch.tensor(sample).float().cuda()

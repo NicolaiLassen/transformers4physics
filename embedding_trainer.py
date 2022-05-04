@@ -79,7 +79,10 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             l3=1e-2
         )
 
-        self.losses = []
+        self.losses_train = []
+        self.losses_val = []
+        self.losses_train_hist = []
+        self.losses_val_hist = []
 
     def forward(self, z: Tensor):
         return self.model.embed(z)
@@ -88,8 +91,8 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
-        train_path = "{}\\field_s_state.h5".format(base_path)
-        val_path = "{}\\field_s_state.h5".format(base_path)
+        train_path = "{}\\field_s_state_train_large.h5".format(base_path)
+        val_path = "{}\\field_s_state_test_large.h5".format(base_path)
         test_path = "{}\\test.h5".format(base_path)
 
         train_set = read_h5_dataset(
@@ -104,7 +107,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             cfg.learning.block_size_val,
             self.batch_size,
             cfg.learning.stride_val,
-            1,
+            -1,
         )
         test_set = read_h5_dataset(
             test_path,
@@ -201,13 +204,21 @@ class EmbeddingPhysTrainer(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         return self.step(batch=batch, batch_idx=batch_idx, mode="test")
 
+    def on_epoch_end(self):
+        if(len(self.losses_train) > 0):
+            self.losses_train_hist.append(sum(self.losses_train))
+        if(len(self.losses_val) > 0):
+            self.losses_val_hist.append(sum(self.losses_val))
+        self.losses_train = []
+        self.losses_val = []
+
     def step(self, batch, batch_idx: int, mode: str):
         x = batch
         s = x["states"]
         f = x["fields"]
 
-        if(mode=='val'):
-            self.viz.plot_prediction(self.model(s[0],f[0].unsqueeze(0))[1],s[0])
+        # if(mode=='val'):
+        #     self.viz.plot_prediction(self.model(s[0],f[0].unsqueeze(0))[1],s[0])
 
         loss, loss_reconstruct = (
             self.model_trainer.evaluate(s, f)
@@ -223,13 +234,17 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             on_epoch=True,
             on_step=False,
         )
-        self.losses.append(loss.detach().cpu().numpy())
+        if(mode == 'train'):
+            self.losses_train.append(loss.item())
+        elif(mode == 'val'):
+            self.losses_val.append(loss_reconstruct.item())
         return loss
 
     def save_model(self, checkpoint_dir="./ckpt", filename="embed"):
         self.model.save_model(save_directory=checkpoint_dir, filename=filename)
         f = h5py.File('./losses.h5', 'w')
-        f.create_dataset('losses', data=np.array(self.losses))
+        f.create_dataset('train', data=np.array(self.losses_train_hist))
+        f.create_dataset('val', data=np.array(self.losses_val_hist))
         f.close()
 
 
@@ -261,7 +276,7 @@ def train(cfg):
         logger=logger,
         num_sanity_val_steps=0,
         log_every_n_steps=15,
-        check_val_every_n_epoch=55555,
+        check_val_every_n_epoch=25,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,

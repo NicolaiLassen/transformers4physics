@@ -108,11 +108,21 @@ if __name__ == '__main__':
     f = h5py.File('./s_state.h5', 'r')
     s_state = np.array(f['s_state'])
     generate_data_set(
+        './field_s_state.h5',
+        s_state = s_state,
+        res=[64, 16, 1],
+        grid_L=[500e-9, 125e-9, 3e-9],
+        num_sequences=500,
+        timesteps=400,
+        seed=42,
+        field_interval=[-25,25],
+    )
+    generate_data_set(
         './field_s_state_test.h5',
         s_state = s_state,
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=5,
+        num_sequences=50,
         timesteps=400,
         seed=500,
         field_interval=[-25,25],

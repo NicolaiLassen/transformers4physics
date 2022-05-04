@@ -29,8 +29,8 @@ embedding:
   channels: 5
   backbone: "ResNet"
  
-  fc_dim: 160
-  backbone_dim: 160
+  fc_dim: 192
+  backbone_dim: 192
   embedding_dim: 128
   koopman_bandwidth: 7
 
@@ -40,7 +40,7 @@ autoregressive:
   name: "GPT2" 
   pretrained: False
   ckpt_path: "./ckpt/model_name"
-  embedding_model_ckpt_path: "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-29\\21-01-18\\ckpt\\no_name.pth"
+  embedding_model_ckpt_path: "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-04-30\\15-47-40\\ckpt\\no_name.pth"
 
   activation_function: "gelu_new"
   layer_norm_epsilon: 1e-5
@@ -64,17 +64,17 @@ opt:
 
 learning:
 
-  epochs: 500
+  epochs: 300
   start_epoch: 0
 
   block_size_train: 4
   stride_train: 4
-  batch_size_train: 64
-  n_data_train: 50
+  batch_size_train: 512
+  n_data_train: 500
   
-  batch_size_val: 1
   block_size_val: 400
   stride_val: 400
+  batch_size_val: 64
   
   lr: 1e-3
   min_lr: 1e-3
