@@ -65,14 +65,14 @@ def read_and_embbed_h5_dataset(
 
 
 if __name__ == "__main__":
-    epochs = 500
+    epochs = 300
     ctx = 32
-    ndata_train = 500
+    ndata_train = 5
     ndata_val = 50
     stride = 4
-    train_batch_size = 1024
-    val_batch_size = train_batch_size // 10
-    val_every_n_epoch = 2
+    train_batch_size = 1500
+    val_batch_size = 10
+    val_every_n_epoch = 25
 
     transformer_cfg = {
         'ctx': ctx,
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     val_losses = []
 
     l_train_loader = len(train_loader)
-    l_val_loader = len(val_set)
+    l_val_loader = len(val_loader)
     model.train()
     for epoch in range(epochs):
         acc_loss = 0
@@ -200,7 +200,7 @@ if __name__ == "__main__":
             )
         train_losses.append(acc_loss/l_train_loader)
         acc_loss_val = 0
-        if epoch % val_every_n_epoch == 0:
+        if epoch % val_every_n_epoch == val_every_n_epoch - 1:
             model.eval()
             for i_val, x_val in enumerate(val_loader):
                 e = x_val['embedded'].cuda()
