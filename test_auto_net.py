@@ -18,8 +18,8 @@ if __name__ == '__main__':
     f = h5py.File(base + '\\field_s_state_test_large.h5')
     sample = np.array(f['7']['sequence'])
     field = np.array( f['7']['field'])
-    date = '2022-05-04'
-    time = '15-32-56'
+    date = '2022-05-05'
+    time = '00-21-59'
     init_len = 1
 
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
@@ -80,7 +80,6 @@ if __name__ == '__main__':
     # emb_seq = autoregressive.generate(init,max_length=400)
     emb_seq = autoregressive.generate(init,seq_len=400-init_len)
     emb_seq = torch.cat([init,emb_seq],dim=1)
-    print(emb_seq.shape)
     # emb_seq = emb_seq[0][0]
 
     # a = model.embed(sample_t, field_t)
@@ -92,13 +91,27 @@ if __name__ == '__main__':
     f = h5py.File('./transformer_output/{}/{}/transformer_losses.h5'.format(date, time), 'r')
     losses = np.array(f['train'])
     l = np.arange(len(losses))
-    f.close()
     plt.plot(l,losses)
+    plt.title('Training Loss')
     plt.yscale('log')
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.grid()
     plt.show()
+
+    if 'val' in f.keys():
+        losses_val = np.array(f['val'])
+        l = np.arange(len(losses_val))
+        f.close()
+        plt.plot(l,losses_val)
+        plt.title('Validation Loss')
+        plt.yscale('log')
+        plt.ylabel('loss_val')
+        plt.xlabel('epoch')
+        plt.grid()
+        plt.show()
+
+    f.close()
 
     plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
     plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))

@@ -1,9 +1,8 @@
 from datetime import datetime
 import json
 import os
-import signal
-import sys
 import torch
+import torch.functional as F
 from torch import optim
 from torch.utils.data import DataLoader
 import h5py
@@ -62,15 +61,18 @@ def read_and_embbed_h5_dataset(
     if seq_tensor.size(0) < batch_size:
         batch_size = seq_tensor.size(0)
 
-    return data
+    return data, batch_size
 
 
 if __name__ == "__main__":
-    epochs = 100
+    epochs = 500
     ctx = 32
-    train_batch_size = 1024
+    ndata_train = 500
+    ndata_val = 50
     stride = 4
-    ndata = 500
+    train_batch_size = 1024
+    val_batch_size = train_batch_size // 10
+    val_every_n_epoch = 2
 
     transformer_cfg = {
         'ctx': ctx,
@@ -78,7 +80,7 @@ if __name__ == "__main__":
         'depth': 8,
         'heads': 4,
         'macaron': True,
-        "shift_tokens": 1,
+        "shift_tokens": 0,
     }
 
     now = datetime.now()
@@ -133,18 +135,34 @@ if __name__ == "__main__":
     for param in embedding_model.parameters():
         param.requires_grad = False
 
-    train_set = read_and_embbed_h5_dataset(
+    train_set, train_batch_size = read_and_embbed_h5_dataset(
         "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_train_large.h5",
         embedding_model,
         block_size=ctx,
         batch_size=train_batch_size,
         stride=stride,
-        n_data=ndata,
+        n_data=ndata_train,
     )
     train_loader = DataLoader(
         train_set,
         batch_size=train_batch_size,
         shuffle=True,
+        persistent_workers=True,
+        pin_memory=True,
+        num_workers=1,
+    )
+    val_set, val_batch_size = read_and_embbed_h5_dataset(
+        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_test_large.h5",
+        embedding_model,
+        block_size=ctx,
+        batch_size=val_batch_size,
+        stride=ctx,
+        n_data=ndata_val,
+    )
+    val_loader = DataLoader(
+        val_set,
+        batch_size=val_batch_size,
+        shuffle=False,
         persistent_workers=True,
         pin_memory=True,
         num_workers=1,
@@ -158,9 +176,11 @@ if __name__ == "__main__":
 
 
     train_losses = []
+    val_losses = []
 
-    model.train()
     l_train_loader = len(train_loader)
+    l_val_loader = len(val_set)
+    model.train()
     for epoch in range(epochs):
         acc_loss = 0
         for i, x in enumerate(train_loader):
@@ -173,17 +193,27 @@ if __name__ == "__main__":
             # lr_scheduler.step()
             acc_loss = acc_loss + loss.item()
             print(
-                "Epoch {}/{}: Step {}/{}: loss: {}".format(
+                "Train: Epoch {}/{}: Step {}/{}: loss: {}".format(
                     epoch + 1, epochs, i + 1, l_train_loader, loss.item()
                 ),
                 end="\r",
             )
         train_losses.append(acc_loss/l_train_loader)
         acc_loss_val = 0
-        # if epoch==0:
-        #     print('Epoch {}/{}: loss: {}'.format(epoch+1,epochs,loss.item()))
-        # if epoch+1%100==0:
-        #     print('Epoch {}/{}: loss: {}'.format(epoch,epochs,loss.item()))
+        if epoch % val_every_n_epoch == 0:
+            model.eval()
+            for i_val, x_val in enumerate(val_loader):
+                e = x_val['embedded'].cuda()
+                loss_val = model(e)
+                acc_loss_val = acc_loss_val + loss_val.item()
+                print(
+                    "Val  : Epoch {}/{}: Step {}/{}: loss: {}".format(
+                        epoch + 1, epochs, i_val + 1, l_val_loader, loss_val.item()
+                    ),
+                    end="\r",
+                )
+            model.train()
+            val_losses.append(acc_loss_val)
     torch.save(
         embedding_model.state_dict(),
         path + "embedder.pth".format(
@@ -203,6 +233,7 @@ if __name__ == "__main__":
         "w",
     )
     f.create_dataset("train", data=np.array(train_losses))
+    f.create_dataset("val", data=np.array(val_losses))
     f.close()
     print("")
 
