@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
@@ -13,43 +14,36 @@ class HashSpatialPositionEmbeddings(nn.Module):
     TODO
     """
 
-    def __init__(self, patch_size, dim, grid_h, grid_w):
+    def __init__(self, patch_size, hse_grid_size, dim):
         super().__init__()
 
         self.patch_size = patch_size
-        pos_emb_shape = (1, grid_h * grid_w, dim)
-    
+        pos_emb_shape = (1, hse_grid_size * hse_grid_size, dim)
         self.position_embeddings = nn.Parameter(normal_(torch.empty(pos_emb_shape), std=0.02))
 
-    def extract_image_patches(self, tensor):
-        """
-        TODO
-        """
-        # (c )
-        mask = torch.ones_like(tensor)
+    def extract_image_patches(self, x, kernel, stride=1, dilation=1):
+        # Do TF 'SAME' Padding
+        print(x)
+        b,c,h,w = x.shape
+        h2 = math.ceil(h / stride)
+        w2 = math.ceil(w / stride)
+        pad_row = (h2 - 1) * stride + (kernel - 1) * dilation + 1 - h
+        pad_col = (w2 - 1) * stride + (kernel - 1) * dilation + 1 - w
+        x = F.pad(x, (pad_row//2, pad_row - pad_row//2, pad_col//2, pad_col - pad_col//2))
+        
+        # Extract patches
+        patches = x.unfold(2, kernel, stride).unfold(3, kernel, stride)
+        patches = patches.permute(0,4,5,1,2,3).contiguous()
+        
+        return patches.view(b,-1,patches.shape[-2], patches.shape[-1])
 
-        stride = self.patch_size // 2
-        unfold = nn.Unfold(kernel_size=(
-            self.patch_size, self.patch_size), stride=stride)
-
-        mask_p = unfold(mask)
-        patches = unfold(tensor)
-
-        patches = patches.reshape(
-            3, self.patch_size, self.patch_size, -1).permute(3, 0, 1, 2)
-        return patches, mask_p
-
-    def get_hashed_spatial_posisition_embedding_index(
-            grid_size,
-            count_h,
-            count_w):
-        return pos_emb_hash
-
-    def add_hashed_spatial_posisition_embedding(self, x, x_positions):
-        return x + torch.index_select(x[0], x_positions, axis=0)
+    def get_hashed_spatial_posisition_embedding_index(self):
+        return torch.rand((1)) 
 
     def forward(self, x):
-        x, m = self.extract_image_patches(x)
+        x, m = self.extract_image_patches(x, 32, 32)
+        print(x.shape)
+        x_positions = self.get_hashed_spatial_posisition_embedding_index()
         x + torch.index_select(x[0], x_positions, axis=0)
         return x
 
@@ -111,32 +105,14 @@ class Attention(nn.Module):
         out = rearrange(out, 'b h n d -> b n (h d)')
         return self.to_out(out)
 
-
-class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout=0.):
-        super().__init__()
-        self.layers = nn.ModuleList([])
-        for _ in range(depth):
-            self.layers.append(nn.ModuleList([
-                PreNorm(dim, Attention(dim, heads=heads,
-                        dim_head=dim_head, dropout=dropout)),
-                PreNorm(dim, MlpBlock(dim, mlp_dim, dropout=dropout))
-            ]))
-
-    def forward(self, x):
-        for attn, ff in self.layers:
-            x = attn(x) + x
-            x = ff(x) + x
-        return x
-
-
 class SpatialVIT(nn.Module):
     """
-        TODO
     Args:
+        channels:
         patch_size: patch size.
-        patch_stride: patch stride.
         hse_grid_size: Hash-based positional embedding grid size.
+        dim: 
+    
         longer_side_lengths: List of longer-side lengths for each scale in the
         multi-scale representation.
         max_seq_len_from_original_res: Maximum number of patches extracted from
@@ -150,14 +126,15 @@ class SpatialVIT(nn.Module):
     def __init__(
             self,
             *,
-            patch_size,
-            hse_grid_size,
             dim,
+            channels=3,
+            patch_size,
+            
+            hse_grid_size,
             depth,
             heads,
             mlp_dim,
             pool='cls',
-            channels=3,
             dim_head=64,
             dropout=0.,
             emb_dropout=0.):
@@ -166,7 +143,7 @@ class SpatialVIT(nn.Module):
 
         # learnable
         self.to_spatial_embedding = \
-            HashSpatialPositionEmbeddings(patch_size)
+            HashSpatialPositionEmbeddings(patch_size, hse_grid_size, dim)
 
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
@@ -181,8 +158,6 @@ class SpatialVIT(nn.Module):
         x = self.to_spatial_embedding(img)
         b, n, _ = x.shape
 
-        print(x.shape)
-        print("shape: {}".format(x.shape))
         exit(0)
 
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b=b)
@@ -196,6 +171,26 @@ class SpatialVIT(nn.Module):
 
         return x
 
+
+def split_tensor(tensor, tile_size=256):
+    mask = torch.ones_like(tensor)
+    # use torch.nn.Unfold
+    stride  = tile_size//2
+    unfold  = nn.Unfold(kernel_size=(tile_size, tile_size), stride=stride)
+    # Apply to mask and original image
+    mask_p  = unfold(mask)
+    patches = unfold(tensor)
+	
+    patches = patches.reshape(3, tile_size, tile_size, -1).permute(3, 0, 1, 2)
+    if tensor.is_cuda:
+        patches_base = torch.zeros(patches.size(), device=tensor.get_device())
+    else: 
+        patches_base = torch.zeros(patches.size())
+	
+    tiles = []
+    for t in range(patches.size(0)):
+         tiles.append(patches[[t], :, :, :])
+    return tiles, mask_p, patches_base, (tensor.size(2), tensor.size(3))
 
 if __name__ == '__main__':
 
@@ -216,4 +211,6 @@ if __name__ == '__main__':
         emb_dropout=0.1
     )
 
-    preds = v(x)
+    out = split_tensor(x, 64)[0]
+    print(len(out))
+    # preds = v(x)

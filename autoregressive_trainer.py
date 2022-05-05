@@ -286,7 +286,6 @@ def sweep(cfg: DictConfig):
 def main(cfg: DictConfig):
     train(cfg)
 
-
 if __name__ == "__main__":
     main()
     # wandb.agent(
