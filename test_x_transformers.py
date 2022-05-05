@@ -16,70 +16,25 @@ from embedding.embedding_model import EmbeddingModel
 from util.data_loader import MagDataset
 
 
-def read_and_embbed_h5_dataset(
-    file_path: str,
-    embedder: EmbeddingModel,
-    block_size: int,
-    batch_size: int = 32,
-    stride: int = 5,
-    n_data: int = -1,
-) -> torch.Tensor:
-    assert os.path.isfile(file_path), "Training HDF5 file {} not found".format(
-        file_path
-    )
-
-    seq = []
-    fields = []
-    embedded_seq = []
-    with h5py.File(file_path, "r") as f:
-
-        n_seq = 0
-        for key in f.keys():
-            data_series = torch.Tensor(np.array(f[key]["sequence"])).cuda()
-            field = torch.Tensor(np.array(f[key]["field"][:2])).unsqueeze(0).cuda()
-
-            with torch.no_grad():
-                embedded_series = embedder.embed(data_series, field)
-
-            # Truncate in block of block_size
-            for i in range(0, data_series.size(0) - block_size + 1, stride):
-                seq.append(data_series[i : i + block_size].unsqueeze(0))
-                fields.append(field)
-                embedded_seq.append(embedded_series[i : i + block_size].unsqueeze(0))
-
-            n_seq = n_seq + 1
-            if (
-                n_data > 0 and n_seq >= n_data
-            ):  # If we have enough time-series samples break loop
-                break
-
-    seq_tensor = torch.cat(seq, dim=0).cpu()
-    fields_tensor = torch.cat(fields, dim=0).cpu()
-    embedded_tensor = torch.cat(embedded_seq, dim=0).cpu()
-    data = MagDataset(seq_tensor, fields_tensor, embedded_tensor)
-
-    if seq_tensor.size(0) < batch_size:
-        batch_size = seq_tensor.size(0)
-
-    return data, batch_size
 
 
 if __name__ == "__main__":
     epochs = 300
     ctx = 32
-    ndata_train = 5
+    ndata_train = 500
     ndata_val = 50
     stride = 4
-    train_batch_size = 1500
+    train_batch_size = 5000
     val_batch_size = 10
     val_every_n_epoch = 25
+    save_on_val = True
 
     transformer_cfg = {
         'ctx': ctx,
         'decoder_dim': 512,
         'depth': 8,
         'heads': 4,
-        'macaron': True,
+        'macaron': False,
         "shift_tokens": 0,
     }
 
@@ -130,10 +85,62 @@ if __name__ == "__main__":
     embedding_model.load_model(
         "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-05-02\\22-10-54\\ckpt\\no_name.pth"
     )
+    torch.save(
+        embedding_model.state_dict(),
+        path + "embedder.pth"
+    )
     embedding_model.eval()
     embedding_model.cuda()
     for param in embedding_model.parameters():
         param.requires_grad = False
+
+    def read_and_embbed_h5_dataset(
+        file_path: str,
+        embedder: EmbeddingModel,
+        block_size: int,
+        batch_size: int = 32,
+        stride: int = 5,
+        n_data: int = -1,
+    ) -> torch.Tensor:
+        assert os.path.isfile(file_path), "Training HDF5 file {} not found".format(
+            file_path
+        )
+
+        seq = []
+        fields = []
+        embedded_seq = []
+        with h5py.File(file_path, "r") as f:
+
+            n_seq = 0
+            for key in f.keys():
+                data_series = torch.Tensor(np.array(f[key]["sequence"])).cuda()
+                field = torch.Tensor(np.array(f[key]["field"][:2])).unsqueeze(0).cuda()
+
+                with torch.no_grad():
+                    embedded_series = embedder.embed(data_series, field)
+
+                # Truncate in block of block_size
+                for i in range(0, data_series.size(0) - block_size + 1, stride):
+                    seq.append(data_series[i : i + block_size].unsqueeze(0))
+                    fields.append(field)
+                    embedded_seq.append(embedded_series[i : i + block_size].unsqueeze(0))
+
+                n_seq = n_seq + 1
+                if (
+                    n_data > 0 and n_seq >= n_data
+                ):  # If we have enough time-series samples break loop
+                    break
+
+        seq_tensor = torch.cat(seq, dim=0).cpu()
+        fields_tensor = torch.cat(fields, dim=0).cpu()
+        embedded_tensor = torch.cat(embedded_seq, dim=0).cpu()
+        data = MagDataset(seq_tensor, fields_tensor, embedded_tensor)
+
+        if seq_tensor.size(0) < batch_size:
+            batch_size = seq_tensor.size(0)
+
+        return data, batch_size
+
 
     train_set, train_batch_size = read_and_embbed_h5_dataset(
         "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_train_large.h5",
@@ -214,22 +221,26 @@ if __name__ == "__main__":
                 )
             model.train()
             val_losses.append(acc_loss_val)
-    torch.save(
-        embedding_model.state_dict(),
-        path + "embedder.pth".format(
-            now.strftime("%Y-%m-%d"), now.strftime("%H-%M-%S")
-        ),
-    )
+            if save_on_val:
+                print('saving model...                            ', end='\r')
+                torch.save(
+                    model.state_dict(),
+                    path + "transformer_{}.pth".format(epoch + 1),
+                )
+                f = h5py.File(
+                    path + "transformer_losses.h5",
+                    "w",
+                )
+                f.create_dataset("train", data=np.array(train_losses))
+                f.create_dataset("val", data=np.array(val_losses))
+                f.close()
+                print('saved                            ', end='\r')
     torch.save(
         model.state_dict(),
-        path + "transformer.pth".format(
-            now.strftime("%Y-%m-%d"), now.strftime("%H-%M-%S")
-        ),
+        path + "transformer.pth",
     )
     f = h5py.File(
-        path + "transformer_losses.h5".format(
-            now.strftime("%Y-%m-%d"), now.strftime("%H-%M-%S")
-        ),
+        path + "transformer_losses.h5",
         "w",
     )
     f.create_dataset("train", data=np.array(train_losses))

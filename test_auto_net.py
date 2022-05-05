@@ -19,8 +19,11 @@ if __name__ == '__main__':
     sample = np.array(f['7']['sequence'])
     field = np.array( f['7']['field'])
     date = '2022-05-05'
-    time = '00-21-59'
+    time = '12-04-12'
+    transformer_suffix = ''
+    show_losses = True
     init_len = 1
+    val_every_n_epoch = 25
 
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
     # plt.show()
@@ -66,7 +69,7 @@ if __name__ == '__main__':
     ).cuda()
     autoregressive = ContinuousAutoregressiveWrapper(autoregressive)
     
-    autoregressive.load_state_dict(torch.load(path + 'transformer.pth'.format(date,time)))
+    autoregressive.load_state_dict(torch.load(path + 'transformer{}.pth'.format(transformer_suffix)))
     autoregressive.eval()
     for p in autoregressive.parameters():
         p.requires_grad = False
@@ -86,32 +89,31 @@ if __name__ == '__main__':
     recon = model.recover(emb_seq)
     recon = recon.detach().cpu().numpy()
 
-
-
-    f = h5py.File('./transformer_output/{}/{}/transformer_losses.h5'.format(date, time), 'r')
-    losses = np.array(f['train'])
-    l = np.arange(len(losses))
-    plt.plot(l,losses)
-    plt.title('Training Loss')
-    plt.yscale('log')
-    plt.ylabel('loss')
-    plt.xlabel('epoch')
-    plt.grid()
-    plt.show()
-
-    if 'val' in f.keys():
-        losses_val = np.array(f['val'])
-        l = np.arange(len(losses_val))
-        f.close()
-        plt.plot(l,losses_val)
-        plt.title('Validation Loss')
+    if show_losses:
+        f = h5py.File(path + 'transformer_losses.h5', 'r')
+        losses = np.array(f['train'])
+        l = np.arange(len(losses))
+        plt.plot(l,losses)
+        plt.title('Training Loss')
         plt.yscale('log')
-        plt.ylabel('loss_val')
+        plt.ylabel('loss')
         plt.xlabel('epoch')
         plt.grid()
         plt.show()
 
-    f.close()
+        if 'val' in f.keys():
+            losses_val = np.array(f['val'])
+            l = np.arange(val_every_n_epoch, (len(losses_val)+1)*val_every_n_epoch, val_every_n_epoch)
+            f.close()
+            plt.plot(l,losses_val)
+            plt.title('Validation Loss')
+            plt.yscale('log')
+            plt.ylabel('loss_val')
+            plt.xlabel('epoch')
+            plt.grid()
+            plt.show()
+
+        f.close()
 
     plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
     plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
