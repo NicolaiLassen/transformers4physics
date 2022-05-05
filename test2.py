@@ -70,7 +70,7 @@ def merge_patches(patches, unfold_shape):
     output_h = unfold_shape[2] * unfold_shape[5]
     output_w = unfold_shape[3] * unfold_shape[6]
     patches_orig = patches_orig.permute(0, 1, 4, 2, 5, 3, 6).contiguous()
-    patches_orig = patches_orig.view(1, output_c, output_h, output_w)
+    patches_orig = patches_orig.view(patches.size(0), output_c, output_h, output_w)
     return patches_orig
 
 # relative positional bias
@@ -185,9 +185,11 @@ if __name__ == '__main__':
     x = torch.arange(8)
     y = torch.arange(8)
     img, _ = torch.meshgrid(x, y)
+    img = torch.stack([img.unsqueeze(0), img.unsqueeze(0)], dim=0)
 
-    print(img.unsqueeze(0).unsqueeze(0).unsqueeze(0).float().shape)
-    pl, mapf = extract_patches(img.unsqueeze(0).unsqueeze(0).float(), 4, 1)
+    print(img.shape)
+    pl, mapf = extract_patches(img.float(), 4, 1)
+    print(mapf)
     print(pl.shape)
     print(merge_patches(pl, mapf).shape)
 
@@ -203,7 +205,7 @@ if __name__ == '__main__':
             alibi_num_heads = 8
         )
     )
-
+    
     # koopman
     m = nn.Linear(16, 224)
     s = [] 
