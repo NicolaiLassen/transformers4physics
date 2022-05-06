@@ -29,12 +29,20 @@ bar2 = progressbar.ProgressBar(
 #         bar.update(i+1)
 #         sleep(0.2)
 bar = progressbar.ProgressBar(
+    widgets=[]
+)
+bar.start()
+for i in range(10):
+        bar.update(i+1)
+        sleep(0.1)
+bar.finish()
+bar = progressbar.ProgressBar(
     maxval=20,
     widgets=['Train: ', progressbar.Counter(), '/20 ', progressbar.Bar('=','[',']'), progressbar.Percentage(), '    ', progressbar.Timer(), '    Loss: ', ''],
 )
 bar.start()
-for i in range(20):
+for i in range(10):
         bar.widgets[-1] = '50'
         bar.update(i+1)
-        sleep(0.2)
+        sleep(0.1)
 bar.finish()

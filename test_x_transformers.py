@@ -21,7 +21,7 @@ from util.data_loader import MagDataset
 
 if __name__ == "__main__":
     epochs = 500
-    ctx = 32
+    ctx = 40
     ndata_train = 500
     ndata_val = 50
     stride = 4
@@ -193,6 +193,12 @@ if __name__ == "__main__":
 
     l_train_loader = len(train_loader)
     l_val_loader = len(val_loader)
+    
+    bar = progressbar.ProgressBar(
+        widgets = []
+    )
+    bar.start()
+    bar.finish()
     terminal_width = os.get_terminal_size().columns
     bar = progressbar.ProgressBar(
         maxval=l_train_loader,
