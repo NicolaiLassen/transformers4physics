@@ -2,6 +2,7 @@ from datetime import datetime
 import json
 import os
 import torch
+import progressbar
 import torch.functional as F
 from torch import optim
 from torch.utils.data import DataLoader
@@ -19,24 +20,27 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 300
+    epochs = 500
     ctx = 32
     ndata_train = 500
     ndata_val = 50
     stride = 4
-    train_batch_size = 5000
+    train_batch_size = 1500
     val_batch_size = 10
-    val_every_n_epoch = 25
+    val_every_n_epoch = 50
     save_on_val = True
 
     transformer_cfg = {
         'ctx': ctx,
         'decoder_dim': 512,
-        'depth': 8,
-        'heads': 4,
+        'depth': 12,
+        'heads': 8,
         'macaron': False,
         "shift_tokens": 0,
+        "ff_dropout": 0.05,
+        'attn_dropout': 0.05,
     }
+
 
     now = datetime.now()
     path = "./transformer_output/{}/{}/".format(
@@ -60,6 +64,8 @@ if __name__ == "__main__":
             heads=transformer_cfg["heads"],
             macaron=transformer_cfg["macaron"],
             shift_tokens=transformer_cfg["shift_tokens"],
+            ff_dropout=transformer_cfg["ff_dropout"],
+            attn_dropout=transformer_cfg["attn_dropout"],
         ),
     ).cuda()
     model = ContinuousAutoregressiveWrapper(model)
@@ -187,9 +193,17 @@ if __name__ == "__main__":
 
     l_train_loader = len(train_loader)
     l_val_loader = len(val_loader)
+    terminal_width = os.get_terminal_size().columns
+    bar = progressbar.ProgressBar(
+        maxval=l_train_loader,
+        widgets=['Training   Epoch    1/{:4d}'.format(epochs), '   Step: ', progressbar.Counter('%3d'), ' / {:4d}    '.format(l_train_loader), progressbar.Bar('=','[',']'), ' ', progressbar.Percentage(), '    ', progressbar.Timer(), '    Loss: ', '99999999'],
+        term_width=terminal_width,
+    )
     model.train()
     for epoch in range(epochs):
         acc_loss = 0
+        bar.widgets[0] = 'Training   Epoch {:4d}/{:4d}'.format(epoch+1, epochs)
+        bar.start()
         for i, x in enumerate(train_loader):
             e = x["embedded"].cuda()
             optimizer.zero_grad()
@@ -199,33 +213,31 @@ if __name__ == "__main__":
             optimizer.step()
             # lr_scheduler.step()
             acc_loss = acc_loss + loss.item()
-            print(
-                "Train: Epoch {}/{}: Step {}/{}: loss: {}".format(
-                    epoch + 1, epochs, i + 1, l_train_loader, loss.item()
-                ),
-                end="\r",
-            )
+            bar.widgets[-1] = '{:8f}'.format(loss.item())
+            bar.update(i+1)
+        bar.finish()
         train_losses.append(acc_loss/l_train_loader)
         acc_loss_val = 0
         if epoch % val_every_n_epoch == val_every_n_epoch - 1:
             model.eval()
+            bar.widgets[0] = 'Validation Epoch {:4d}/{:4d}'.format(epoch+1, epochs)
+            bar.start()
             for i_val, x_val in enumerate(val_loader):
                 e = x_val['embedded'].cuda()
                 loss_val = model(e)
                 acc_loss_val = acc_loss_val + loss_val.item()
-                print(
-                    "Val  : Epoch {}/{}: Step {}/{}: loss: {}".format(
-                        epoch + 1, epochs, i_val + 1, l_val_loader, loss_val.item()
-                    ),
-                    end="\r",
-                )
+                bar.widgets[-1] = '{:8f}'.format(loss_val.item())
+            bar.finish()
             model.train()
-            val_losses.append(acc_loss_val)
+            val_losses.append(acc_loss_val/l_val_loader)
             if save_on_val:
-                print('saving model...                            ', end='\r')
                 torch.save(
                     model.state_dict(),
                     path + "transformer_{}.pth".format(epoch + 1),
+                )
+                torch.save(
+                    optimizer.state_dict(),
+                    path + "optimizer_{}.pth".format(epoch + 1),
                 )
                 f = h5py.File(
                     path + "transformer_losses.h5",
@@ -234,7 +246,6 @@ if __name__ == "__main__":
                 f.create_dataset("train", data=np.array(train_losses))
                 f.create_dataset("val", data=np.array(val_losses))
                 f.close()
-                print('saved                            ', end='\r')
     torch.save(
         model.state_dict(),
         path + "transformer.pth",
@@ -246,5 +257,6 @@ if __name__ == "__main__":
     f.create_dataset("train", data=np.array(train_losses))
     f.create_dataset("val", data=np.array(val_losses))
     f.close()
-    print("")
-
+    print('done')
+    print('Loss train: {}'.format(train_losses[-1]))
+    print('Loss val  : {}'.format(val_losses[-1]))

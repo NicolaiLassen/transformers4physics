@@ -16,14 +16,15 @@ from transformer.phys_transformer_gpt2 import PhysformerGPT2
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     f = h5py.File(base + '\\field_s_state_test_large.h5')
-    sample = np.array(f['7']['sequence'])
-    field = np.array( f['7']['field'])
-    date = '2022-05-05'
-    time = '12-04-12'
-    transformer_suffix = ''
+    sample_idx = 15
+    sample = np.array(f[str(sample_idx)]['sequence'])
+    field = np.array( f[str(sample_idx)]['field'])
+    date = '2022-05-06'
+    time = '15-21-47'
+    transformer_suffix = '_250'
     show_losses = True
     init_len = 1
-    val_every_n_epoch = 25
+    val_every_n_epoch = 50
 
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
     # plt.show()
@@ -64,7 +65,7 @@ if __name__ == '__main__':
             depth=transformer_cfg["depth"], 
             heads=transformer_cfg["heads"],
             macaron=False if "macaron" not in transformer_cfg else transformer_cfg["macaron"],
-            shift_tokens = 0 if "shift_tokens" not in transformer_cfg else  transformer_cfg["shift_tokens"],
+            shift_tokens = 0 if "shift_tokens" not in transformer_cfg else transformer_cfg["shift_tokens"],
         ),
     ).cuda()
     autoregressive = ContinuousAutoregressiveWrapper(autoregressive)

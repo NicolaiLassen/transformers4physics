@@ -30,7 +30,8 @@ for fname in fnames:
         losses_val_last.append('Unknown')
         losses_val_lowest.append('Unknown')
 
-losses_val_last, losses_avg, losses_val_lowest, fnames = zip(*sorted(zip(losses_val_last, losses_avg, losses_val_lowest, fnames)))
+
+losses_val_lowest, losses_val_last, losses_avg, fnames = zip(*sorted(zip(losses_val_lowest, losses_val_last, losses_avg, fnames)))
 losses_avg, losses_val_last, losses_val_lowest, fnames = reversed(losses_avg), reversed(losses_val_last), reversed(losses_val_lowest), reversed(fnames)
 for l,v,vl,f in zip(losses_avg, losses_val_last, losses_val_lowest, fnames):
     print(f)
@@ -38,17 +39,3 @@ for l,v,vl,f in zip(losses_avg, losses_val_last, losses_val_lowest, fnames):
     print('Val last: {}'.format(v))
     print('Val lowest: {}'.format(vl))
     print()
-
-
-
-# l = np.arange(len(losses))
-# plt.plot(l,losses)
-# plt.yscale('log')
-# plt.grid()
-# plt.show()
-# losses = np.array(f['val'])
-# l = np.arange(len(losses))
-# plt.plot(l,losses)
-# plt.yscale('log')
-# plt.grid()
-# plt.show()
