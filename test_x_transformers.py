@@ -194,11 +194,6 @@ if __name__ == "__main__":
     l_train_loader = len(train_loader)
     l_val_loader = len(val_loader)
     
-    bar = progressbar.ProgressBar(
-        widgets = []
-    )
-    bar.start()
-    bar.finish()
     terminal_width = os.get_terminal_size().columns
     bar = progressbar.ProgressBar(
         maxval=l_train_loader,
