@@ -20,12 +20,12 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 500
-    ctx = 40
+    epochs = 1000
+    ctx = 32
     ndata_train = 500
     ndata_val = 50
-    stride = 4
-    train_batch_size = 1500
+    stride = 2
+    train_batch_size = 2048
     val_batch_size = 10
     val_every_n_epoch = 50
     save_on_val = True
@@ -37,8 +37,8 @@ if __name__ == "__main__":
         'heads': 8,
         'macaron': False,
         "shift_tokens": 0,
-        "ff_dropout": 0.05,
-        'attn_dropout': 0.05,
+        "ff_dropout": 0.08,
+        'attn_dropout': 0.08,
     }
 
 
@@ -201,10 +201,11 @@ if __name__ == "__main__":
         term_width=terminal_width,
     )
     model.train()
+    bar.start()
     for epoch in range(epochs):
         acc_loss = 0
         bar.widgets[0] = 'Training   Epoch {:4d}/{:4d}'.format(epoch+1, epochs)
-        bar.start()
+        # bar.start()
         for i, x in enumerate(train_loader):
             e = x["embedded"].cuda()
             optimizer.zero_grad()
@@ -216,19 +217,19 @@ if __name__ == "__main__":
             acc_loss = acc_loss + loss.item()
             bar.widgets[-1] = '{:8f}'.format(loss.item())
             bar.update(i+1)
-        bar.finish()
+        # bar.finish()
         train_losses.append(acc_loss/l_train_loader)
         acc_loss_val = 0
         if epoch % val_every_n_epoch == val_every_n_epoch - 1:
             model.eval()
             bar.widgets[0] = 'Validation Epoch {:4d}/{:4d}'.format(epoch+1, epochs)
-            bar.start()
+            # bar.start()
             for i_val, x_val in enumerate(val_loader):
                 e = x_val['embedded'].cuda()
                 loss_val = model(e)
                 acc_loss_val = acc_loss_val + loss_val.item()
                 bar.widgets[-1] = '{:8f}'.format(loss_val.item())
-            bar.finish()
+            # bar.finish()
             model.train()
             val_losses.append(acc_loss_val/l_val_loader)
             if save_on_val:
@@ -247,6 +248,7 @@ if __name__ == "__main__":
                 f.create_dataset("train", data=np.array(train_losses))
                 f.create_dataset("val", data=np.array(val_losses))
                 f.close()
+    bar.finish()
     torch.save(
         model.state_dict(),
         path + "transformer.pth",
