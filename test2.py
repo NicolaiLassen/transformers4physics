@@ -3,6 +3,7 @@ import os
 from http.client import PRECONDITION_FAILED
 from pickletools import optimize
 from turtle import forward
+from matplotlib import patches
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,6 +15,7 @@ from einops import rearrange, repeat
 from einops.layers.torch import Rearrange, Reduce
 from genericpath import exists
 from torch import einsum, nn
+
 
 def exists(val):
     return val is not None
@@ -56,8 +58,8 @@ class AlibiPositionalBias(nn.Module):
         return qk_dots + self.bias
 
 def extract_patches(tensor, tile_size=32, channels=3):
-    kc, kh, kw = channels, tile_size, tile_size  # kernel size
-    dc, dh, dw = channels, tile_size, tile_size  # stride
+    kc, kh, kw = channels, tile_size, tile_size
+    dc, dh, dw = channels, tile_size, tile_size
     patches = tensor.unfold(1, kc, dc).unfold(2, kh, dh).unfold(3, kw, dw)
     unfold_shape = patches.size()
     patches = patches.contiguous().view(patches.size(0), -1, kc, kh, kw)
@@ -175,47 +177,171 @@ class SpatialFormer(nn.Module):
 
         return x
 
+import h5py
 import torch
 from x_transformers import (ContinuousAutoregressiveWrapper,
                             ContinuousTransformerWrapper, Decoder)
+import matplotlib.pyplot as plt
+
+import os
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
+class KoopSim(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.encoder = nn.Sequential(
+            nn.Conv2d(1, 64, kernel_size=5, stride=4,
+                      padding=2, padding_mode="zeros"),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.Conv2d(64, 64, kernel_size=3, stride=2,
+                      padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=2,
+                      padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.Conv2d(128, 128, kernel_size=3, stride=2,
+                      padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.Conv2d(128, 256, kernel_size=2, stride=2,
+                      padding=0, padding_mode="zeros"),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.02, inplace=True),
+        )
+
+        self.encoder_fc = nn.Sequential(
+                nn.Linear(1024, 256),
+                nn.LeakyReLU(0.02, inplace=True),
+                nn.Linear(256, 256),
+                nn.LayerNorm(256, eps=1e-5),
+            )
+
+        self.decoder_fc = nn.Sequential(
+                nn.Linear(256, 256),
+                nn.LeakyReLU(0.02, inplace=True),
+                nn.Linear(256, 1024),
+                nn.LayerNorm(1024, eps=1e-5),
+            )
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2,
+                padding=1, output_padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(128, 128, kernel_size=3, stride=2,
+                      padding=1, output_padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2,
+                      padding=1, output_padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2,
+                      padding=1, output_padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(64, 64, kernel_size=3, stride=2,
+                      padding=1, output_padding=1, padding_mode="zeros"),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.02, inplace=True),
+
+            nn.ConvTranspose2d(64, 1, kernel_size=3, stride=2,
+                      padding=1, output_padding=1, padding_mode="zeros")
+        )
+        
+    def forward(self, x):
+
+        e = self.encoder(x)
+        e = e.view(-1, 256*2*2)
+        e = self.encoder_fc(e)
+
+        d = self.decoder_fc(e)
+        d = d.view(-1, 256, 2, 2)
+        d = self.decoder(d)
+        return e, d
 
 if __name__ == '__main__':
 
-    # to patches
-    x = torch.arange(8)
-    y = torch.arange(8)
-    img, _ = torch.meshgrid(x, y)
-    img = torch.stack([img.unsqueeze(0), img.unsqueeze(0)], dim=0)
+    from PIL import Image
+    import torchvision.transforms.functional as TF
 
-    print(img.shape)
-    pl, mapf = extract_patches(img.float(), 4, 1)
-    print(mapf)
-    print(pl.shape)
-    print(merge_patches(pl, mapf).shape)
+    image = Image.open('C:\\Users\\nicol\\OneDrive\\Desktop\\master\\transformers4physics\\dog.jpg')
+    x = TF.to_tensor(image)
+    x.unsqueeze_(0)
+
+        # to patches
+    f = h5py.File("C:\\Users\\nicol\\OneDrive\\Desktop\\master\\smoke\\solved_fluid.h5", "r")
+
+    xdata = f.get('1')
+    xdata = torch.tensor(xdata)[1:]
+
+    print(xdata.shape)
+    print(x[0][1][:128, :128].unsqueeze(0).unsqueeze(0).shape)
+    p, un_shape = extract_patches(x[0][1][:256 * 4, :256 * 4].unsqueeze(0).unsqueeze(0), 128, 1)
+
+    print(un_shape)
 
     t = ContinuousTransformerWrapper(
-        dim_in= 224,
-        dim_out= 224,
+        dim_in= 256,
+        dim_out= 256,
         max_seq_len=1024,
         attn_layers = Decoder(
-            dim = 224,
+            dim = 256,
             depth = 1,
-            heads = 8,
+            heads = 1,
             alibi_pos_bias = True,
-            alibi_num_heads = 8
+            alibi_num_heads = 1
         )
-    )
+    ).cuda()
+
+    embedder = KoopSim().cuda()
+
+    cri = nn.MSELoss()
+    optimizer = optim.Adam(embedder.parameters(), lr=0.0001)
+
+    p = p.cuda()
+    for epcoh in range(1):    
+        for i in range(p.size(0)):
+            x = p[0][i].unsqueeze(0)
+
+            optimizer.zero_grad()
+
+            e, d = embedder(x)
+
+            loss = cri(d, x)
+            loss.backward()
+            optimizer.step()
     
-    # koopman
-    m = nn.Linear(16, 224)
-    s = [] 
-    for i in range(pl.size(1)):
-        patch = pl[:, i]
-        patch = patch.view(-1, 16)
-        latent = m(patch)
-        s.append(latent)
 
-    t(torch.stack(s, 1))
+    embedder.eval()
+    one_sample = torch.stack([embedder(p[0][i].unsqueeze(0))[0] for i in range(p.size(1))], dim=0).cuda()
 
 
+    cri = nn.MSELoss()
+    optimizer = optim.Adam(t.parameters(), lr=0.0001)
 
+    p = p.cuda()
+    for epcoh in range(1): 
+        print(t(one_sample))
+
+
+
+    ## train koopman sim
+
+
+    #for i in range(p.size(1)):
+    #   plt.imshow(p[0][i][0], vmin=0, vmax=1, cmap=plt.cm.gray,
+    #                    interpolation='bicubic', animated=True, origin='lower')
+    #    plt.show()
