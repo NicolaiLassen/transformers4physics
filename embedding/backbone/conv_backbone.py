@@ -62,6 +62,7 @@ class ConvBackbone(EmbeddingBackbone):
 
         self.observable_net_fc_layers = nn.Sequential(
             nn.Linear(backbone_dims[2]*self.final_patch_size[0]*self.final_patch_size[1], fc_dim),
+            nn.Dropout(0.1),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(fc_dim, embedding_dim),
             nn.LayerNorm(embedding_dim, eps=1e-5),
@@ -69,6 +70,7 @@ class ConvBackbone(EmbeddingBackbone):
 
         self.recovery_net_fc_layers = nn.Sequential(
             nn.Linear(embedding_dim, fc_dim),
+            nn.Dropout(0.1),
             nn.LeakyReLU(0.02, inplace=True),
             nn.Linear(fc_dim, backbone_dim*self.final_patch_size[0]*self.final_patch_size[1]),
             nn.LeakyReLU(0.02, inplace=True),

@@ -15,15 +15,17 @@ from transformer.phys_transformer_gpt2 import PhysformerGPT2
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
-    f = h5py.File(base + '\\field_s_state_test_large.h5')
-    sample_idx = 43
+    # f = h5py.File(base + '\\field_s_state_test_large.h5')
+    f = h5py.File(base + '\\field_s_state_test_rest.h5')
+    # f = h5py.File('./problem4.h5')
+    sample_idx = 7
     sample = np.array(f[str(sample_idx)]['sequence'])
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '00'
-    time = '4'
-    transformer_suffix = '_450'
+    date = '2022-05-10'
+    time = '22-52-57'
+    transformer_suffix = '_100'
     show_losses = True
     init_len = 1
     val_every_n_epoch = 50
@@ -33,15 +35,19 @@ if __name__ == '__main__':
     class Object(object):
         pass
 
+    path = './transformer_output/{}/{}/'.format(date,time)
+    with open(path + 'transformer_config.json', 'r') as file:
+        transformer_cfg = json.loads(json.load(file))
+
     cfg = Object()
     cfg.state_dims = [2, 64, 128]
     cfg.input_dims = [2, 64, 128]
-    cfg.backbone= "ResNet"
-    cfg.backbone_dim = 192
+    cfg.backbone= "Conv"
+    cfg.backbone_dim = 512
     cfg.channels= 5
     cfg.ckpt_path= ""
     cfg.config_name= ""
-    cfg.embedding_dim= 128
+    cfg.embedding_dim= 16
     cfg.fc_dim= 192
     cfg.image_size_x= 64
     cfg.image_size_y= 16
@@ -49,18 +55,15 @@ if __name__ == '__main__':
     model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg),
     ).cuda()
-    path = './transformer_output/{}/{}/'.format(date,time)
     model.load_model(path + 'embedder.pth'.format(date,time))
     model.eval()
     for p in model.parameters():
         p.requires_grad = False
 
-    with open(path + 'transformer_config.json', 'r') as file:
-        transformer_cfg = json.loads(json.load(file))
 
     autoregressive = ContinuousTransformerWrapper(
-        dim_in=128,
-        dim_out=128,
+        dim_in=128 if "emb_size" not in transformer_cfg else transformer_cfg["emb_size"],
+        dim_out=128 if "emb_size" not in transformer_cfg else transformer_cfg["emb_size"],
         max_seq_len=transformer_cfg["ctx"],
         attn_layers=Decoder(
             dim=transformer_cfg["decoder_dim"],
@@ -125,15 +128,15 @@ if __name__ == '__main__':
     plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
     plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(400,-1), axis=1), 'r')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(400,-1), axis=1), 'g')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(400,-1), axis=1), 'b')
+    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
+    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
+    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
     # plt.grid()
     # plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(400,-1), axis=1), 'rx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(400,-1), axis=1), 'gx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(400,-1), axis=1), 'bx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
     plt.grid()
     plt.show()
     

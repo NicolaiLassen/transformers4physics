@@ -39,6 +39,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.save_hyperparameters(cfg)
         self.lr = cfg.learning.lr
         self.batch_size = cfg.learning.batch_size_train
+        self.train_path = ''
 
         # dataset
         (
@@ -76,9 +77,11 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             self.model,
             l1=1e1,
             l2=1e1,
-            l3=1e-2
+            l3=1e-2,
+            l4=2,
         )
 
+        self.val_id = 0
         self.losses_train = []
         self.losses_val = []
         self.losses_train_hist = []
@@ -91,9 +94,16 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         cfg = self.hparams
 
         base_path = "C:\\Users\\s174270\\Documents\\datasets\\64x16 field"
-        train_path = "{}\\field_s_state_train_large.h5".format(base_path)
-        val_path = "{}\\field_s_state_test_large.h5".format(base_path)
-        test_path = "{}\\test.h5".format(base_path)
+        # train_path = "{}\\field_s_state_train_large.h5".format(base_path)
+        # val_path = "{}\\field_s_state_test_large.h5".format(base_path)
+        # test_path = "{}\\field_s_state_test_large.h5".format(base_path)
+        train_path = "{}\\field_s_state_train_circ.h5".format(base_path)
+        val_path = "{}\\field_s_state_test_circ.h5".format(base_path)
+        test_path = "{}\\field_s_state_test_circ.h5".format(base_path)
+        # train_path = base_path + "\\field_s_state_train_rest.h5"
+        # val_path = base_path + "\\field_s_state_test_rest.h5"
+        # test_path = base_path + "\\field_s_state_test_rest.h5"
+        self.train_path = train_path
 
         train_set = read_h5_dataset(
             train_path,
@@ -199,6 +209,8 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         return self.step(batch=batch, batch_idx=batch_idx, mode="train")
 
     def validation_step(self, batch, batch_idx):
+        self.val_id = self.val_id + 1
+        self.save_model(filename='val_{}'.format(self.val_id))
         return self.step(batch=batch, batch_idx=batch_idx, mode="val")
 
     def test_step(self, batch, batch_idx):
@@ -246,6 +258,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         f.create_dataset('train', data=np.array(self.losses_train_hist))
         f.create_dataset('val', data=np.array(self.losses_val_hist))
         f.close()
+        with open('dataset.txt', 'w') as file:
+            file.write(str(self.train_path))
+        file.close()
 
 
 def train(cfg):
@@ -275,8 +290,8 @@ def train(cfg):
         gpus=cfg.gpus,
         logger=logger,
         num_sanity_val_steps=0,
-        log_every_n_steps=15,
-        check_val_every_n_epoch=25,
+        log_every_n_steps=100,
+        check_val_every_n_epoch=50,
         callbacks=SaveCallback(
             dirpath="{}".format(cfg.embedding.ckpt_path),
             filename=cfg.embedding.display_name,

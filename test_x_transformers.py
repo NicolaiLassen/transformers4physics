@@ -20,20 +20,21 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 1000
+    epochs = 300
     ctx = 32
-    ndata_train = 500
-    ndata_val = 50
-    stride = 2
-    train_batch_size = 2048
+    ndata_train = -1
+    ndata_val = -1
+    stride = 4
+    train_batch_size = 512
     val_batch_size = 10
     val_every_n_epoch = 50
     save_on_val = True
 
     transformer_cfg = {
         'ctx': ctx,
+        'emb_size': 128,
         'decoder_dim': 512,
-        'depth': 12,
+        'depth': 10,
         'heads': 8,
         'macaron': False,
         "shift_tokens": 0,
@@ -55,8 +56,8 @@ if __name__ == "__main__":
         json.dump(json_data, file)
 
     model = ContinuousTransformerWrapper(
-        dim_in=128,
-        dim_out=128,
+        dim_in=transformer_cfg["emb_size"],
+        dim_out=transformer_cfg["emb_size"],
         max_seq_len=transformer_cfg["ctx"],
         attn_layers=Decoder(
             dim=transformer_cfg["decoder_dim"],
@@ -77,20 +78,21 @@ if __name__ == "__main__":
     cfg = Object()
     cfg.state_dims = [2, 64, 128]
     cfg.input_dims = [2, 64, 128]
-    cfg.backbone = "ResNet"
+    cfg.backbone= "ResNet"
     cfg.backbone_dim = 192
-    cfg.channels = 5
-    cfg.ckpt_path = ""
-    cfg.config_name = ""
-    cfg.embedding_dim = 128
-    cfg.fc_dim = 192
-    cfg.image_size_x = 64
-    cfg.image_size_y = 16
-    cfg.koopman_bandwidth = 7
+    cfg.channels= 5
+    cfg.ckpt_path= ""
+    cfg.config_name= ""
+    cfg.embedding_dim= 128
+    cfg.fc_dim= 192
+    cfg.image_size_x= 64
+    cfg.image_size_y= 16
+    cfg.koopman_bandwidth= 7
     embedding_model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg),)
     embedding_model.load_model(
-        "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-05-02\\22-10-54\\ckpt\\no_name.pth"
+        "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-05-11\\13-46-21\\ckpt\\val_6.pth"
     )
+    EmmbedingConfig(cfg).to_json_file(path + "embedder_cfg.json")
     torch.save(
         embedding_model.state_dict(),
         path + "embedder.pth"
@@ -147,9 +149,8 @@ if __name__ == "__main__":
 
         return data, batch_size
 
-
     train_set, train_batch_size = read_and_embbed_h5_dataset(
-        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_train_large.h5",
+        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_train_circ.h5",
         embedding_model,
         block_size=ctx,
         batch_size=train_batch_size,
@@ -165,7 +166,7 @@ if __name__ == "__main__":
         num_workers=1,
     )
     val_set, val_batch_size = read_and_embbed_h5_dataset(
-        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_test_large.h5",
+        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_test_circ.h5",
         embedding_model,
         block_size=ctx,
         batch_size=val_batch_size,
