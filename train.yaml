@@ -30,9 +30,10 @@ embedding:
   backbone: "ResNet"
  
   fc_dim: 192
-  backbone_dim: 192
-  embedding_dim: 128
+  backbone_dim: 256
+  embedding_dim: 160
   koopman_bandwidth: 7
+  use_koop_net: True
 
   state_dims: [3, 64, 128]
 
@@ -64,13 +65,13 @@ opt:
 
 learning:
 
-  epochs: 300
+  epochs: 200
   start_epoch: 0
 
   block_size_train: 4
   stride_train: 4
   batch_size_train: 512
-  n_data_train: 500
+  n_data_train: 100
   
   block_size_val: 400
   stride_val: 400

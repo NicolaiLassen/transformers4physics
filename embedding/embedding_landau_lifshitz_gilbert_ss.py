@@ -29,7 +29,40 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     # "vit": ViTBackbone
 }
 
-class LandauLifshitzGilbertEmbedding(EmbeddingModel):
+class ALR(nn.Module):
+    def __init__(self, n=32, eps=10**(-8)):
+        super().__init__()
+        self.n = n
+        self.L = nn.Parameter(torch.rand((n*2, n*2)))
+        self.R = nn.Parameter(torch.rand((n, n)))
+        self.eps = eps
+
+    def forward(self, x):
+        x = x.reshape(self.n, -1)
+        M = self.L @ self.L.t() + self.eps * torch.eye(self.n*2).to(self.L.get_device())
+        M11 = M[:self.n, :self.n]
+        M12 = M[self.n:, :self.n]
+        M21 = M[:self.n, self.n:]
+        M22 = M[self.n:, self.n:]
+        A = 2*(M11+M22+self.R-self.R.t())
+        # Use eigenvalue decomp to quickly calc many steps at once
+        # This is covered in https://arxiv.org/pdf/2110.06509.pdf in eq 29
+        # Issues with complex numbers
+        A = torch.linalg.inv(A) @ M21
+        return (A @ x).reshape(-1, self.n)
+
+    @property
+    def koopman_operator(self):
+        M = self.L @ self.L.t() + self.eps * torch.eye(self.n*2).to(self.L.get_device())
+        M11 = M[:self.n, :self.n]
+        M12 = M[self.n:, :self.n]
+        M21 = M[:self.n, self.n:]
+        M22 = M[self.n:, self.n:]
+        A = 2*(M11+M22+self.R-self.R.t())
+        A = torch.linalg.inv(A) @ M21
+        return A
+
+class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
     """Embedding Koopman model for Landau-Lifshitz-Gilbert
     Args:
         config (EmbeddingConfig): Configuration class
@@ -53,78 +86,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             channels=config.channels,
         )
 
-        self.use_koop_net = config.use_koop_net
-        if self.use_koop_net:
-            # Learned Koopman operator with net
-            self.diag_indices = np.diag_indices(config.embedding_dim)
-            self.k_matrix_diag = nn.Sequential(
-                nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, config.embedding_dim)
-            )
-
-            # Off-diagonal indices
-            if config.koopman_bandwidth < 0 or config.koopman_bandwidth >= config.embedding_dim:
-                xidx = []
-                yidx = []
-                for i in range(1, config.embedding_dim):
-                    xidx.append(np.arange(i, config.embedding_dim))
-                    yidx.append(np.arange(0, config.embedding_dim - i))
-                self.triu_indices = torch.LongTensor(
-                    [np.concatenate(xidx), np.concatenate(yidx)]
-                )
-                self.tril_indices = torch.LongTensor(
-                    [np.concatenate(yidx), np.concatenate(xidx)]
-                )
-            else:
-                xidx = []
-                yidx = []
-                for i in range(1, config.koopman_bandwidth + 1):
-                    xidx.append(np.arange(i, config.embedding_dim))
-                    yidx.append(np.arange(0, config.embedding_dim - i))
-                self.triu_indices = torch.LongTensor(
-                    np.array([np.concatenate(xidx), np.concatenate(yidx)])
-                )
-                self.tril_indices = torch.LongTensor(
-                    np.array([np.concatenate(yidx), np.concatenate(xidx)])
-                )
-            self.k_matrix_ut = nn.Sequential(
-                nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, self.triu_indices[0].size(0))
-            )
-            self.k_matrix_lt = nn.Sequential(
-                nn.Linear(2, 50), nn.ReLU(), nn.Linear(50, self.tril_indices[0].size(0))
-            )
-
-        else:
-            # Learned Koopman operator
-            self.k_matrix_diag = nn.Parameter(torch.linspace(1,0,config.embedding_dim))
-            self.diag_indices = np.diag_indices(config.embedding_dim)
-
-            # Off-diagonal indices
-            if config.koopman_bandwidth < 0 or config.koopman_bandwidth >= config.embedding_dim:
-                xidx = []
-                yidx = []
-                for i in range(1, config.embedding_dim):
-                    xidx.append(np.arange(i, config.embedding_dim))
-                    yidx.append(np.arange(0, config.embedding_dim - i))
-                self.triu_indices = torch.LongTensor(
-                    [np.concatenate(xidx), np.concatenate(yidx)]
-                )
-                self.tril_indices = torch.LongTensor(
-                    [np.concatenate(yidx), np.concatenate(xidx)]
-                )
-            else:
-                xidx = []
-                yidx = []
-                for i in range(1, config.koopman_bandwidth + 1):
-                    xidx.append(np.arange(i, config.embedding_dim))
-                    yidx.append(np.arange(0, config.embedding_dim - i))
-                self.triu_indices = torch.LongTensor(
-                    np.array([np.concatenate(xidx), np.concatenate(yidx)])
-                )
-                self.tril_indices = torch.LongTensor(
-                    np.array([np.concatenate(yidx), np.concatenate(xidx)])
-                )
-            self.k_matrix_ut = nn.Parameter(0.1*torch.rand(self.triu_indices[0].size(0)))
-            self.k_matrix_lt = nn.Parameter(0.1*torch.rand(self.tril_indices[0].size(0)))
+        self.koopman = ALR(n=self.config.embedding_dim)
 
         # Normalization occurs inside the model
         self.register_buffer("mu", torch.zeros(config.channels))
@@ -154,12 +116,6 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         # Decode
         out = self.backbone.recover(g)
         xhat = self._unnormalize(out)
-        if(not self.training):
-            normsX = torch.sqrt(torch.einsum('ij,ij->j',xhat.swapaxes(1,3).reshape(-1,3).T, xhat.swapaxes(1,3).reshape(-1,3).T))
-            normsX = normsX.reshape(-1,16,64).swapaxes(1,2)
-            xhat[:,0,:,:] = x[:,0,:,:]/normsX
-            xhat[:,1,:,:] = x[:,1,:,:]/normsX
-            xhat[:,2,:,:] = x[:,2,:,:]/normsX
         return g, xhat
 
     def embed(self, x: Tensor, field: Tensor) -> Tensor:
@@ -200,61 +156,14 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             x[:,2,:,:] = x[:,2,:,:]/normsX
         return x
 
-    def koopman_operation(self, g: Tensor, field: Tensor = None) -> Tensor:
-        """Applies the learned Koopman operator on the given observables
-        Args:
-            g (Tensor): [B, config.n_embd] Koopman observables
-            field (Tensor): [B, 2] If the model is set to use field input in the koopman operation
-        Returns:
-            Tensor: [B, config.n_embd] Koopman observables at the next time-step
-        """
-        if self.use_koop_net:
-            return self._koopman_operation_net(g, field)
-        else:
-            return self._koopman_op(g)
-
-    def _koopman_op(self, g: Tensor):
-        # Koopman operator
-        k_matrix = Variable(
-            torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
-        ).to(self.devices[0])
-        # Populate the off diagonal terms
-        k_matrix[:, self.triu_indices[0], self.triu_indices[1]] = self.k_matrix_ut
-        k_matrix[:, self.tril_indices[0], self.tril_indices[1]] = self.k_matrix_lt
-
-        # Populate the diagonal
-        k_matrix[:, self.diag_indices[0], self.diag_indices[1]] = self.k_matrix_diag
-
-        # Apply Koopman operation
-        g_next = torch.bmm(k_matrix, g.unsqueeze(-1))
-        self.k_matrix = k_matrix
-
-        return g_next.squeeze(-1)  # Squeeze empty dim from bmm
-        
-    def _koopman_operation_net(self, g: Tensor, field: Tensor) -> Tensor:
+    def koopman_operation(self, g: Tensor, field: Tensor) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
         Returns:
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
-        field = self._normalize_features(field)
-        # Koopman operator
-        k_matrix = Variable(
-            torch.zeros(g.size(0), self.config.embedding_dim, self.config.embedding_dim)
-        ).to(self.devices[0])
-        # Populate the off diagonal terms
-        k_matrix[:, self.triu_indices[0], self.triu_indices[1]] = self.k_matrix_ut(field)
-        k_matrix[:, self.tril_indices[0], self.tril_indices[1]] = self.k_matrix_lt(field)
-
-        # Populate the diagonal
-        k_matrix[:, self.diag_indices[0], self.diag_indices[1]] = self.k_matrix_diag(field)
-
-        # Apply Koopman operation
-        g_next = torch.bmm(k_matrix, g.unsqueeze(-1))
-        self.k_matrix = k_matrix
-
-        return g_next.squeeze(-1)  # Squeeze empty dim from bmm
+        return self.koopman(g)
 
     @property
     def koopman_operator(self, requires_grad: bool = True) -> Tensor:
@@ -265,13 +174,9 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             Tensor: Full Koopman operator tensor
         """
         if not requires_grad:
-            return self.k_matrix.detach()
+            return self.koopman.koopman_operator.detach()
         else:
-            return self.k_matrix
-
-    @property
-    def koopman_diag(self):
-        return self.k_matrix_diag
+            return self.koopman.koopman_operator
 
     def _normalize(self, x):
         x = (x - self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) / self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
@@ -286,23 +191,21 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return field
 
 
-class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
+class LandauLifshitzGilbertEmbeddingTrainerSS(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
     Args:
         config (PhysConfig): Configuration class with transformer/embedding parameters
         l1: Penalty weight for the dynamics in the koopman sequences
         l2: Penalty weight for the reconstruction
-        l3: Penalty weight for the decay of the koopman operator, prevents overfitting
-        l4: Penalty weight for ensuring unit vectors in the output
+        l3: Penalty weight for ensuring unit vectors in the output
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2, l4=1):
+    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1):
         super().__init__()
         self.embedding_model = embedding_model
         self.l1 = l1
         self.l2 = l2
         self.l3 = l3
-        self.l4 = l4
 
     def forward(self, states: Tensor, field: Tensor) -> FloatTuple:
         """Trains model for a single epoch
@@ -347,14 +250,14 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
         normsX = torch.sqrt(torch.einsum('ij,ij->j',normsX.T, normsX.T))
         ones = torch.ones((normsX.shape[0])).to(device)
 
-        loss = self.l2 * mseLoss(xin0, xRec0) + self.l4 * mseLoss(normsX, ones)
+        loss = self.l2 * mseLoss(xin0, xRec0) + self.l3 * mseLoss(normsX, ones)
         loss_reconstruct = loss_reconstruct + self.l2 * mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
 
         # Loop through time-series
         for t0 in range(1, states.shape[1]):
-            xin0 = states[:, t0].to(device)  # Next time-step
+            xin0 = states[:, t0, :, :].to(device)  # Next time-step
             _, xRec1 = self.embedding_model(xin0, field)
 
             g1Pred = self.embedding_model.koopman_operation(g1_old, field)
@@ -368,9 +271,8 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
                 loss
                 + self.l1 * mseLoss(xgRec1, xin0)
                 + self.l2 * mseLoss(xRec1, xin0)
-                + self.l3
-                * torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
-                + self.l4 * mseLoss(normsX, ones)
+                + self.l3 * mseLoss(normsX, ones)
+                + 1e-1 * torch.sum(torch.pow(self.embedding_model.koopman_operator, 2))
             )
 
 

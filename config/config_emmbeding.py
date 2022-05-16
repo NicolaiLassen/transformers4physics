@@ -27,4 +27,5 @@ class EmmbedingConfig(PhysConfig):
         self.embedding_dim = cfg.embedding_dim if cfg.embedding_dim else 128
         self.fc_dim = cfg.fc_dim if cfg.fc_dim else 128
         self.koopman_bandwidth = cfg.koopman_bandwidth if cfg.koopman_bandwidth else -1
+        self.use_koop_net = cfg.use_koop_net if cfg.use_koop_net else False
         

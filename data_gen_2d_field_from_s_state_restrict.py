@@ -113,45 +113,45 @@ def generate_data_set(
 if __name__ == '__main__':
     f = h5py.File('./s_state.h5', 'r')
     s_state = np.array(f['s_state'])
+    # generate_data_set(
+    #     './field_s_state_train_circ.h5',
+    #     s_state = s_state,
+    #     res=[64, 16, 1],
+    #     grid_L=[500e-9, 125e-9, 3e-9],
+    #     num_sequences=500,
+    #     timesteps=400,
+    #     seed=42,
+    #     field_angle_interval = (0,360),
+    #     field_strength_interval=[22,41],
+    # )
+    # generate_data_set(
+    #     './field_s_state_test_circ.h5',
+    #     s_state = s_state,
+    #     res=[64, 16, 1],
+    #     grid_L=[500e-9, 125e-9, 3e-9],
+    #     num_sequences=50,
+    #     timesteps=400,
+    #     seed=500,
+    #     field_angle_interval = (0,360),
+    #     field_strength_interval=[22,41],
+    # )
     generate_data_set(
-        './field_s_state_train_circ.h5',
+        './field_s_state_train_circ_paper_huge.h5',
         s_state = s_state,
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=500,
-        timesteps=400,
-        seed=42,
-        field_angle_interval = (0,360),
-        field_strength_interval=[22,41],
-    )
-    generate_data_set(
-        './field_s_state_test_circ.h5',
-        s_state = s_state,
-        res=[64, 16, 1],
-        grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=50,
-        timesteps=400,
-        seed=500,
-        field_angle_interval = (0,360),
-        field_strength_interval=[22,41],
-    )
-    generate_data_set(
-        './field_s_state_train_circ_paper.h5',
-        s_state = s_state,
-        res=[64, 16, 1],
-        grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=500,
+        num_sequences=2500,
         timesteps=400,
         seed=42,
         field_angle_interval = (180-44/2,180+44/2),
         field_strength_interval=[22,41],
     )
     generate_data_set(
-        './field_s_state_test_circ_paper.h5',
+        './field_s_state_test_circ_paper_huge.h5',
         s_state = s_state,
         res=[64, 16, 1],
         grid_L=[500e-9, 125e-9, 3e-9],
-        num_sequences=50,
+        num_sequences=250,
         timesteps=400,
         seed=500,
         field_angle_interval = (180-44/2,180+44/2),

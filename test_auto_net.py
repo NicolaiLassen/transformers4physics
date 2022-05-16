@@ -16,45 +16,46 @@ from transformer.phys_transformer_gpt2 import PhysformerGPT2
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
-    f = h5py.File(base + '\\field_s_state_test_rest.h5')
-    # f = h5py.File('./problem4.h5')
-    sample_idx = 7
+    # f = h5py.File(base + '\\field_s_state_test_circ_paper.h5')
+    f = h5py.File('./problem4.h5')
+    sample_idx = 1
     sample = np.array(f[str(sample_idx)]['sequence'])
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '2022-05-10'
-    time = '22-52-57'
-    transformer_suffix = '_100'
+    date = '2022-05-16'
+    time = '13-01-34'
+    date = '00'
+    time = '5'
+    transformer_suffix = '_500'
     show_losses = True
     init_len = 1
     val_every_n_epoch = 50
-
-    # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
-    # plt.show()
-    class Object(object):
-        pass
 
     path = './transformer_output/{}/{}/'.format(date,time)
     with open(path + 'transformer_config.json', 'r') as file:
         transformer_cfg = json.loads(json.load(file))
 
+    class Object(object):
+        pass
+
     cfg = Object()
-    cfg.state_dims = [2, 64, 128]
-    cfg.input_dims = [2, 64, 128]
-    cfg.backbone= "Conv"
-    cfg.backbone_dim = 512
-    cfg.channels= 5
-    cfg.ckpt_path= ""
-    cfg.config_name= ""
-    cfg.embedding_dim= 16
-    cfg.fc_dim= 192
-    cfg.image_size_x= 64
-    cfg.image_size_y= 16
-    cfg.koopman_bandwidth= 7
-    model = LandauLifshitzGilbertEmbedding(
-        EmmbedingConfig(cfg),
-    ).cuda()
+    with open(path + 'embedder_cfg.json', 'r', encoding="utf-8") as file:
+        cfg_str = file.read(-1)
+        cfg_json = json.loads(cfg_str)
+        file.close()
+    cfg.backbone= cfg_json["backbone"]
+    cfg.backbone_dim = cfg_json["backbone_dim"]
+    cfg.channels= cfg_json["channels"]
+    cfg.ckpt_path= cfg_json["ckpt_path"]
+    cfg.config_name= cfg_json["config_name"]
+    cfg.embedding_dim= cfg_json["embedding_dim"]
+    cfg.fc_dim= cfg_json["fc_dim"]
+    cfg.image_size_x= cfg_json["image_size_x"]
+    cfg.image_size_y= cfg_json["image_size_y"]
+    cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
+    cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
+    model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg)).cuda()
     model.load_model(path + 'embedder.pth'.format(date,time))
     model.eval()
     for p in model.parameters():
@@ -83,12 +84,15 @@ if __name__ == '__main__':
     sample_t = torch.tensor(sample).float().cuda()
     field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
     field_t[:] = torch.tensor(field)
+    a = model.embed(sample_t, field_t)
+    recon_a = model.recover(a)
+    recon_a = recon_a.detach().cpu().numpy()
 
     init = model.embed(sample_t[0:init_len], field_t[0:init_len])
-    init = init.unsqueeze(0)
+    # init = init.unsqueeze(0)
     # emb_seq = autoregressive.generate(init,max_length=400)
     emb_seq = autoregressive.generate(init,seq_len=400-init_len)
-    emb_seq = torch.cat([init,emb_seq],dim=1)
+    emb_seq = torch.cat([init,emb_seq],dim=0)
     # emb_seq = emb_seq[0][0]
 
     # a = model.embed(sample_t, field_t)
@@ -138,5 +142,19 @@ if __name__ == '__main__':
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
     plt.grid()
+    plt.title('Compared to ground truth')
+    plt.show()
+
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon_a[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon_a[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon_a[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
+    # plt.grid()
+    # plt.show()
+    
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+    plt.grid()
+    plt.title('Compared to embed -> recon')
     plt.show()
     

@@ -20,26 +20,31 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 300
-    ctx = 32
-    ndata_train = -1
-    ndata_val = -1
+    epochs = 100
+    ctx = 24
+    ndata_train = 500
+    ndata_val = 50
     stride = 4
-    train_batch_size = 512
+    train_batch_size = 1024
     val_batch_size = 10
-    val_every_n_epoch = 50
+    val_every_n_epoch = 10
     save_on_val = True
+
+    embedder_date = '00'
+    embedder_time = 'circ paper net koop'
+    embedder_name = 'val_4'
+
 
     transformer_cfg = {
         'ctx': ctx,
-        'emb_size': 128,
+        'emb_size': 160,
         'decoder_dim': 512,
-        'depth': 10,
+        'depth': 12,
         'heads': 8,
         'macaron': False,
         "shift_tokens": 0,
-        "ff_dropout": 0.08,
-        'attn_dropout': 0.08,
+        "ff_dropout": 0.1,
+        'attn_dropout': 0.1,
     }
 
 
@@ -76,27 +81,37 @@ if __name__ == "__main__":
         pass
 
     cfg = Object()
-    cfg.state_dims = [2, 64, 128]
-    cfg.input_dims = [2, 64, 128]
-    cfg.backbone= "ResNet"
-    cfg.backbone_dim = 192
-    cfg.channels= 5
-    cfg.ckpt_path= ""
-    cfg.config_name= ""
-    cfg.embedding_dim= 128
-    cfg.fc_dim= 192
-    cfg.image_size_x= 64
-    cfg.image_size_y= 16
-    cfg.koopman_bandwidth= 7
-    embedding_model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg),)
+    with open('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\config.json'.format(embedder_date,embedder_time), 'r', encoding="utf-8") as file:
+        cfg_str = file.read(-1)
+        cfg_json = json.loads(cfg_str)
+        file.close()
+    cfg.backbone= cfg_json["backbone"]
+    cfg.backbone_dim = cfg_json["backbone_dim"]
+    cfg.channels= cfg_json["channels"]
+    cfg.ckpt_path= cfg_json["ckpt_path"]
+    cfg.config_name= cfg_json["config_name"]
+    cfg.embedding_dim= cfg_json["embedding_dim"]
+    cfg.fc_dim= cfg_json["fc_dim"]
+    cfg.image_size_x= cfg_json["image_size_x"]
+    cfg.image_size_y= cfg_json["image_size_y"]
+    cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
+    cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
+    embedding_model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg))
     embedding_model.load_model(
-        "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\2022-05-11\\13-46-21\\ckpt\\val_6.pth"
+        "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth".format(embedder_date, embedder_time, embedder_name)
     )
     EmmbedingConfig(cfg).to_json_file(path + "embedder_cfg.json")
     torch.save(
         embedding_model.state_dict(),
         path + "embedder.pth"
     )
+    dataset_train = ''
+    with open('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\dataset.txt'.format(embedder_date,embedder_time), 'r') as file:
+        dataset_train = file.read(-1)
+        file.close()
+    with open(path + 'dataset.txt','w') as file:
+        file.write(dataset_train)
+        file.close()
     embedding_model.eval()
     embedding_model.cuda()
     for param in embedding_model.parameters():
@@ -150,7 +165,7 @@ if __name__ == "__main__":
         return data, batch_size
 
     train_set, train_batch_size = read_and_embbed_h5_dataset(
-        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_train_circ.h5",
+        dataset_train,
         embedding_model,
         block_size=ctx,
         batch_size=train_batch_size,
@@ -166,7 +181,7 @@ if __name__ == "__main__":
         num_workers=1,
     )
     val_set, val_batch_size = read_and_embbed_h5_dataset(
-        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_test_circ.h5",
+        "C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_test_circ_paper.h5",
         embedding_model,
         block_size=ctx,
         batch_size=val_batch_size,
@@ -210,7 +225,8 @@ if __name__ == "__main__":
         for i, x in enumerate(train_loader):
             e = x["embedded"].cuda()
             optimizer.zero_grad()
-            loss = model(e)
+            mask = torch.ones(e.shape[:-1]).bool().cuda()
+            loss = model(e, mask = mask)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
             optimizer.step()
@@ -227,7 +243,8 @@ if __name__ == "__main__":
             # bar.start()
             for i_val, x_val in enumerate(val_loader):
                 e = x_val['embedded'].cuda()
-                loss_val = model(e)
+                mask = torch.ones(e.shape[:-1]).bool().cuda()
+                loss_val = model(e, mask = mask)
                 acc_loss_val = acc_loss_val + loss_val.item()
                 bar.widgets[-1] = '{:8f}'.format(loss_val.item())
             # bar.finish()

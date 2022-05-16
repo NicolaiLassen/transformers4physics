@@ -13,6 +13,7 @@ from abc import abstractmethod
 
 import torch
 import torch.nn as nn
+import h5py
 
 
 from config.config_emmbeding import EmmbedingConfig

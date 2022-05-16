@@ -10,22 +10,25 @@ from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmb
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
-    show_losses = True
+    show_losses = False
+    # date = '2022-05-14'
+    # time = '10-51-15'
+    date = '00'
+    time = 'circ paper net koop'
+    model_name = 'val_4'
     # date = '2022-05-16'
     # time = '11-19-55'
     # model_name = 'val_3'
-    date = '2022-05-16'
-    time = '11-40-29'
-    model_name = 'val_4'
 
+    start_at = 0
+    koop_forward = 1
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
-    f = h5py.File('./problem4.h5')
-    # f = h5py.File(base + '\\field_s_state_test_circ_paper.h5')
-
+    # f = h5py.File('./problem4.h5')
+    f = h5py.File(base + '\\field_s_state_test_circ_paper.h5')
     with open('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\dataset.txt'.format(date,time)) as file:
         print(file.read(-1))
-    sample = np.array(f['1']['sequence'])
-    field = np.array( f['1']['field'])
+    sample = np.array(f['0']['sequence'])
+    field = np.array( f['0']['field'])
     # print(sample.shape)
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
     # plt.show()
@@ -49,28 +52,28 @@ if __name__ == '__main__':
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
     model = LandauLifshitzGilbertEmbedding(
-        EmmbedingConfig(cfg)
+        EmmbedingConfig(cfg),
     ).cuda()
+    print(model.use_koop_net)
     model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth'.format(date,time,model_name))
     model.eval()
+    for p in model.parameters():
+        p.requires_grad = False
     # print(sample.shape)
-    sample_t = torch.tensor(sample).float().cuda()
-    field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
-    field_t[:] = torch.tensor(field)
-    a = model.embed(sample_t, field_t)
-    recon = model.recover(a)
-
-    # normsX = torch.sqrt(torch.einsum('ij,ij->j',sample_t.swapaxes(1,3).reshape(-1,3).T, sample_t.swapaxes(1,3).reshape(-1,3).T))
-    # normsX = normsX.reshape(-1,16,64).swapaxes(1,2)
-    # sample_t[:,0,:,:] = sample_t[:,0,:,:]/normsX
-    # sample_t[:,1,:,:] = sample_t[:,1,:,:]/normsX
-    # sample_t[:,2,:,:] = sample_t[:,2,:,:]/normsX
-
-    # normsG = torch.sqrt(torch.einsum('ij,ij->j',recon.swapaxes(1,3).reshape(-1,3).T, recon.swapaxes(1,3).reshape(-1,3).T))
-    # normsG = normsG.reshape(-1,16,64).swapaxes(1,2)
-    # recon[:,0,:,:] = recon[:,0,:,:]/normsG
-    # recon[:,1,:,:] = recon[:,1,:,:]/normsG
-    # recon[:,2,:,:] = recon[:,2,:,:]/normsG
+    sample_t = torch.tensor(sample).float().cuda()[start_at].unsqueeze(0)
+    field_t = torch.tensor(field[:2]).unsqueeze(0).cuda().float()
+    a, _ = model(sample_t, field_t)
+    b = torch.zeros(400-start_at,cfg.embedding_dim).cuda()
+    c, _ = model(torch.tensor(sample[start_at:]).float().cuda()[koop_forward].unsqueeze(0), field_t)
+    b[0] = a[0]
+    for i in range(1,400-start_at):
+        b[i] = model.koopman_operation(b[i-1].unsqueeze(0),field_t)[0]
+    mse = torch.nn.MSELoss()
+    print(mse(model.recover(c[0]),model.recover(b[koop_forward])))
+    # b[start_at+koop_forward] = c[0]
+    print(mse(sample_t, model.recover(model.embed(sample_t, field_t))))
+    # print(mse(model.recover(sample_t[0]),model.recover(b[koop_to])))
+    recon = model.recover(b)
 
     recon = recon.detach().cpu().numpy()
 
@@ -87,21 +90,24 @@ if __name__ == '__main__':
         plt.yscale('log')
         plt.show()
 
-    plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
-    plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    plt.quiver(sample[start_at,0].T, sample[start_at,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
+    plt.quiver(recon[start_at,0].T, recon[start_at,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    plt.show()
+    plt.quiver(sample[koop_forward,0].T, sample[koop_forward,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
+    plt.quiver(recon[koop_forward,0].T, recon[koop_forward,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
     plt.show()
     plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
     plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
     plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample_t.size(0),-1), axis=1), 'r')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample_t.size(0),-1), axis=1), 'g')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample_t.size(0),-1), axis=1), 'b')
+    plt.plot(np.arange(start_at, sample.shape[0]), np.mean(sample[start_at:,0].reshape(400-start_at,-1), axis=1), 'r')
+    plt.plot(np.arange(start_at, sample.shape[0]), np.mean(sample[start_at:,1].reshape(400-start_at,-1), axis=1), 'g')
+    plt.plot(np.arange(start_at, sample.shape[0]), np.mean(sample[start_at:,2].reshape(400-start_at,-1), axis=1), 'b')
     # plt.grid()
     # plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample_t.size(0),-1), axis=1), 'rx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample_t.size(0),-1), axis=1), 'gx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample_t.size(0),-1), axis=1), 'bx')
+    plt.plot(np.arange(start_at, sample.shape[0]), np.mean(recon[:,0].reshape(400-start_at,-1), axis=1), 'rx')
+    plt.plot(np.arange(start_at, sample.shape[0]), np.mean(recon[:,1].reshape(400-start_at,-1), axis=1), 'gx')
+    plt.plot(np.arange(start_at, sample.shape[0]), np.mean(recon[:,2].reshape(400-start_at,-1), axis=1), 'bx')
     plt.grid()
     plt.show()

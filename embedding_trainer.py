@@ -97,9 +97,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         # train_path = "{}\\field_s_state_train_large.h5".format(base_path)
         # val_path = "{}\\field_s_state_test_large.h5".format(base_path)
         # test_path = "{}\\field_s_state_test_large.h5".format(base_path)
-        train_path = "{}\\field_s_state_train_circ.h5".format(base_path)
-        val_path = "{}\\field_s_state_test_circ.h5".format(base_path)
-        test_path = "{}\\field_s_state_test_circ.h5".format(base_path)
+        train_path = "{}\\field_s_state_train_circ_paper.h5".format(base_path)
+        val_path = "{}\\field_s_state_test_circ_paper.h5".format(base_path)
+        test_path = "{}\\field_s_state_test_circ_paper.h5".format(base_path)
         # train_path = base_path + "\\field_s_state_train_rest.h5"
         # val_path = base_path + "\\field_s_state_test_rest.h5"
         # test_path = base_path + "\\field_s_state_test_rest.h5"
@@ -218,9 +218,13 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
     def on_epoch_end(self):
         if(len(self.losses_train) > 0):
-            self.losses_train_hist.append(sum(self.losses_train))
+            self.losses_train_hist.append(sum(self.losses_train)/len(self.losses_train))
         if(len(self.losses_val) > 0):
-            self.losses_val_hist.append(sum(self.losses_val))
+            self.losses_val_hist.append(sum(self.losses_val)/len(self.losses_val))
+            f = h5py.File('./losses.h5', 'w')
+            f.create_dataset('train', data=np.array(self.losses_train_hist))
+            f.create_dataset('val', data=np.array(self.losses_val_hist))
+            f.close()
         self.losses_train = []
         self.losses_val = []
 
@@ -254,10 +258,6 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
     def save_model(self, checkpoint_dir="./ckpt", filename="embed"):
         self.model.save_model(save_directory=checkpoint_dir, filename=filename)
-        f = h5py.File('./losses.h5', 'w')
-        f.create_dataset('train', data=np.array(self.losses_train_hist))
-        f.create_dataset('val', data=np.array(self.losses_val_hist))
-        f.close()
         with open('dataset.txt', 'w') as file:
             file.write(str(self.train_path))
         file.close()
