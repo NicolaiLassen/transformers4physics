@@ -23,8 +23,6 @@ if __name__ == '__main__':
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '2022-05-16'
-    time = '13-01-34'
     date = '00'
     time = '5'
     transformer_suffix = '_500'

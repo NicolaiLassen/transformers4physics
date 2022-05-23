@@ -21,6 +21,7 @@ from embedding.embedding_landau_lifshitz_gilbert import (
     LandauLifshitzGilbertEmbedding,
     LandauLifshitzGilbertEmbeddingTrainer,
 )
+from embedding.embedding_landau_lifshitz_gilbert_ss import LandauLifshitzGilbertEmbeddingSS, LandauLifshitzGilbertEmbeddingTrainerSS
 from embedding.embedding_model import EmbeddingModel
 from util.config_formater import sweep_decorate_config
 from util.data_loader import read_h5_dataset
@@ -77,7 +78,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
             self.model,
             l1=1e1,
             l2=1e1,
-            l3=1e-2,
+            # l3=1e-2,
             l4=2,
         )
 

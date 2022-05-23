@@ -29,42 +29,7 @@ backbone_models: Dict[str, EmbeddingBackbone] = {
     # "vit": ViTBackbone
 }
 
-### This follows the Schur stable koopman implementation described in https://arxiv.org/pdf/2110.06509.pdf
-
-class ALR(nn.Module):
-    def __init__(self, n=32, eps=10**(-8)):
-        super().__init__()
-        self.n = n
-        self.L = nn.Parameter(torch.rand((n*2, n*2)))
-        self.R = nn.Parameter(torch.rand((n, n)))
-        self.eps = eps
-
-    def forward(self, x):
-        x = x.reshape(self.n, -1)
-        M = self.L @ self.L.t() + self.eps * torch.eye(self.n*2).to(self.L.get_device())
-        M11 = M[:self.n, :self.n]
-        M12 = M[self.n:, :self.n]
-        M21 = M[:self.n, self.n:]
-        M22 = M[self.n:, self.n:]
-        A = (M11+M22+self.R-self.R.t())
-        A = (2*torch.linalg.inv(A)) @ M21
-        # Use eigenvalue decomp to quickly calc many steps at once (not done here)
-        # This is covered in https://arxiv.org/pdf/2110.06509.pdf in eq 29
-        # Issues with complex numbers
-        return (A @ x).reshape(-1, self.n)
-
-    @property
-    def koopman_operator(self):
-        M = self.L @ self.L.t() + self.eps * torch.eye(self.n*2).to(self.L.get_device())
-        M11 = M[:self.n, :self.n]
-        M12 = M[:self.n, self.n:]
-        M21 = M[self.n:, :self.n]
-        M22 = M[self.n:, self.n:]
-        A = (M11+M22+self.R-self.R.t())
-        A = (2*torch.linalg.inv(A)) @ M21
-        return A
-
-class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
+class LandauLifshitzGilbertEmbeddingFF(EmbeddingModel):
     """Embedding Koopman model for Landau-Lifshitz-Gilbert
     Args:
         config (EmbeddingConfig): Configuration class
@@ -88,7 +53,11 @@ class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
             channels=config.channels,
         )
 
-        self.koopman = ALR(n=self.config.embedding_dim)
+        self.koopman_net = nn.Sequential(
+            nn.Linear(config.embedding_dim, config.embedding_dim),
+            nn.ReLU(),
+            nn.Linear(config.embedding_dim, config.embedding_dim),
+        )
 
         # Normalization occurs inside the model
         self.register_buffer("mu", torch.zeros(config.channels))
@@ -118,6 +87,12 @@ class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
         # Decode
         out = self.backbone.recover(g)
         xhat = self._unnormalize(out)
+        if(not self.training):
+            normsX = torch.sqrt(torch.einsum('ij,ij->j',xhat.swapaxes(1,3).reshape(-1,3).T, xhat.swapaxes(1,3).reshape(-1,3).T))
+            normsX = normsX.reshape(-1,16,64).swapaxes(1,2)
+            xhat[:,0,:,:] = x[:,0,:,:]/normsX
+            xhat[:,1,:,:] = x[:,1,:,:]/normsX
+            xhat[:,2,:,:] = x[:,2,:,:]/normsX
         return g, xhat
 
     def embed(self, x: Tensor, field: Tensor) -> Tensor:
@@ -158,14 +133,15 @@ class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
             x[:,2,:,:] = x[:,2,:,:]/normsX
         return x
 
-    def koopman_operation(self, g: Tensor, field: Tensor) -> Tensor:
+    def koopman_operation(self, g: Tensor, field: Tensor = None) -> Tensor:
         """Applies the learned Koopman operator on the given observables
         Args:
             g (Tensor): [B, config.n_embd] Koopman observables
+            field (Tensor): [B, 2] If the model is set to use field input in the koopman operation
         Returns:
             Tensor: [B, config.n_embd] Koopman observables at the next time-step
         """
-        return self.koopman(g)
+        return self.koopman_net(g)
 
     @property
     def koopman_operator(self, requires_grad: bool = True) -> Tensor:
@@ -176,9 +152,13 @@ class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
             Tensor: Full Koopman operator tensor
         """
         if not requires_grad:
-            return self.koopman.koopman_operator.detach()
+            return self.koopman_net.weight.detach(), self.koopman_net.bias.detach()
         else:
-            return self.koopman.koopman_operator
+            return self.koopman_net.weight, self.koopman_net.bias
+
+    @property
+    def koopman_diag(self):
+        return self.k_matrix_diag
 
     def _normalize(self, x):
         x = (x - self.mu.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)) / self.std.unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
@@ -193,21 +173,21 @@ class LandauLifshitzGilbertEmbeddingSS(EmbeddingModel):
         return field
 
 
-class LandauLifshitzGilbertEmbeddingTrainerSS(EmbeddingTrainingHead):
+class LandauLifshitzGilbertEmbeddingTrainerFF(EmbeddingTrainingHead):
     """Training head for the Lorenz embedding model
     Args:
         config (PhysConfig): Configuration class with transformer/embedding parameters
         l1: Penalty weight for the dynamics in the koopman sequences
         l2: Penalty weight for the reconstruction
-        l3: Penalty weight for ensuring unit vectors in the output
+        l4: Penalty weight for ensuring unit vectors in the output
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1):
+    def __init__(self, embedding_model: EmbeddingModel, l1=1, l2=1e3, l3=1e-2, l4=1):
         super().__init__()
         self.embedding_model = embedding_model
         self.l1 = l1
         self.l2 = l2
-        self.l3 = l3
+        self.l4 = l4
 
     def forward(self, states: Tensor, field: Tensor) -> FloatTuple:
         """Trains model for a single epoch
@@ -252,14 +232,14 @@ class LandauLifshitzGilbertEmbeddingTrainerSS(EmbeddingTrainingHead):
         normsX = torch.sqrt(torch.einsum('ij,ij->j',normsX.T, normsX.T))
         ones = torch.ones((normsX.shape[0])).to(device)
 
-        loss = self.l2 * mseLoss(xin0, xRec0) + self.l3 * mseLoss(normsX, ones)
+        loss = self.l2 * mseLoss(xin0, xRec0) + self.l4 * mseLoss(normsX, ones)
         loss_reconstruct = loss_reconstruct + self.l2 * mseLoss(xin0, xRec0).detach()
 
         g1_old = g0
 
         # Loop through time-series
         for t0 in range(1, states.shape[1]):
-            xin0 = states[:, t0, :, :].to(device)  # Next time-step
+            xin0 = states[:, t0].to(device)  # Next time-step
             _, xRec1 = self.embedding_model(xin0, field)
 
             g1Pred = self.embedding_model.koopman_operation(g1_old, field)
@@ -273,7 +253,7 @@ class LandauLifshitzGilbertEmbeddingTrainerSS(EmbeddingTrainingHead):
                 loss
                 + self.l1 * mseLoss(xgRec1, xin0)
                 + self.l2 * mseLoss(xRec1, xin0)
-                + self.l3 * mseLoss(normsX, ones)
+                + self.l4 * mseLoss(normsX, ones)
             )
 
 

@@ -20,31 +20,31 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 100
-    ctx = 24
+    epochs = 200
+    ctx = 28
     ndata_train = 500
     ndata_val = 50
     stride = 4
-    train_batch_size = 1024
+    train_batch_size = 1500
     val_batch_size = 10
-    val_every_n_epoch = 10
+    val_every_n_epoch = 15
     save_on_val = True
 
-    embedder_date = '00'
-    embedder_time = 'circ paper net koop'
-    embedder_name = 'val_4'
+    embedder_date = '2022-05-23'
+    embedder_time = '12-25-56'
+    embedder_name = 'val_2'
 
 
     transformer_cfg = {
         'ctx': ctx,
-        'emb_size': 160,
+        'emb_size': 128,
         'decoder_dim': 512,
         'depth': 12,
         'heads': 8,
         'macaron': False,
         "shift_tokens": 0,
-        "ff_dropout": 0.1,
-        'attn_dropout': 0.1,
+        "ff_dropout": 0.08,
+        'attn_dropout': 0.08,
     }
 
 
@@ -59,6 +59,10 @@ if __name__ == "__main__":
     with open(path + 'transformer_config.json', 'w') as file:
         json_data = json.dumps(transformer_cfg)
         json.dump(json_data, file)
+
+    
+    with open(path + 'embedder_root_folder.txt', 'w') as file:
+        file.writelines([embedder_date, '\n', embedder_time])
 
     model = ContinuousTransformerWrapper(
         dim_in=transformer_cfg["emb_size"],

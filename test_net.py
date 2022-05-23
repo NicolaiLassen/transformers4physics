@@ -7,6 +7,8 @@ from config.phys_config import PhysConfig
 import torch
 
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
+from embedding.embedding_landau_lifshitz_gilbert_ss import LandauLifshitzGilbertEmbeddingSS
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
@@ -14,9 +16,9 @@ if __name__ == '__main__':
     # date = '2022-05-16'
     # time = '11-19-55'
     # model_name = 'val_3'
-    date = '2022-05-16'
-    time = '11-40-29'
-    model_name = 'val_4'
+    date = '2022-05-21'
+    time = '11-40-34'
+    model_name = 'val_5'
 
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
     f = h5py.File('./problem4.h5')
@@ -48,7 +50,7 @@ if __name__ == '__main__':
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    model = LandauLifshitzGilbertEmbedding(
+    model = LandauLifshitzGilbertEmbeddingFF(
         EmmbedingConfig(cfg)
     ).cuda()
     model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth'.format(date,time,model_name))

@@ -7,18 +7,19 @@ from config.phys_config import PhysConfig
 import torch
 
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_ss import LandauLifshitzGilbertEmbeddingSS
 
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     show_losses = False
     # date = '2022-05-14'
     # time = '10-51-15'
-    date = '00'
-    time = 'circ paper net koop'
-    model_name = 'val_4'
-    # date = '2022-05-16'
-    # time = '11-19-55'
-    # model_name = 'val_3'
+    # date = '2022-05-23'
+    # time = '13-00-49'
+    # model_name = 'val_1'
+    date = '2022-05-21'
+    time = '11-40-34'
+    model_name = 'val_5'
 
     start_at = 0
     koop_forward = 1
@@ -54,7 +55,7 @@ if __name__ == '__main__':
     model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg),
     ).cuda()
-    print(model.use_koop_net)
+    # print(model.use_koop_net)
     model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth'.format(date,time,model_name))
     model.eval()
     for p in model.parameters():
