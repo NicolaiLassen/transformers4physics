@@ -7,6 +7,7 @@ from config.phys_config import PhysConfig
 import torch
 
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_embed_mag import LandauLifshitzGilbertEmbeddingEM
 from embedding.embedding_landau_lifshitz_gilbert_ss import LandauLifshitzGilbertEmbeddingSS
 
 if __name__ == '__main__':
@@ -17,9 +18,9 @@ if __name__ == '__main__':
     # date = '2022-05-23'
     # time = '13-00-49'
     # model_name = 'val_1'
-    date = '2022-05-21'
-    time = '11-40-34'
-    model_name = 'val_5'
+    date = '2022-05-23'
+    time = '13-47-42'
+    model_name = 'val_2'
 
     start_at = 0
     koop_forward = 1
@@ -52,7 +53,7 @@ if __name__ == '__main__':
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    model = LandauLifshitzGilbertEmbedding(
+    model = LandauLifshitzGilbertEmbeddingEM(
         EmmbedingConfig(cfg),
     ).cuda()
     # print(model.use_koop_net)

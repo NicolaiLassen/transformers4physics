@@ -12,6 +12,7 @@ from x_transformers import ContinuousTransformerWrapper, Decoder
 from x_transformers import ContinuousAutoregressiveWrapper
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_embed_mag import LandauLifshitzGilbertEmbeddingEM
 from embedding.embedding_model import EmbeddingModel
 
 from util.data_loader import MagDataset
@@ -22,17 +23,17 @@ from util.data_loader import MagDataset
 if __name__ == "__main__":
     epochs = 200
     ctx = 28
-    ndata_train = 500
+    ndata_train = 100
     ndata_val = 50
     stride = 4
-    train_batch_size = 1500
+    train_batch_size = 1024
     val_batch_size = 10
     val_every_n_epoch = 15
     save_on_val = True
 
     embedder_date = '2022-05-23'
-    embedder_time = '12-25-56'
-    embedder_name = 'val_2'
+    embedder_time = '13-47-42'
+    embedder_name = 'val_3'
 
 
     transformer_cfg = {
@@ -65,7 +66,7 @@ if __name__ == "__main__":
         file.writelines([embedder_date, '\n', embedder_time])
 
     model = ContinuousTransformerWrapper(
-        dim_in=transformer_cfg["emb_size"],
+        dim_in=transformer_cfg["emb_size"]+2,
         dim_out=transformer_cfg["emb_size"],
         max_seq_len=transformer_cfg["ctx"],
         attn_layers=Decoder(
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    embedding_model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg))
+    embedding_model = LandauLifshitzGilbertEmbeddingEM(EmmbedingConfig(cfg))
     embedding_model.load_model(
         "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth".format(embedder_date, embedder_time, embedder_name)
     )
@@ -228,9 +229,12 @@ if __name__ == "__main__":
         # bar.start()
         for i, x in enumerate(train_loader):
             e = x["embedded"].cuda()
+            fields = x["fields"].cuda()
+            fields = embedding_model._normalize_features(fields)
+            f = torch.zeros((e.shape[0],e.shape[1],fields.shape[1])).cuda()
             optimizer.zero_grad()
             mask = torch.ones(e.shape[:-1]).bool().cuda()
-            loss = model(e, mask = mask)
+            loss = model(e, f, mask = mask)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
             optimizer.step()
@@ -247,8 +251,11 @@ if __name__ == "__main__":
             # bar.start()
             for i_val, x_val in enumerate(val_loader):
                 e = x_val['embedded'].cuda()
+                fields = x_val["fields"].cuda()
+                fields = embedding_model._normalize_features(fields)
+                f = torch.zeros((e.shape[0],e.shape[1],fields.shape[1])).cuda()
                 mask = torch.ones(e.shape[:-1]).bool().cuda()
-                loss_val = model(e, mask = mask)
+                loss_val = model(e, f, mask = mask)
                 acc_loss_val = acc_loss_val + loss_val.item()
                 bar.widgets[-1] = '{:8f}'.format(loss_val.item())
             # bar.finish()

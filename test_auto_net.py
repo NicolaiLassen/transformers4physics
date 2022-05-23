@@ -10,6 +10,8 @@ import torch
 from x_transformers import ContinuousTransformerWrapper, Decoder
 from x_transformers import ContinuousAutoregressiveWrapper
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_embed_mag import LandauLifshitzGilbertEmbeddingEM
+from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 
 
@@ -23,9 +25,12 @@ if __name__ == '__main__':
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '00'
-    time = '5'
-    transformer_suffix = '_500'
+    # date = '00'
+    # time = '5'
+    # transformer_suffix = '_500'
+    date = '2022-05-23'
+    time = '14-29-33'
+    transformer_suffix = '_75'
     show_losses = True
     init_len = 1
     val_every_n_epoch = 50
@@ -53,7 +58,7 @@ if __name__ == '__main__':
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg)).cuda()
+    model = LandauLifshitzGilbertEmbeddingEM(EmmbedingConfig(cfg)).cuda()
     model.load_model(path + 'embedder.pth'.format(date,time))
     model.eval()
     for p in model.parameters():
@@ -61,7 +66,7 @@ if __name__ == '__main__':
 
 
     autoregressive = ContinuousTransformerWrapper(
-        dim_in=128 if "emb_size" not in transformer_cfg else transformer_cfg["emb_size"],
+        dim_in=128 if "emb_size" not in transformer_cfg else transformer_cfg["emb_size"] + 2,
         dim_out=128 if "emb_size" not in transformer_cfg else transformer_cfg["emb_size"],
         max_seq_len=transformer_cfg["ctx"],
         attn_layers=Decoder(
@@ -89,7 +94,9 @@ if __name__ == '__main__':
     init = model.embed(sample_t[0:init_len], field_t[0:init_len])
     # init = init.unsqueeze(0)
     # emb_seq = autoregressive.generate(init,max_length=400)
-    emb_seq = autoregressive.generate(init,seq_len=400-init_len)
+    field_gen = torch.tensor(field[:2]).float().unsqueeze(0).cuda()
+    field_gen = model._normalize_features(field_gen)
+    emb_seq = autoregressive.generate(init,field_gen,seq_len=400-init_len)
     emb_seq = torch.cat([init,emb_seq],dim=0)
     # emb_seq = emb_seq[0][0]
 

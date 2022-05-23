@@ -26,7 +26,7 @@ embedding:
   image_size_x: 64
   image_size_y: 16
   
-  channels: 5
+  channels: 3
   backbone: "ResNet"
  
   fc_dim: 192
