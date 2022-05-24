@@ -16,9 +16,9 @@ if __name__ == '__main__':
     # date = '2022-05-16'
     # time = '11-19-55'
     # model_name = 'val_3'
-    date = '2022-05-21'
-    time = '11-40-34'
-    model_name = 'val_5'
+    date = '2022-05-23'
+    time = '14-45-33'
+    model_name = 'val_6'
 
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
     f = h5py.File('./problem4.h5')

@@ -12,6 +12,7 @@ from x_transformers import ContinuousTransformerWrapper, Decoder
 from x_transformers import ContinuousAutoregressiveWrapper
 from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
 from embedding.embedding_model import EmbeddingModel
 
 from util.data_loader import MagDataset
@@ -20,19 +21,19 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 200
-    ctx = 28
+    epochs = 300
+    ctx = 8
     ndata_train = 500
     ndata_val = 50
-    stride = 4
+    stride = 2
     train_batch_size = 1500
     val_batch_size = 10
-    val_every_n_epoch = 15
+    val_every_n_epoch = 75
     save_on_val = True
 
     embedder_date = '2022-05-23'
-    embedder_time = '12-25-56'
-    embedder_name = 'val_2'
+    embedder_time = '14-45-33'
+    embedder_name = 'val_6'
 
 
     transformer_cfg = {
@@ -100,7 +101,7 @@ if __name__ == "__main__":
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    embedding_model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg))
+    embedding_model = LandauLifshitzGilbertEmbeddingFF(EmmbedingConfig(cfg))
     embedding_model.load_model(
         "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth".format(embedder_date, embedder_time, embedder_name)
     )

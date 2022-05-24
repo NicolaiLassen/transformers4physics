@@ -10,6 +10,7 @@ import torch
 from x_transformers import ContinuousTransformerWrapper, Decoder
 from x_transformers import ContinuousAutoregressiveWrapper
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
+from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 
 
@@ -23,12 +24,12 @@ if __name__ == '__main__':
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '00'
-    time = '5'
-    transformer_suffix = '_500'
+    date = '2022-05-24'
+    time = '11-36-14'
+    transformer_suffix = '_300'
     show_losses = True
     init_len = 1
-    val_every_n_epoch = 50
+    val_every_n_epoch = 75
 
     path = './transformer_output/{}/{}/'.format(date,time)
     with open(path + 'transformer_config.json', 'r') as file:
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg)).cuda()
+    model = LandauLifshitzGilbertEmbeddingFF(EmmbedingConfig(cfg)).cuda()
     model.load_model(path + 'embedder.pth'.format(date,time))
     model.eval()
     for p in model.parameters():
