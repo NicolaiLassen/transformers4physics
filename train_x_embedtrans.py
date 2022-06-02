@@ -26,7 +26,7 @@ if __name__ == "__main__":
     ndata_train = 500
     ndata_val = 50
     stride = 4
-    train_batch_size = 512
+    train_batch_size = 384
     val_batch_size = 10
     val_every_n_epoch = 15
     save_on_val = True
@@ -48,12 +48,12 @@ if __name__ == "__main__":
     
     cfg_json = {
         'backbone': 'ResNet',
-        'backbone_dim': 256,
+        'backbone_dim': 192,
         'channels': 5,
         'ckpt_path': './',
         'config_name': 'embedder',
         'embedding_dim': transformer_cfg["emb_size"],
-        'fc_dim': 128,
+        'fc_dim': 96,
         'image_size_x': 64,
         'image_size_y': 16,
         'koopman_bandwidth': -1,
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         json.dump(json_data, file)
     EmmbedingConfig(embedder_cfg).to_json_file(path + "embedder_cfg.json")
 
-    model = AllInOne(128,transformer_cfg,embedder_cfg).cuda()
+    model = AllInOne(transformer_cfg["emb_size"],transformer_cfg,embedder_cfg).cuda()
 
     # data
     dataset_train = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field\\field_s_state_train_circ_paper.h5'
