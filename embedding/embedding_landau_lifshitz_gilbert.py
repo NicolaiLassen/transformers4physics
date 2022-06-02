@@ -106,10 +106,10 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
                     xidx.append(np.arange(i, config.embedding_dim))
                     yidx.append(np.arange(0, config.embedding_dim - i))
                 self.triu_indices = torch.LongTensor(
-                    [np.concatenate(xidx), np.concatenate(yidx)]
+                    np.array([np.concatenate(xidx), np.concatenate(yidx)])
                 )
                 self.tril_indices = torch.LongTensor(
-                    [np.concatenate(yidx), np.concatenate(xidx)]
+                    np.array([np.concatenate(yidx), np.concatenate(xidx)])
                 )
             else:
                 xidx = []
