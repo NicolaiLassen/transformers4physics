@@ -50,14 +50,18 @@ class AllInOne(nn.Module):
         return x
         
     def forward(self, x, field):
-        xi = x[:,:-1]
-        xo = x[:,1:]
-        xi_h = self.embed(xi, field)
-        xi_r = self.recover(xi_h)
-        xo_h = self.transformer(xi_h)
-        xo_r = self.recover(xo_h)
+        x_h = self.embed(x, field)
+        x_r = self.recover(x_h)
+        # xi = x[:,:-1]
+        # xo = x[:,1:]
+        # xi_r = x_r[:,:-1]
+        xi_h = x_h[:,:-1]
+        xo_h = x_h[:,1:]
+        # xo_r = x_r[:,1:]
+        xo_ht = self.transformer(xi_h)
 
-        return xi, xi_r, xo, xo_r, xi_h, xo_h
+        # return xi, xi_r, xo, xo_r, xo_h, xo_ht
+        return x, x_r, xo_h, xo_ht
 
     def generate(self, x, field, seq_len):
         b, t, c, w, h = x.shape

@@ -18,19 +18,18 @@ from transformer.phys_transformer_gpt2 import PhysformerGPT2
 if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
-    # f = h5py.File(base + '\\field_s_state_test_circ_paper.h5')
     f = h5py.File('./problem4.h5')
     sample_idx = 1
     sample = np.array(f[str(sample_idx)]['sequence'])
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '2022-06-02'
-    time = '22-36-46'
-    transformer_suffix = '_60'
+    date = '2022-06-03'
+    time = '12-02-42'
+    transformer_suffix = '_150'
     show_losses = True
     init_len = 1
-    val_every_n_epoch = 20
+    val_every_n_epoch = 25
 
     path = './transformer_output/{}/{}/'.format(date,time)
     with open(path + 'transformer_config.json', 'r') as file:

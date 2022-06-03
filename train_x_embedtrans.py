@@ -21,21 +21,21 @@ from util.data_loader import MagDataset, read_h5_dataset
 
 
 if __name__ == "__main__":
-    epochs = 300
-    ctx = 16
+    epochs = 251
+    ctx = 24
     ndata_train = 500
     ndata_val = 50
-    stride = 4
-    train_batch_size = 384
+    stride = 8
+    train_batch_size = 512
     val_batch_size = 10
-    val_every_n_epoch = 15
+    val_every_n_epoch = 25
     save_on_val = True
     lambda1 = 1
     lambda2 = 1
 
     transformer_cfg = {
         'ctx': ctx,
-        'emb_size': 32,
+        'emb_size': 128,
         'decoder_dim': 512,
         'depth': 12,
         'heads': 8,
@@ -48,12 +48,12 @@ if __name__ == "__main__":
     
     cfg_json = {
         'backbone': 'ResNet',
-        'backbone_dim': 192,
+        'backbone_dim': 256,
         'channels': 5,
         'ckpt_path': './',
         'config_name': 'embedder',
         'embedding_dim': transformer_cfg["emb_size"],
-        'fc_dim': 96,
+        'fc_dim': 192,
         'image_size_x': 64,
         'image_size_y': 16,
         'koopman_bandwidth': -1,
@@ -181,11 +181,15 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             seq = x["states"].cuda()
             f = x["fields"].cuda()
-            xi, xi_r, xo, xo_r, xi_h, xo_h = model(seq, f)
-            loss_rec1 = mse(xi_r, xi)
-            loss_rec2 = mse(xo_r, xo)
-            loss_hspace = mse(xi_h, xo_h)
-            loss = lambda1 * 0.5 * (loss_rec1 + loss_rec2) + lambda2 * loss_hspace
+            x_train, x_recon, xo_h, xo_ht = model(seq, f)
+            loss_rec = mse(x_recon, x_train)
+            loss_hspace = mse(xo_ht, xo_h)
+            loss = lambda1 * loss_rec + lambda2 * loss_hspace
+            # xi, xi_r, xo, xo_r, xo_h, xo_ht = model(seq, f)
+            # loss_rec1 = mse(xi_r, xi)
+            # loss_rec2 = mse(xo_r, xo)
+            # loss_hspace = mse(xo_ht, xo_h)
+            # loss = lambda1 * 0.5 * (loss_rec1 + loss_rec2) + lambda2 * loss_hspace
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 0.1)
             optimizer.step()
@@ -202,11 +206,15 @@ if __name__ == "__main__":
                 for i_val, x_val in enumerate(val_loader):
                     seq = x_val["states"].cuda()
                     f = x_val["fields"].cuda()
-                    xi, xi_r, xo, xo_r, xi_h, xo_h = model(seq, f)
-                    loss_rec1 = mse(xi_r, xi)
-                    loss_rec2 = mse(xo_r, xo)
-                    loss_hspace = mse(xi_h, xo_h)
-                    loss_val = lambda1 * 0.5 * (loss_rec1 + loss_rec2) + lambda2 * loss_hspace
+                    x_train, x_recon, xo_h, xo_ht = model(seq, f)
+                    loss_rec = mse(x_recon, x_train)
+                    loss_hspace = mse(xo_ht, xo_h)
+                    loss_val = lambda1 * loss_rec + lambda2 * loss_hspace
+                    # xi, xi_r, xo, xo_r, xo_h, xo_ht = model(seq, f)
+                    # loss_rec1 = mse(xi_r, xi)
+                    # loss_rec2 = mse(xo_r, xo)
+                    # loss_hspace = mse(xo_ht, xo_h)
+                    # loss_val = lambda1 * 0.5 * (loss_rec1 + loss_rec2) + lambda2 * loss_hspace
                     acc_loss_val = acc_loss_val + loss_val.item()
                     bar.widgets[-1] = '{:8f}'.format(loss_val.item())
                 model.train()
