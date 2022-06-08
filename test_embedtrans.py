@@ -25,8 +25,8 @@ if __name__ == '__main__':
     # date = '2022-05-06'
     # time = '22-20-04'
     date = '2022-06-03'
-    time = '12-02-42'
-    transformer_suffix = '_150'
+    time = '15-20-54'
+    transformer_suffix = '_175'
     show_losses = True
     init_len = 1
     val_every_n_epoch = 25

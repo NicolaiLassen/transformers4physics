@@ -31,7 +31,7 @@ if __name__ == "__main__":
     val_every_n_epoch = 25
     save_on_val = True
     lambda1 = 1
-    lambda2 = 1
+    lambda2 = 100
 
     transformer_cfg = {
         'ctx': ctx,

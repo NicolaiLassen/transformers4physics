@@ -1,3 +1,5 @@
+from matplotlib import pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 from x_transformers import ContinuousTransformerWrapper, Decoder, ContinuousAutoregressiveWrapper
@@ -78,4 +80,15 @@ class AllInOne(nn.Module):
                 out_h = torch.cat((out_h, last), dim = -2)
 
         out = self.recover(out_h[:,t:])
+        # mse = torch.nn.MSELoss()
+        # diffs = []
+        # l = np.arange(1,len(out_h[0]))
+        # for i in range(1,len(out_h[0])):
+        #     diffs.append(mse(out_h[0,i-1],out_h[0,i]).item())
+        # for i in range(32):
+        #     print(i)
+        #     print(diffs[i])
+        # plt.plot(l,diffs)
+        # plt.yscale('log')
+        # plt.show()
         return out
