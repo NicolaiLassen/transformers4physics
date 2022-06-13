@@ -21,7 +21,7 @@ if __name__ == '__main__':
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
     f = h5py.File('./problem4.h5')
-    sample_idx = 1
+    sample_idx = 0
     sample = np.array(f[str(sample_idx)]['sequence'])
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
@@ -72,7 +72,11 @@ if __name__ == '__main__':
         rest = model.generate(sample_t, field_t, 400-init_len)
         time_transformer_end = time_ns()
         out = torch.cat((sample_t, rest), dim=1)
+        recon_only = model.embed(torch.tensor(sample).float().cuda().unsqueeze(0), field_t)
+        recon_only_out = model.recover(recon_only).squeeze(0).detach().cpu().numpy()
     out = out.squeeze(0).detach().cpu().numpy()
+    print(out.shape)
+    print(recon_only_out.shape)
 
     recon = out
     recon_x = np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1)
@@ -128,6 +132,22 @@ if __name__ == '__main__':
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+    plt.grid()
+    # plt.title('Compared to ground truth')
+    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
+                   Line2D([0], [0], marker='x', color='black', label='Model')]
+    plt.legend(handles=legend_elements)
+    plt.show()
+
+    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
+    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
+    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
+    # plt.grid()
+    # plt.show()
+    
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
     plt.grid()
     # plt.title('Compared to ground truth')
     legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
