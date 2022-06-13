@@ -1,5 +1,7 @@
 import json
+from time import time_ns
 import h5py
+from matplotlib.lines import Line2D
 import numpy as np
 import matplotlib.pyplot as plt
 from config.config_autoregressive import AutoregressiveConfig
@@ -66,9 +68,15 @@ if __name__ == '__main__':
     with torch.no_grad():
         sample_t = torch.tensor(sample).float().cuda()[:init_len].unsqueeze(0)
         field_t = torch.tensor(field).float().cuda().unsqueeze(0)
+        time_transformer_start = time_ns()
         rest = model.generate(sample_t, field_t, 400-init_len)
+        time_transformer_end = time_ns()
         out = torch.cat((sample_t, rest), dim=1)
     out = out.squeeze(0).detach().cpu().numpy()
+
+    recon = out
+    recon_x = np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1)
+    crosses_zero = np.argmax(recon_x < 0)
 
     if show_losses:
         f = h5py.File(path + 'transformer_losses.h5', 'r')
@@ -96,11 +104,19 @@ if __name__ == '__main__':
 
         f.close()
 
-    plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
-    plt.quiver(out[0,0].T, out[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    width = 0.002
+    headwidth = 2
+    headlength = 5
+    plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
+    plt.axis("scaled")
     plt.show()
-    plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
-    plt.quiver(out[-1,0].T, out[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
+    plt.axis("scaled")
+    plt.show()
+    plt.quiver(recon[crosses_zero,0].T, recon[crosses_zero,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    plt.axis("scaled")
     plt.show()
     
     plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
@@ -109,9 +125,15 @@ if __name__ == '__main__':
     # plt.grid()
     # plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
     plt.grid()
-    plt.title('Compared to ground truth')
+    # plt.title('Compared to ground truth')
+    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
+                   Line2D([0], [0], marker='x', color='black', label='Model')]
+    plt.legend(handles=legend_elements)
     plt.show()
+
+    time_transformer = (time_transformer_end - time_transformer_start) * 1e-9
+    print('Total time: {} s'.format(time_transformer))

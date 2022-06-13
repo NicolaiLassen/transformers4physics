@@ -82,13 +82,24 @@ class AllInOne(nn.Module):
         out = self.recover(out_h[:,t:])
         # mse = torch.nn.MSELoss()
         # diffs = []
-        # l = np.arange(1,len(out_h[0]))
+        # l = np.arange(2,len(out_h[0]) + 1)
         # for i in range(1,len(out_h[0])):
         #     diffs.append(mse(out_h[0,i-1],out_h[0,i]).item())
-        # for i in range(32):
-        #     print(i)
-        #     print(diffs[i])
-        # plt.plot(l,diffs)
+        # # plt.plot([24,24],[min(diffs),max(diffs)])
+        # fig, ax = plt.subplots()
+        # # ax.annotate('Comparing initial embedded ground truth s-state representation with first predicted embedded state', 
+        # #     xy=(2, diffs[0]*1.2), 
+        # #     xytext=(2, diffs[0]*4), 
+        # #     arrowprops = dict(facecolor='black', shrink=0.05))
+        # # ax.annotate('Initial ground truth magnetization leaves context window', 
+        # #     xy=(25, diffs[23]*1.2), 
+        # #     xytext=(25, diffs[23]*4), 
+        # #     arrowprops = dict(facecolor='black', shrink=0.05))
+        # ax.plot(l[0:1],diffs[0:1],'rx')
+        # ax.plot(l[1:24],diffs[1:24],'gx')
+        # ax.plot(l[24:],diffs[24:],'bx')
+        # ax.grid()
+        # plt.title('MSE between current and previous embedded representation')
         # plt.yscale('log')
         # plt.show()
         return out
