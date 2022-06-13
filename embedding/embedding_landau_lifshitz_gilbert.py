@@ -1,6 +1,7 @@
 from re import S
 from turtle import st
 from typing import Dict, List, Tuple
+from einops import rearrange
 
 import numpy as np
 import torch
@@ -378,3 +379,67 @@ class LandauLifshitzGilbertEmbeddingTrainer(EmbeddingTrainingHead):
             g1_old = g1Pred
 
         return loss/states.size(1), loss_reconstruct/states.size(1)
+
+class LandauLifshitzGilbertEmbeddingTrainerNoDynamics(EmbeddingTrainingHead):
+    """Training head for the Lorenz embedding model
+    Args:
+        config (PhysConfig): Configuration class with transformer/embedding parameters
+        l2: Penalty weight for the reconstruction
+        l4: Penalty weight for ensuring unit vectors in the output
+    """
+
+    def __init__(self, embedding_model: EmbeddingModel, l2=1e3, l4=1):
+        super().__init__()
+        self.embedding_model = embedding_model
+        self.l2 = l2
+        self.l4 = l4
+
+    def forward(self, states: Tensor, field: Tensor) -> FloatTuple:
+        """Trains model for a single epoch
+        Args:
+            states (Tensor): [B, T, H, W] Time-series feature tensor
+            field (Tensor): [B, 3] External fields (same across a batch)
+        Returns:
+            FloatTuple: Tuple containing:
+
+                | (float): Koopman based loss of current epoch
+                | (float): Reconstruction loss
+        """
+        self.embedding_model.train()
+        return self._forward(states, field)
+
+    def evaluate(self, states: Tensor, field: Tensor) -> FloatTuple:
+        """Evaluates the embedding models reconstruction error and returns its
+        predictions.
+        Args:
+            states (Tensor): [B, T, 3, H, W] Time-series feature tensor
+            field (Tensor): [B, 3] External fields (same across a batch)
+        Returns:
+            FloatTuple: Tuple containing:
+
+                | (float): Koopman based loss of current epoch
+                | (float): Reconstruction loss
+        """
+        self.embedding_model.eval()
+        return self._forward(states, field)
+
+    def _forward(self, states: Tensor, field: Tensor):
+        device = self.embedding_model.devices[0]
+        b, t, c, w, h = states.shape
+
+        loss = 0
+        loss_reconstruct = 0
+        mseLoss = nn.MSELoss()
+
+        for i in range(t):
+            x = states[:,i]
+            g = self.embedding_model.embed(x,field)
+            xrec = self.embedding_model.recover(g)
+            normsX = xrec.swapaxes(1,3).reshape(-1,3)
+            normsX = torch.sqrt(torch.einsum('ij,ij->j',normsX.T, normsX.T))
+            ones = torch.ones((normsX.shape[0])).to(device)
+
+            loss = loss + self.l2 * mseLoss(x,xrec) + self.l4 * mseLoss(normsX, ones)
+            loss_reconstruct = loss_reconstruct + self.l2 * mseLoss(x,xrec)
+
+        return loss/t, loss_reconstruct/t

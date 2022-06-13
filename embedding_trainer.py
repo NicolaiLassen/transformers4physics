@@ -20,6 +20,7 @@ from config.config_emmbeding import EmmbedingConfig
 from embedding.embedding_landau_lifshitz_gilbert import (
     LandauLifshitzGilbertEmbedding,
     LandauLifshitzGilbertEmbeddingTrainer,
+    LandauLifshitzGilbertEmbeddingTrainerNoDynamics,
 )
 from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF, LandauLifshitzGilbertEmbeddingTrainerFF
 from embedding.embedding_landau_lifshitz_gilbert_ss import LandauLifshitzGilbertEmbeddingSS, LandauLifshitzGilbertEmbeddingTrainerSS
@@ -75,11 +76,9 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.model = self.configure_embedding_model()
         self.model.mu = mu
         self.model.std = std
-        self.model_trainer = LandauLifshitzGilbertEmbeddingTrainerFF(
+        self.model_trainer = LandauLifshitzGilbertEmbeddingTrainer(
             self.model,
-            l1=1e1,
             l2=1e1,
-            # l3=1e-2,
             l4=2,
         )
 
@@ -132,7 +131,7 @@ class EmbeddingPhysTrainer(pl.LightningModule):
 
     def configure_embedding_model(self) -> EmbeddingModel:
         cfg = self.hparams
-        return LandauLifshitzGilbertEmbeddingFF(EmmbedingConfig(cfg.embedding))
+        return LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg.embedding))
 
     def configure_optimizers(self):
         cfg = self.hparams

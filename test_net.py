@@ -1,5 +1,6 @@
 import json
 import h5py
+from matplotlib.lines import Line2D
 import numpy as np
 import matplotlib.pyplot as plt
 from config.config_emmbeding import EmmbedingConfig
@@ -16,9 +17,10 @@ if __name__ == '__main__':
     # date = '2022-05-16'
     # time = '11-19-55'
     # model_name = 'val_3'
-    date = '2022-05-23'
-    time = '14-45-33'
-    model_name = 'val_6'
+    date = '00'
+    time = 'no dynamics'
+    model_name = 'val_5'
+    val_every_n_epoch = 50
 
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
     f = h5py.File('./problem4.h5')
@@ -50,7 +52,7 @@ if __name__ == '__main__':
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    model = LandauLifshitzGilbertEmbeddingFF(
+    model = LandauLifshitzGilbertEmbedding(
         EmmbedingConfig(cfg)
     ).cuda()
     model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth'.format(date,time,model_name))
@@ -81,12 +83,21 @@ if __name__ == '__main__':
         losses = np.array(f['train'])
         l = np.arange(len(losses))
         plt.plot(l,losses)
+        plt.title('Training Loss')
         plt.yscale('log')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.grid()
         plt.show()
         losses = np.array(f['val'])
         l = np.arange(len(losses))
+        l = np.arange(val_every_n_epoch, (len(losses)+1)*val_every_n_epoch, val_every_n_epoch)
         plt.plot(l,losses)
+        plt.title('Validation Loss')
         plt.yscale('log')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.grid()
         plt.show()
 
     plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
@@ -105,5 +116,8 @@ if __name__ == '__main__':
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample_t.size(0),-1), axis=1), 'rx')
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample_t.size(0),-1), axis=1), 'gx')
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample_t.size(0),-1), axis=1), 'bx')
+    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
+                   Line2D([0], [0], marker='x', color='black', label='Model')]
+    plt.legend(handles=legend_elements)
     plt.grid()
     plt.show()

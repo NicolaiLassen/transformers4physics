@@ -1,11 +1,13 @@
 import json
 import h5py
+from matplotlib.lines import Line2D
 import numpy as np
 import matplotlib.pyplot as plt
 from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from config.phys_config import PhysConfig
 import torch
+from time import time_ns
 
 from x_transformers import ContinuousTransformerWrapper, Decoder
 from x_transformers import ContinuousAutoregressiveWrapper
@@ -24,12 +26,14 @@ if __name__ == '__main__':
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
     # time = '22-20-04'
-    date = '2022-05-24'
-    time = '11-36-14'
-    transformer_suffix = '_300'
+    date = '00'
+    time = 'no dynamics'
+    transformer_suffix = '_500'
     show_losses = True
     init_len = 1
-    val_every_n_epoch = 75
+    val_every_n_epoch = 50
+    test_batch_sizes = []
+    # test_batch_sizes = [4,8,16,32,64]
 
     path = './transformer_output/{}/{}/'.format(date,time)
     with open(path + 'transformer_config.json', 'r') as file:
@@ -54,7 +58,7 @@ if __name__ == '__main__':
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    model = LandauLifshitzGilbertEmbeddingFF(EmmbedingConfig(cfg)).cuda()
+    model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg)).cuda()
     model.load_model(path + 'embedder.pth'.format(date,time))
     model.eval()
     for p in model.parameters():
@@ -83,20 +87,43 @@ if __name__ == '__main__':
     sample_t = torch.tensor(sample).float().cuda()
     field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
     field_t[:] = torch.tensor(field)
+
+    warmup_transformer = autoregressive.generate(torch.rand((1,1,128)).cuda(),2)
+    warmup_transformer = autoregressive.generate(torch.rand((1,1,128)).cuda(),25)
+    warmup_embedder = model.embed(sample_t[0:1], field_t[0:1])
+    warmup_embedder = model.recover(warmup_embedder)
+
     a = model.embed(sample_t, field_t)
     recon_a = model.recover(a)
     recon_a = recon_a.detach().cpu().numpy()
 
+    time_embed_start = time_ns()
     init = model.embed(sample_t[0:init_len], field_t[0:init_len])
+    time_embed_end = time_ns()
     # init = init.unsqueeze(0)
     # emb_seq = autoregressive.generate(init,max_length=400)
+    time_transformer_start = time_ns()
     emb_seq = autoregressive.generate(init,seq_len=400-init_len)
-    emb_seq = torch.cat([init,emb_seq],dim=0)
+    time_transformer_end = time_ns()
+    batches_times = []
+    for batch_size_test in test_batch_sizes:
+        test_batch = init.unsqueeze(0).repeat((batch_size_test,1,1))
+        time_transformer_test_start = time_ns()
+        test_huge = autoregressive.generate(test_batch,seq_len=400-init_len)
+        time_transformer_test_end = time_ns()
+        batches_times.append((time_transformer_test_end - time_transformer_test_start) * 1e-9)
+    for b,t in zip(test_batch_sizes, batches_times):
+        print('Time for batch of {}: {} s'.format(b,t))
     # emb_seq = emb_seq[0][0]
 
     # a = model.embed(sample_t, field_t)
+    time_recover_start = time_ns()
     recon = model.recover(emb_seq)
+    time_recover_end = time_ns()
+    recon = torch.cat([sample_t[0:init_len],recon],dim=0)
     recon = recon.detach().cpu().numpy()
+    recon_x = np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1)
+    crosses_zero = np.argmax(recon_x < 0)
 
     if show_losses:
         f = h5py.File(path + 'transformer_losses.h5', 'r')
@@ -124,11 +151,19 @@ if __name__ == '__main__':
 
         f.close()
 
-    plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
-    plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    width = 0.002
+    headwidth = 2
+    headlength = 5
+    plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
+    plt.axis("scaled")
     plt.show()
-    plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
-    plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
+    plt.axis("scaled")
+    plt.show()
+    plt.quiver(recon[crosses_zero,0].T, recon[crosses_zero,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    plt.axis("scaled")
     plt.show()
     
     plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
@@ -141,7 +176,10 @@ if __name__ == '__main__':
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
     plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
     plt.grid()
-    plt.title('Compared to ground truth')
+    # plt.title('Compared to ground truth')
+    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
+                   Line2D([0], [0], marker='x', color='black', label='Model')]
+    plt.legend(handles=legend_elements)
     plt.show()
 
     plt.plot(np.arange(sample.shape[0]), np.mean(recon_a[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
@@ -156,4 +194,11 @@ if __name__ == '__main__':
     plt.grid()
     plt.title('Compared to embed -> recon')
     plt.show()
-    
+
+    time_embed = (time_embed_end - time_embed_start) * 1e-9
+    time_transformer = (time_transformer_end - time_transformer_start) * 1e-9
+    time_recover = (time_recover_end - time_recover_start)* 1e-9
+    print('Time to embed: {} s'.format(time_embed))
+    print('Time to generate: {} s'.format(time_transformer))
+    print('Time to recover: {} s'.format(time_recover))
+    print('Total time: {} s'.format(time_embed + time_transformer + time_recover))

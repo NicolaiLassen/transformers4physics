@@ -21,19 +21,19 @@ from util.data_loader import MagDataset
 
 
 if __name__ == "__main__":
-    epochs = 300
-    ctx = 8
+    epochs = 500
+    ctx = 24
     ndata_train = 500
     ndata_val = 50
-    stride = 2
+    stride = 8
     train_batch_size = 1500
     val_batch_size = 10
-    val_every_n_epoch = 75
+    val_every_n_epoch = 50
     save_on_val = True
 
-    embedder_date = '2022-05-23'
-    embedder_time = '14-45-33'
-    embedder_name = 'val_6'
+    embedder_date = '00'
+    embedder_time = 'no dynamics'
+    embedder_name = 'val_5'
 
 
     transformer_cfg = {
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     cfg.image_size_y= cfg_json["image_size_y"]
     cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
     cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
-    embedding_model = LandauLifshitzGilbertEmbeddingFF(EmmbedingConfig(cfg))
+    embedding_model = LandauLifshitzGilbertEmbedding(EmmbedingConfig(cfg))
     embedding_model.load_model(
         "C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth".format(embedder_date, embedder_time, embedder_name)
     )
