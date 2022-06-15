@@ -102,4 +102,18 @@ class AllInOne(nn.Module):
         # plt.title('MSE between current and previous embedded representation')
         # plt.yscale('log')
         # plt.show()
+
+        # sums = []
+        # l = np.arange(1,len(out_h[0])+1)
+        # for i in range(0,len(out_h[0])):
+        #     sums.append(torch.sum(out_h).item())
+        # fig, ax = plt.subplots()
+        # ax.plot(l[0:1],sums[0:1],'rx')
+        # ax.plot(l[1:24],sums[1:24],'gx')
+        # ax.plot(l[24:],sums[24:],'bx')
+        # ax.grid()
+        # plt.title('Embedded vector sum')
+        # plt.yscale('log')
+        # plt.show()
+        # print(out_h)
         return out
