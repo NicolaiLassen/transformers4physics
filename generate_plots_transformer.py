@@ -231,3 +231,4 @@ if __name__ == '__main__':
     plotLosses('5', 50, 'with dynamics')
     # plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
     plotModel('5', '_450', 'with dynamics', [])
+    plotLosses('all at once', 25, 'same time')

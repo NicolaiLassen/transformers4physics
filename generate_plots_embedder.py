@@ -155,6 +155,102 @@ def showLosses(time, val_every_n_epoch, folder):
     plt.grid()
     plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\{}\\embedder validation loss.png'.format(folder), format='png', bbox_inches='tight')
 
+def plotKoop():
+    date = '00'
+    time = 'circ paper static koop'
+    model_name = 'val_6'
+
+    start_at = 0
+    koop_forward = 1
+    f = h5py.File('./problem4.h5')
+    with open('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\dataset.txt'.format(date,time)) as file:
+        print(file.read(-1))
+    sample = np.array(f['0']['sequence'])
+    field = np.array( f['0']['field'])
+    class Object(object):
+        pass
+
+    cfg = Object()
+    with open('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\config.json'.format(date,time), 'r', encoding="utf-8") as file:
+        cfg_str = file.read(-1)
+        cfg_json = json.loads(cfg_str)
+        file.close()
+    cfg.backbone= cfg_json["backbone"]
+    cfg.backbone_dim = cfg_json["backbone_dim"]
+    cfg.channels= cfg_json["channels"]
+    cfg.ckpt_path= cfg_json["ckpt_path"]
+    cfg.config_name= cfg_json["config_name"]
+    cfg.embedding_dim= cfg_json["embedding_dim"]
+    cfg.fc_dim= cfg_json["fc_dim"]
+    cfg.image_size_x= cfg_json["image_size_x"]
+    cfg.image_size_y= cfg_json["image_size_y"]
+    cfg.koopman_bandwidth= cfg_json["koopman_bandwidth"]
+    cfg.use_koop_net = False if "use_koop_net" not in cfg_json else cfg_json["use_koop_net"]
+    model = LandauLifshitzGilbertEmbedding(
+        EmmbedingConfig(cfg),
+    ).cuda()
+    # print(model.use_koop_net)
+    model.load_model('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\ckpt\\{}.pth'.format(date,time,model_name))
+    model.eval()
+    for p in model.parameters():
+        p.requires_grad = False
+    # print(sample.shape)
+    sample_t = torch.tensor(sample).float().cuda()[start_at].unsqueeze(0)
+    field_t = torch.tensor(field[:2]).unsqueeze(0).cuda().float()
+    a, _ = model(sample_t, field_t)
+    b = torch.zeros(400-start_at,cfg.embedding_dim).cuda()
+    c, _ = model(torch.tensor(sample[start_at:]).float().cuda()[koop_forward].unsqueeze(0), field_t)
+    b[0] = a[0]
+    for i in range(1,400-start_at):
+        b[i] = model.koopman_operation(b[i-1].unsqueeze(0),field_t)[0]
+    # mse = torch.nn.MSELoss()
+    # print(mse(model.recover(c[0]),model.recover(b[koop_forward])))
+    # b[start_at+koop_forward] = c[0]
+    # print(mse(sample_t, model.recover(model.embed(sample_t, field_t))))
+    # print(mse(model.recover(sample_t[0]),model.recover(b[koop_to])))
+    recon = model.recover(b)
+
+    recon = recon.detach().cpu().numpy()
+
+    # plt.quiver(sample[start_at,0].T, sample[start_at,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
+    # plt.quiver(recon[start_at,0].T, recon[start_at,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    # plt.show()
+    # plt.quiver(sample[koop_forward,0].T, sample[koop_forward,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
+    # plt.quiver(recon[koop_forward,0].T, recon[koop_forward,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    # plt.show()
+    # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
+    # plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    # plt.show()
+    
+    timeline = np.arange(start_at, sample.shape[0]) * 4e-12 * 1e9
+
+    figure(figsize=(16,9))
+    plt.plot(timeline, np.mean(sample[start_at:,0].reshape(400-start_at,-1), axis=1), 'r')
+    plt.plot(timeline, np.mean(sample[start_at:,1].reshape(400-start_at,-1), axis=1), 'g')
+    plt.plot(timeline, np.mean(sample[start_at:,2].reshape(400-start_at,-1), axis=1), 'b')
+    # plt.grid()
+    # plt.show()
+    
+    plt.plot(timeline, np.mean(recon[:,0].reshape(400-start_at,-1), axis=1), 'rx')
+    plt.plot(timeline, np.mean(recon[:,1].reshape(400-start_at,-1), axis=1), 'gx')
+    plt.plot(timeline, np.mean(recon[:,2].reshape(400-start_at,-1), axis=1), 'bx')
+    legend_elements = [
+                Line2D([0], [0], color='red', lw=4, label='Mx MagTense'),
+                Line2D([0], [0], color='green', lw=4, label='My MagTense'),
+                Line2D([0], [0], color='blue', lw=4, label='Mz MagTense'),
+                Line2D([0], [0], marker='x', color='red', label='Mx Model'),
+                Line2D([0], [0], marker='x', color='green', label='My Model'),
+                Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
+            ]
+    plt.legend(handles=legend_elements)
+    plt.ylabel('$M_i [-]$', fontsize=32)
+    plt.xlabel('$Time [ns]$', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.grid()
+    plt.title('Koopman dynamics', fontsize=48)
+    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\instant decay.png', format='png', bbox_inches='tight')
+
 if __name__ == '__main__':
     print('no dynamics start')
     showLosses('no dynamics', 50, 'no dynamics')
@@ -163,4 +259,5 @@ if __name__ == '__main__':
     print('with dynamics start')
     showLosses('circ paper static koop', 50, 'with dynamics')
     plotModel('circ paper static koop', 'val_6', 'with dynamics')
+    plotKoop()
     print('with dynamics done')
