@@ -153,24 +153,39 @@ def runit(sample_idx):
     plt.xticks(fontsize=24)
     plt.yticks(fontsize=24)
     plt.grid()
-    plt.title('Auto-encoder', fontsize=48)
-    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\problem {} transformer curve.png'.format(sample_idx + 1), format='png', bbox_inches='tight')
+    plt.title('Transformer', fontsize=48)
+    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\problem {} curve.png'.format(sample_idx + 1), format='png', bbox_inches='tight')
 
-    # plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
-    # plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
-    # plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
-    # # plt.grid()
-    # # plt.show()
-    
-    # plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
-    # plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
-    # plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+    plt.plot(timeline, np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
+    plt.plot(timeline, np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
+    plt.plot(timeline, np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
     # plt.grid()
-    # # plt.title('Compared to ground truth')
-    # legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
-    #                Line2D([0], [0], marker='x', color='black', label='Model')]
-    # plt.legend(handles=legend_elements)
     # plt.show()
+    
+    plt.plot(timeline, np.mean(recon_only_out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    plt.plot(timeline, np.mean(recon_only_out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    plt.plot(timeline, np.mean(recon_only_out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+    plt.grid()
+    # plt.title('Compared to ground truth')
+    legend_elements = [
+        Line2D([0], [0], color='red', lw=4, label='Mx MagTense'),
+        Line2D([0], [0], color='green', lw=4, label='My MagTense'),
+        Line2D([0], [0], color='blue', lw=4, label='Mz MagTense'),
+        Line2D([0], [0], marker='x', color='red', label='Mx Model'),
+        Line2D([0], [0], marker='x', color='green', label='My Model'),
+        Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
+    ]
+    plt.legend(handles=legend_elements)
+    plt.ylabel('$M_i [-]$', fontsize=32)
+    plt.xlabel('$Time [ns]$', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.grid()
+    plt.title('Auto-encoder', fontsize=48)
+    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\problem {} recon only.png'.format(sample_idx + 1), format='png', bbox_inches='tight')
+
+    model.showMSE(sample_t, field_t, 400-init_len, True)
+    model.showMSE(sample_t, field_t, 400-init_len, False)
 
     # time_transformer = (time_transformer_end - time_transformer_start) * 1e-9
     # print('Total time: {} s'.format(time_transformer))

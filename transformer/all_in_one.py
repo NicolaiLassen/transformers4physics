@@ -80,40 +80,40 @@ class AllInOne(nn.Module):
                 out_h = torch.cat((out_h, last), dim = -2)
 
         out = self.recover(out_h[:,t:])
-        # mse = torch.nn.MSELoss()
-        # diffs = []
-        # l = np.arange(2,len(out_h[0]) + 1)
-        # for i in range(1,len(out_h[0])):
-        #     diffs.append(mse(out_h[0,i-1],out_h[0,i]).item())
-        # # plt.plot([24,24],[min(diffs),max(diffs)])
-        # fig, ax = plt.subplots()
-        # # ax.annotate('Comparing initial embedded ground truth s-state representation with first predicted embedded state', 
-        # #     xy=(2, diffs[0]*1.2), 
-        # #     xytext=(2, diffs[0]*4), 
-        # #     arrowprops = dict(facecolor='black', shrink=0.05))
-        # # ax.annotate('Initial ground truth magnetization leaves context window', 
-        # #     xy=(25, diffs[23]*1.2), 
-        # #     xytext=(25, diffs[23]*4), 
-        # #     arrowprops = dict(facecolor='black', shrink=0.05))
-        # ax.plot(l[0:1],diffs[0:1],'rx')
-        # ax.plot(l[1:24],diffs[1:24],'gx')
-        # ax.plot(l[24:],diffs[24:],'bx')
-        # ax.grid()
-        # plt.title('MSE between current and previous embedded representation')
-        # plt.yscale('log')
-        # plt.show()
-
-        # sums = []
-        # l = np.arange(1,len(out_h[0])+1)
-        # for i in range(0,len(out_h[0])):
-        #     sums.append(torch.sum(out_h).item())
-        # fig, ax = plt.subplots()
-        # ax.plot(l[0:1],sums[0:1],'rx')
-        # ax.plot(l[1:24],sums[1:24],'gx')
-        # ax.plot(l[24:],sums[24:],'bx')
-        # ax.grid()
-        # plt.title('Embedded vector sum')
-        # plt.yscale('log')
-        # plt.show()
-        # print(out_h)
         return out
+
+    def showMSE(self, x, field, seq_len, useg):
+        b, t, c, w, h = x.shape
+
+        self.transformer.eval()
+        self.autoencoder.eval()
+
+        with torch.no_grad():
+            out_h = self.embed(x, field)
+            for _ in range(seq_len):
+                in_h = out_h[:, -self.max_seq_len:]
+
+                last = self.transformer(in_h)[:, -1:, :]
+                out_h = torch.cat((out_h, last), dim = -2)
+
+        mse = torch.nn.MSELoss()
+        diffs = []
+        l = np.arange(2,len(out_h[0]) + 1)
+        for i in range(1,len(out_h[0])):
+            diffs.append(mse(out_h[0,i-1],out_h[0,i]).item())
+        # plt.plot([24,24],[min(diffs),max(diffs)])
+        fig, ax = plt.subplots(1,1,figsize=(16,9),dpi=140)
+        ax.plot(l[0:1],diffs[0:1],'rx')
+        ax.plot(l[1:24],diffs[1:24],'gx')
+        ax.plot(l[24:],diffs[24:],'bx')
+        ax.grid()
+        if useg:
+            plt.title('MSE($g_i$, $g_{i-1}$)', fontsize=48)
+        else:
+            plt.title('MSE($h_i$, $h_{i-1}$)', fontsize=48)
+        plt.yscale('log')
+        plt.ylabel('$MSE$', fontsize=32)
+        plt.xlabel('$i$', fontsize=32)
+        plt.xticks(fontsize=24)
+        plt.yticks(fontsize=24)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\mse embedded space{}.png'.format(' h' if not useg else ''), format='png', bbox_inches='tight')
