@@ -148,6 +148,7 @@ def runit(sample_idx):
         Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
     ]
     plt.legend(handles=legend_elements)
+    plt.setp(plt.gca().get_legend().get_texts(), fontsize='16')
     plt.ylabel('$M_i [-]$', fontsize=32)
     plt.xlabel('$Time [ns]$', fontsize=32)
     plt.xticks(fontsize=24)
@@ -176,6 +177,7 @@ def runit(sample_idx):
         Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
     ]
     plt.legend(handles=legend_elements)
+    plt.setp(plt.gca().get_legend().get_texts(), fontsize='16')
     plt.ylabel('$M_i [-]$', fontsize=32)
     plt.xlabel('$Time [ns]$', fontsize=32)
     plt.xticks(fontsize=24)
