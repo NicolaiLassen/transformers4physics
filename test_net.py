@@ -28,8 +28,8 @@ if __name__ == '__main__':
 
     with open('C:\\Users\\s174270\\Documents\\transformers4physics\\outputs\\{}\\{}\\dataset.txt'.format(date,time)) as file:
         print(file.read(-1))
-    sample = np.array(f['1']['sequence'])
-    field = np.array( f['1']['field'])
+    sample = np.array(f['0']['sequence'])
+    field = np.array( f['0']['field'])
     # print(sample.shape)
     # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid')
     # plt.show()
@@ -83,41 +83,66 @@ if __name__ == '__main__':
         losses = np.array(f['train'])
         l = np.arange(len(losses))
         plt.plot(l,losses)
-        plt.title('Training Loss')
+        plt.title('Training Loss', fontsize=48)
         plt.yscale('log')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
+        plt.ylabel('Loss', fontsize=32)
+        plt.xlabel('Epoch', fontsize=32)
+        plt.xticks(fontsize=24)
+        plt.yticks(fontsize=24)
         plt.grid()
         plt.show()
         losses = np.array(f['val'])
         l = np.arange(len(losses))
         l = np.arange(val_every_n_epoch, (len(losses)+1)*val_every_n_epoch, val_every_n_epoch)
         plt.plot(l,losses)
-        plt.title('Validation Loss')
+        plt.title('Validation Loss', fontsize=48)
         plt.yscale('log')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
+        plt.ylabel('Loss', fontsize=32)
+        plt.xlabel('Epoch', fontsize=32)
+        plt.xticks(fontsize=24)
+        plt.yticks(fontsize=24)
         plt.grid()
         plt.show()
 
     plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
     plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    plt.ylabel('y', fontsize=32, rotation = 0)
+    plt.xlabel('x', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     plt.show()
     plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
     plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
+    plt.ylabel('y', fontsize=32, rotation = 0)
+    plt.xlabel('x', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     plt.show()
+
+    timeline = np.arange(sample.shape[0]) * 4e-12 * 1e9
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample_t.size(0),-1), axis=1), 'r')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample_t.size(0),-1), axis=1), 'g')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample_t.size(0),-1), axis=1), 'b')
+    plt.plot(timeline, np.mean(sample[:,0].reshape(sample_t.size(0),-1), axis=1), 'r')
+    plt.plot(timeline, np.mean(sample[:,1].reshape(sample_t.size(0),-1), axis=1), 'g')
+    plt.plot(timeline, np.mean(sample[:,2].reshape(sample_t.size(0),-1), axis=1), 'b')
     # plt.grid()
     # plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample_t.size(0),-1), axis=1), 'rx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample_t.size(0),-1), axis=1), 'gx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample_t.size(0),-1), axis=1), 'bx')
-    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
-                   Line2D([0], [0], marker='x', color='black', label='Model')]
+    plt.plot(timeline, np.mean(recon[:,0].reshape(sample_t.size(0),-1), axis=1), 'rx')
+    plt.plot(timeline, np.mean(recon[:,1].reshape(sample_t.size(0),-1), axis=1), 'gx')
+    plt.plot(timeline, np.mean(recon[:,2].reshape(sample_t.size(0),-1), axis=1), 'bx')
+    legend_elements = [
+        Line2D([0], [0], color='red', lw=4, label='Mx MagTense'),
+        Line2D([0], [0], color='green', lw=4, label='My MagTense'),
+        Line2D([0], [0], color='blue', lw=4, label='Mz MagTense'),
+        Line2D([0], [0], marker='x', color='red', label='Mx Model'),
+        Line2D([0], [0], marker='x', color='green', label='My Model'),
+        Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
+    ]
     plt.legend(handles=legend_elements)
+    plt.ylabel('Spatially averaged magnetization', fontsize=32)
+    plt.xlabel('Time (ns)', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     plt.grid()
+    plt.title('Auto-encoder', fontsize=48)
     plt.show()

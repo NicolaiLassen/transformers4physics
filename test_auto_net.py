@@ -33,7 +33,7 @@ if __name__ == '__main__':
     init_len = 1
     val_every_n_epoch = 50
     test_batch_sizes = []
-    # test_batch_sizes = [4,8,16,32,64]
+    test_batch_sizes = [4,8,16,32,64,128]
 
     path = './transformer_output/{}/{}/'.format(date,time)
     with open(path + 'transformer_config.json', 'r') as file:
@@ -132,8 +132,8 @@ if __name__ == '__main__':
         plt.plot(l,losses)
         plt.title('Training Loss')
         plt.yscale('log')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
+        plt.ylabel('loss', fontsize=32)
+        plt.xlabel('epoch', fontsize=32)
         plt.grid()
         plt.show()
 
@@ -144,8 +144,8 @@ if __name__ == '__main__':
             plt.plot(l,losses_val)
             plt.title('Validation Loss')
             plt.yscale('log')
-            plt.ylabel('loss_val')
-            plt.xlabel('epoch')
+            plt.ylabel('loss_val', fontsize=32)
+            plt.xlabel('epoch', fontsize=32)
             plt.grid()
             plt.show()
 
