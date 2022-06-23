@@ -8,6 +8,7 @@ from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from config.phys_config import PhysConfig
 import torch
+from matplotlib.pyplot import figure
 from transformer.all_in_one import AllInOne
 
 from x_transformers import ContinuousTransformerWrapper, Decoder
@@ -16,12 +17,10 @@ from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmb
 from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
 
-
-if __name__ == '__main__':
+def runit(sample_idx):
     base = 'C:\\Users\\s174270\\Documents\\datasets\\64x16 field'
     # f = h5py.File(base + '\\field_s_state_test_large.h5')
     f = h5py.File('./problem4.h5')
-    sample_idx = 0
     sample = np.array(f[str(sample_idx)]['sequence'])
     field = np.array( f[str(sample_idx)]['field'])
     # date = '2022-05-06'
@@ -29,7 +28,7 @@ if __name__ == '__main__':
     date = '2022-06-03'
     time = '15-20-54'
     transformer_suffix = '_175'
-    show_losses = True
+    show_losses = False
     init_len = 1
     val_every_n_epoch = 25
 
@@ -111,49 +110,71 @@ if __name__ == '__main__':
     width = 0.002
     headwidth = 2
     headlength = 5
-    plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
-    plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
-    plt.axis("scaled")
-    plt.show()
-    plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
-    plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
-    plt.axis("scaled")
-    plt.show()
+    # plt.quiver(sample[0,0].T, sample[0,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    # plt.quiver(recon[0,0].T, recon[0,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
+    # plt.axis("scaled")
+    # plt.show()
+    # plt.quiver(sample[-1,0].T, sample[-1,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+    # plt.quiver(recon[-1,0].T, recon[-1,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7), width=width, headwidth=headwidth, headlength=headlength)
+    # plt.axis("scaled")
+    # plt.show()
+    figure(figsize=(16,8), dpi=140)
     plt.quiver(recon[crosses_zero,0].T, recon[crosses_zero,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
     plt.axis("scaled")
-    plt.show()
+    ax = plt.gca()
+    ax.axes.xaxis.set_visible(False)
+    ax.axes.yaxis.set_visible(False)
+    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\problem {} cross x0.png'.format(sample_idx + 1), format='png', bbox_inches='tight')
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
+    timeline = np.arange(sample.shape[0]) * 4e-12 * 1e9
+
+    figure(figsize=(16,9), dpi=140)
+    plt.plot(timeline, np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
+    plt.plot(timeline, np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
+    plt.plot(timeline, np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
     # plt.grid()
     # plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
-    plt.grid()
+    plt.plot(timeline, np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    plt.plot(timeline, np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    plt.plot(timeline, np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
     # plt.title('Compared to ground truth')
-    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
-                   Line2D([0], [0], marker='x', color='black', label='Model')]
+    legend_elements = [
+        Line2D([0], [0], color='red', lw=4, label='Mx MagTense'),
+        Line2D([0], [0], color='green', lw=4, label='My MagTense'),
+        Line2D([0], [0], color='blue', lw=4, label='Mz MagTense'),
+        Line2D([0], [0], marker='x', color='red', label='Mx Model'),
+        Line2D([0], [0], marker='x', color='green', label='My Model'),
+        Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
+    ]
     plt.legend(handles=legend_elements)
-    plt.show()
+    plt.ylabel('$M_i [-]$', fontsize=32)
+    plt.xlabel('$Time [ns]$', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.grid()
+    plt.title('Auto-encoder', fontsize=48)
+    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\problem {} transformer curve.png'.format(sample_idx + 1), format='png', bbox_inches='tight')
 
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
-    plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
-    # plt.grid()
-    # plt.show()
+    # plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
+    # plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
+    # plt.plot(np.arange(sample.shape[0]), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
+    # # plt.grid()
+    # # plt.show()
     
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
-    plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
-    plt.grid()
-    # plt.title('Compared to ground truth')
-    legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
-                   Line2D([0], [0], marker='x', color='black', label='Model')]
-    plt.legend(handles=legend_elements)
-    plt.show()
+    # plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
+    # plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
+    # plt.plot(np.arange(sample.shape[0]), np.mean(recon_only_out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+    # plt.grid()
+    # # plt.title('Compared to ground truth')
+    # legend_elements = [Line2D([0], [0], color='black', lw=4, label='MagTense'),
+    #                Line2D([0], [0], marker='x', color='black', label='Model')]
+    # plt.legend(handles=legend_elements)
+    # plt.show()
 
-    time_transformer = (time_transformer_end - time_transformer_start) * 1e-9
-    print('Total time: {} s'.format(time_transformer))
+    # time_transformer = (time_transformer_end - time_transformer_start) * 1e-9
+    # print('Total time: {} s'.format(time_transformer))
+
+if __name__ == '__main__':
+    runit(0)
+    runit(1)
