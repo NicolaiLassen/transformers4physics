@@ -160,12 +160,12 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
                 Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
             ]
         plt.legend(handles=legend_elements)
-        plt.ylabel('Spatially averaged magnetization', fontsize=32)
-        plt.xlabel('Time (ns)', fontsize=32)
+        plt.ylabel('$M_i [-]$', fontsize=32)
+        plt.xlabel('$Time [ns]$', fontsize=32)
         plt.xticks(fontsize=24)
         plt.yticks(fontsize=24)
         plt.grid()
-        plt.title('Auto-encoder', fontsize=48)
+        plt.title('Transformer', fontsize=48)
         plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\{}\\{} transformer curve.png'.format(folder, name), format='png', bbox_inches='tight')
 
         time_embed = (time_embed_end - time_embed_start) * 1e-9
@@ -181,8 +181,8 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
     f = h5py.File('./problem4.h5')
     sample1 = np.array(f['0']['sequence'])
     field1 = np.array(f['0']['field'])
-    sample2 = np.array(f['0']['sequence'])
-    field2 = np.array(f['0']['field'])
+    sample2 = np.array(f['1']['sequence'])
+    field2 = np.array(f['1']['field'])
 
     plotSample(sample1, field1, 'problem 1', 'problem 1 timings')
     plotSample(sample2, field2, 'problem 2', 'problem 2 timings')
@@ -229,4 +229,5 @@ if __name__ == '__main__':
     plotLosses('no dynamics', 50, 'no dynamics')
     plotModel('no dynamics', '_500', 'no dynamics', [])
     plotLosses('5', 50, 'with dynamics')
-    plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256])
+    # plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
+    plotModel('5', '_450', 'with dynamics', [])

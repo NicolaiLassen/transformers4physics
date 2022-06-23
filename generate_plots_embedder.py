@@ -114,8 +114,8 @@ def plotModel(model, model_name, folder):
                 Line2D([0], [0], marker='x', color='blue', label='Mz Model'),
             ]
             plt.legend(handles=legend_elements)
-            plt.ylabel('Spatially averaged magnetization', fontsize=32)
-            plt.xlabel('Time (ns)', fontsize=32)
+            plt.ylabel('$M_i [-]$', fontsize=32)
+            plt.xlabel('$Time [ns]$', fontsize=32)
             plt.xticks(fontsize=24)
             plt.yticks(fontsize=24)
             plt.grid()
