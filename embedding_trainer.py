@@ -76,10 +76,11 @@ class EmbeddingPhysTrainer(pl.LightningModule):
         self.model = self.configure_embedding_model()
         self.model.mu = mu
         self.model.std = std
-        self.model_trainer = LandauLifshitzGilbertEmbeddingTrainer(
+        self.model_trainer = LandauLifshitzGilbertEmbeddingTrainerNoDynamics(
             self.model,
             l2=1e1,
             l4=2,
+            append_field=True,
         )
 
         self.val_id = 0

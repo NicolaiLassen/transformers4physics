@@ -104,7 +104,8 @@ class ResnetBackbone(EmbeddingBackbone):
         img_size: List[int] = [32, 32],
         backbone_dim: int = 128,
         embedding_dim: int = 128,
-        fc_dim: int = 128
+        fc_dim: int = 128,
+        out_channels: int = 3,
     ):
         super().__init__()
 
@@ -140,7 +141,7 @@ class ResnetBackbone(EmbeddingBackbone):
             nn.LeakyReLU(0.02, inplace=True),
         )
 
-        self.recovery_net_layers = RecoveryNet(backbone_dims).net
+        self.recovery_net_layers = RecoveryNet(backbone_dims, out_channels=out_channels).net
 
     def observable_net(self, x):
         return self.observable_net_layers(x)

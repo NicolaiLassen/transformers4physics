@@ -52,6 +52,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
             embedding_dim=config.embedding_dim,
             fc_dim=config.fc_dim,
             channels=config.channels,
+            out_channels = 5,
         )
 
         self.use_koop_net = config.use_koop_net
@@ -279,7 +280,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         return x
 
     def _unnormalize(self, x: Tensor) -> Tensor:
-        x = self.std[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:3].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+        x = self.std[:5].unsqueeze(0).unsqueeze(-1).unsqueeze(-1) * x + self.mu[:5].unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
         return x
 
     def _normalize_features(self, field):
@@ -388,11 +389,12 @@ class LandauLifshitzGilbertEmbeddingTrainerNoDynamics(EmbeddingTrainingHead):
         l4: Penalty weight for ensuring unit vectors in the output
     """
 
-    def __init__(self, embedding_model: EmbeddingModel, l2=1e3, l4=1):
+    def __init__(self, embedding_model: EmbeddingModel, l2=1e3, l4=1, append_field=False):
         super().__init__()
         self.embedding_model = embedding_model
         self.l2 = l2
         self.l4 = l4
+        self.append_field = append_field
 
     def forward(self, states: Tensor, field: Tensor) -> FloatTuple:
         """Trains model for a single epoch
@@ -435,7 +437,17 @@ class LandauLifshitzGilbertEmbeddingTrainerNoDynamics(EmbeddingTrainingHead):
             x = states[:,i]
             g = self.embedding_model.embed(x,field)
             xrec = self.embedding_model.recover(g)
-            normsX = xrec.swapaxes(1,3).reshape(-1,3)
+            if self.append_field:
+                 x = torch.cat(
+                    [
+                        x,
+                        field[:,:1].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                        field[:,1:2].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                        # field[:,2:3].unsqueeze(-1).unsqueeze(-1) * torch.ones_like(x[:, :1]),
+                    ],
+                    dim=1,
+                )
+            normsX = xrec[:,:3].swapaxes(1,3).reshape(-1,3)
             normsX = torch.sqrt(torch.einsum('ij,ij->j',normsX.T, normsX.T))
             ones = torch.ones((normsX.shape[0])).to(device)
 

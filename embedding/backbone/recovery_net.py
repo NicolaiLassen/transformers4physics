@@ -2,7 +2,7 @@ from torch import nn
 
 class RecoveryNet:
 
-    def __init__(self, backbone_dims):
+    def __init__(self, backbone_dims, out_channels = 3):
         self.net = nn.Sequential(
             nn.ConvTranspose2d(
                 backbone_dims[2],
@@ -29,7 +29,7 @@ class RecoveryNet:
             nn.LeakyReLU(0.02, inplace=True),
             nn.ConvTranspose2d(
                 backbone_dims[0],
-                3,
+                out_channels,
                 kernel_size=3,
                 stride=2,
                 padding=1,
