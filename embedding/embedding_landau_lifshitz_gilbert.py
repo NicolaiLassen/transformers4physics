@@ -195,7 +195,7 @@ class LandauLifshitzGilbertEmbedding(EmbeddingModel):
         out = self.backbone.recover(g)
         x = self._unnormalize(out)
         if(not self.training):
-            normsX = torch.sqrt(torch.einsum('ij,ij->j',x.swapaxes(1,3).reshape(-1,3).T, x.swapaxes(1,3).reshape(-1,3).T))
+            normsX = torch.sqrt(torch.einsum('ij,ij->j',x[:,:3].swapaxes(1,3).reshape(-1,3).T, x[:,:3].swapaxes(1,3).reshape(-1,3).T))
             normsX = normsX.reshape(-1,16,64).swapaxes(1,2)
             x[:,0,:,:] = x[:,0,:,:]/normsX
             x[:,1,:,:] = x[:,1,:,:]/normsX

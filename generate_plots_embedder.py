@@ -62,7 +62,7 @@ def plotModel(model, model_name, folder):
             field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
             field_t[:] = torch.tensor(field)
             a = model.embed(sample_t, field_t)
-            recon = model.recover(a)
+            recon = model.recover(a)[:,:3]
 
             normsX = torch.sqrt(torch.einsum('ij,ij->j',sample_t.swapaxes(1,3).reshape(-1,3).T, sample_t.swapaxes(1,3).reshape(-1,3).T))
             normsX = normsX.reshape(-1,16,64).swapaxes(1,2)
@@ -254,12 +254,14 @@ def plotKoop():
     plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\instant decay.png', format='png', bbox_inches='tight')
 
 if __name__ == '__main__':
-    print('no dynamics start')
-    showLosses('no dynamics', 50, 'no dynamics')
-    plotModel('no dynamics', 'val_5', 'no dynamics')
-    print('no dynamics done')
-    print('with dynamics start')
-    showLosses('circ paper static koop', 50, 'with dynamics')
-    plotModel('circ paper static koop', 'val_6', 'with dynamics')
-    plotKoop()
-    print('with dynamics done')
+    showLosses('no dynamics with field', 50, 'no dynamics with field')
+    plotModel('no dynamics with field', 'val_6', 'no dynamics with field')
+    # print('no dynamics start')
+    # showLosses('no dynamics', 50, 'no dynamics')
+    # plotModel('no dynamics', 'val_5', 'no dynamics')
+    # print('no dynamics done')
+    # print('with dynamics start')
+    # showLosses('circ paper static koop', 50, 'with dynamics')
+    # plotModel('circ paper static koop', 'val_6', 'with dynamics')
+    # plotKoop()
+    # print('with dynamics done')

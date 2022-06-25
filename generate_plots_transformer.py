@@ -117,9 +117,9 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
         
 
         time_recover_start = time_ns()
-        recon = model.recover(emb_seq)
+        recon = model.recover(emb_seq)[:,:3]
         time_recover_end = time_ns()
-        recon = torch.cat([sample_t[0:init_len],recon],dim=0)
+        recon = torch.cat([sample_t[0:init_len,:3],recon],dim=0)
         recon = recon.detach().cpu().numpy()
         recon_x = np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1)
         crosses_zero = np.argmax(recon_x < 0)
@@ -227,9 +227,11 @@ def plotLosses(model, val_every_n_epoch, folder):
     f.close()
 
 if __name__ == '__main__':
-    plotLosses('no dynamics', 50, 'no dynamics')
-    plotModel('no dynamics', '_500', 'no dynamics', [])
-    plotLosses('5', 50, 'with dynamics')
-    # plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
-    plotModel('5', '_450', 'with dynamics', [])
-    plotLosses('all at once', 25, 'same time')
+    plotLosses('no dynamics with field', 50, 'no dynamics with field')
+    plotModel('no dynamics with field', '_500', 'no dynamics with field', [])
+    # plotLosses('no dynamics', 50, 'no dynamics')
+    # plotModel('no dynamics', '_500', 'no dynamics', [])
+    # plotLosses('5', 50, 'with dynamics')
+    # # plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
+    # plotModel('5', '_450', 'with dynamics', [])
+    # plotLosses('all at once', 25, 'same time')

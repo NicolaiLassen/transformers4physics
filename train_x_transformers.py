@@ -32,8 +32,8 @@ if __name__ == "__main__":
     save_on_val = True
 
     embedder_date = '00'
-    embedder_time = 'no dynamics'
-    embedder_name = 'val_5'
+    embedder_time = 'no dynamics with field'
+    embedder_name = 'val_6'
 
 
     transformer_cfg = {
