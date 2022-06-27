@@ -156,7 +156,7 @@ def showLosses(time, val_every_n_epoch, folder):
     plt.grid()
     plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\{}\\embedder validation loss.png'.format(folder), format='png', bbox_inches='tight')
 
-def plotKoop():
+def plotKoop(recover_every_step = False):
     date = '00'
     time = 'circ paper static koop'
     model_name = 'val_6'
@@ -202,8 +202,14 @@ def plotKoop():
     b = torch.zeros(400-start_at,cfg.embedding_dim).cuda()
     c, _ = model(torch.tensor(sample[start_at:]).float().cuda()[koop_forward].unsqueeze(0), field_t)
     b[0] = a[0]
-    for i in range(1,400-start_at):
-        b[i] = model.koopman_operation(b[i-1].unsqueeze(0),field_t)[0]
+    if not recover_every_step:
+        for i in range(1,400-start_at):
+            b[i] = model.koopman_operation(b[i-1].unsqueeze(0),field_t)[0]
+    else:
+        for i in range(1,400-start_at):
+            asd = model.koopman_operation(b[i-1].unsqueeze(0),field_t)
+            asd = model.recover(asd)
+            b[i] = model.embed(asd, field_t)
     # mse = torch.nn.MSELoss()
     # print(mse(model.recover(c[0]),model.recover(b[koop_forward])))
     # b[start_at+koop_forward] = c[0]
@@ -212,6 +218,7 @@ def plotKoop():
     recon = model.recover(b)
 
     recon = recon.detach().cpu().numpy()
+    b = b.detach().cpu().numpy()
 
     # plt.quiver(sample[start_at,0].T, sample[start_at,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0))
     # plt.quiver(recon[start_at,0].T, recon[start_at,1].T, pivot='mid', color=(0.6,0.0,0.0,0.7))
@@ -250,8 +257,44 @@ def plotKoop():
     plt.xticks(fontsize=24)
     plt.yticks(fontsize=24)
     plt.grid()
-    plt.title('Koopman dynamics', fontsize=48)
-    plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\instant decay.png', format='png', bbox_inches='tight')
+    if recover_every_step:
+        plt.title('Koopman dynamics (Recover every step)', fontsize=48)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\instant decay reconstruction along the way.png', format='png', bbox_inches='tight')
+    else:
+        plt.title('Koopman dynamics (Stay in latent space)', fontsize=48)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\instant decay.png', format='png', bbox_inches='tight')
+
+    plt.clf()
+    figure(figsize=(16,9))
+    plt.plot(np.arange(b.shape[0])[:10], np.sum(b,1)[:10])
+    plt.ylabel('$\Sigma g_i$', fontsize=32)
+    plt.xlabel('$i$', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.grid()
+    if recover_every_step:
+        plt.title('Sum of $g_i$ (Recover every step)', fontsize=48)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\sum g recon along way.png', format='png', bbox_inches='tight')
+    else:
+        plt.title('Sum of $g_i$ (Stay in latent space)', fontsize=48)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\sum g.png', format='png', bbox_inches='tight')
+
+    plt.clf()
+    figure(figsize=(16,9))
+    plt.plot(np.arange(b.shape[1]), b[-1])
+    plt.ylabel('$g[i]$', fontsize=32)
+    plt.xlabel('$i$', fontsize=32)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.grid()
+    if recover_every_step:
+        plt.title('Last g (Recover every step)', fontsize=48)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\last g recon along way.png', format='png', bbox_inches='tight')
+    else:
+        plt.title('Last g (Stay in latent space)', fontsize=48)
+        plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\with dynamics\\last g.png', format='png', bbox_inches='tight')
+
+    
 
 if __name__ == '__main__':
     print('no dynamics start')
@@ -262,4 +305,5 @@ if __name__ == '__main__':
     showLosses('circ paper static koop', 50, 'with dynamics')
     plotModel('circ paper static koop', 'val_6', 'with dynamics')
     plotKoop()
+    plotKoop(recover_every_step=True)
     print('with dynamics done')
