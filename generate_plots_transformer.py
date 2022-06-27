@@ -15,6 +15,21 @@ from x_transformers import ContinuousAutoregressiveWrapper
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
 from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
+def abc(y1,y2,x):
+        z = y1-y2
+        dx = x[1:] - x[:-1]
+        cross_test = np.sign(z[:-1] * z[1:])
+
+        x_intersect = x[:-1] - dx / (z[1:] - z[:-1]) * z[:-1]
+        dx_intersect = - dx / (z[1:] - z[:-1]) * z[:-1]
+
+        areas_pos = abs(z[:-1] + z[1:]) * 0.5 * dx # signs of both z are same
+        areas_neg = 0.5 * dx_intersect * abs(z[:-1]) + 0.5 * (dx - dx_intersect) * abs(z[1:])
+
+        areas = np.where(cross_test < 0, areas_neg, areas_pos)
+        total_area = np.sum(areas)
+    
+        return total_area
 
 def plotModel(model, suffix, folder, test_batch_sizes = []):
     date = '00'
@@ -94,7 +109,7 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
                 f.write('Time for batch of {}: {} s \n'.format(b,t))
             f.close()
 
-    def plotSample(sample, field, name, timeFile):
+    def plotSample(sample, field, name, timeFile, abcFile):
         sample_t = torch.tensor(sample).float().cuda()
         field_t = torch.zeros((sample_t.size(0),3)).float().cuda()
         field_t[:] = torch.tensor(field)
@@ -143,13 +158,15 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
         timeline = np.arange(sample.shape[0]) * 4e-12 * 1e9
 
         figure(figsize=(16,9),dpi=140)
-        plt.plot(timeline, np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
-        plt.plot(timeline, np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
-        plt.plot(timeline, np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
+        mx, my, mz = np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1)
+        mx_model, my_model, mz_model = np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1)
+        plt.plot(timeline, mx, 'r')
+        plt.plot(timeline, my, 'g')
+        plt.plot(timeline, mz, 'b')
         
-        plt.plot(timeline, np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
-        plt.plot(timeline, np.mean(recon[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
-        plt.plot(timeline, np.mean(recon[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
+        plt.plot(timeline, mx_model, 'rx')
+        plt.plot(timeline, my_model, 'gx')
+        plt.plot(timeline, mz_model, 'bx')
         # plt.title('Compared to ground truth')
         legend_elements = [
                 Line2D([0], [0], color='red', lw=4, label='Mx MagTense'),
@@ -179,14 +196,23 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
             f.write('Total time: {} s \n'.format(time_embed + time_transformer + time_recover))
             f.close()
 
+        with open('C:\\Users\\s174270\\Documents\\plots\\auto\\{}\\{}.txt'.format(folder,abcFile), 'w') as f:
+            area_between_curves = abc(mx, mx_model, timeline)
+            f.write('Area between curves X: {} \n'.format(area_between_curves))
+            area_between_curves = abc(my, my_model, timeline)
+            f.write('Area between curves Y: {} \n'.format(area_between_curves))
+            area_between_curves = abc(mz, mz_model, timeline)
+            f.write('Area between curves Z: {} \n'.format(area_between_curves))
+
+
     f = h5py.File('./problem4.h5')
     sample1 = np.array(f['0']['sequence'])
     field1 = np.array(f['0']['field'])
     sample2 = np.array(f['1']['sequence'])
     field2 = np.array(f['1']['field'])
 
-    plotSample(sample1, field1, 'problem 1', 'problem 1 timings')
-    plotSample(sample2, field2, 'problem 2', 'problem 2 timings')
+    plotSample(sample1, field1, 'problem 1', 'problem 1 timings', 'problem 1 abc')
+    plotSample(sample2, field2, 'problem 2', 'problem 2 timings', 'problem 2 abc')
 
     if len(test_batch_sizes) > 0:
         batchTest(sample1, field1, 'batch test')
@@ -194,7 +220,7 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
     
 
 def plotLosses(model, val_every_n_epoch, folder):
-    path = './transformer_output/{}/{}/'.format('00',model)
+    path = './transformer_output/{}/{}/'.format('00', model)
     f = h5py.File(path + 'transformer_losses.h5', 'r')
     losses = np.array(f['train'])
     l = np.arange(len(losses))
@@ -231,5 +257,5 @@ if __name__ == '__main__':
     plotModel('no dynamics', '_500', 'no dynamics', [])
     plotLosses('5', 50, 'with dynamics')
     # plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
-    plotModel('5', '_450', 'with dynamics', [])
+    plotModel('5', '_500', 'with dynamics', [])
     plotLosses('all at once', 25, 'same time')
