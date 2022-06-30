@@ -156,7 +156,10 @@ def runit(sample_idx):
     plt.grid()
     plt.title('Transformer', fontsize=48)
     plt.savefig('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\problem {} curve.png'.format(sample_idx + 1), format='png', bbox_inches='tight')
+    plt.close()
+    plt.clf()
 
+    figure(figsize=(16,9), dpi=140)
     plt.plot(timeline, np.mean(sample[:,0].reshape(sample.shape[0],-1), axis=1), 'r')
     plt.plot(timeline, np.mean(sample[:,1].reshape(sample.shape[0],-1), axis=1), 'g')
     plt.plot(timeline, np.mean(sample[:,2].reshape(sample.shape[0],-1), axis=1), 'b')
@@ -166,7 +169,6 @@ def runit(sample_idx):
     plt.plot(timeline, np.mean(recon_only_out[:,0].reshape(sample.shape[0],-1), axis=1), 'rx')
     plt.plot(timeline, np.mean(recon_only_out[:,1].reshape(sample.shape[0],-1), axis=1), 'gx')
     plt.plot(timeline, np.mean(recon_only_out[:,2].reshape(sample.shape[0],-1), axis=1), 'bx')
-    plt.grid()
     # plt.title('Compared to ground truth')
     legend_elements = [
         Line2D([0], [0], color='red', lw=4, label='Mx MagTense'),
