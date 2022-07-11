@@ -193,6 +193,10 @@ def runit(sample_idx):
 
     # time_transformer = (time_transformer_end - time_transformer_start) * 1e-9
     # print('Total time: {} s'.format(time_transformer))
+    with open('C:\\Users\\s174270\\Documents\\plots\\auto\\same time\\parameters.txt', 'w') as f:
+        num_params_cb = sum(p.numel() for p in model.parameters())
+        f.write('Combined params: {} \n'.format(num_params_cb))
+
 
 if __name__ == '__main__':
     runit(0)
