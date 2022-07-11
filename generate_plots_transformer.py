@@ -213,6 +213,11 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
 
     plotSample(sample1, field1, 'problem 1', 'problem 1 timings', 'problem 1 abc')
     plotSample(sample2, field2, 'problem 2', 'problem 2 timings', 'problem 2 abc')
+    with open('C:\\Users\\s174270\\Documents\\plots\\auto\\{}\\parameters.txt'.format(folder), 'w') as f:
+        num_params_emb = sum(p.numel() for p in model.parameters())
+        f.write('Auto-encoder params: {} \n'.format(num_params_emb))
+        num_params_transformer = sum(p.numel() for p in autoregressive.parameters())
+        f.write('Transformer params: {}'.format(num_params_transformer))
 
     if len(test_batch_sizes) > 0:
         batchTest(sample1, field1, 'batch test')
