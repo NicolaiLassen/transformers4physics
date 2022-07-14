@@ -72,6 +72,7 @@ if __name__ == '__main__':
     s_state = seq[-1]
     plt.figure(figsize=(8, 2), dpi=80)
     plt.quiver(s_state[0].swapaxes(0,1), s_state[1].swapaxes(0,1), pivot='mid', )
+    
     plt.show()
     print(s_state.shape)
     # hf = h5py.File('./s_state.h5', 'w')

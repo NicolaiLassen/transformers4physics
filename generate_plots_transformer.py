@@ -7,7 +7,7 @@ from config.config_autoregressive import AutoregressiveConfig
 from config.config_emmbeding import EmmbedingConfig
 from config.phys_config import PhysConfig
 import torch
-from time import time_ns
+from time import perf_counter_ns
 from matplotlib.pyplot import figure
 
 from x_transformers import ContinuousTransformerWrapper, Decoder
@@ -15,6 +15,13 @@ from x_transformers import ContinuousAutoregressiveWrapper
 from embedding.embedding_landau_lifshitz_gilbert import LandauLifshitzGilbertEmbedding
 from embedding.embedding_landau_lifshitz_gilbert_ff import LandauLifshitzGilbertEmbeddingFF
 from transformer.phys_transformer_gpt2 import PhysformerGPT2
+
+import skimage.measure
+
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+import matplotlib.colorbar as mcolorbar
+
 def abc(y1,y2,x):
         z = y1-y2
         dx = x[1:] - x[:-1]
@@ -100,9 +107,9 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
         batches_times = []
         for batch_size_test in test_batch_sizes:
             test_batch = init.unsqueeze(0).repeat((batch_size_test,1,1))
-            time_transformer_test_start = time_ns()
+            time_transformer_test_start = perf_counter_ns()
             test_huge = autoregressive.generate(test_batch,seq_len=400-init_len)
-            time_transformer_test_end = time_ns()
+            time_transformer_test_end = perf_counter_ns()
             batches_times.append((time_transformer_test_end - time_transformer_test_start) * 1e-9)
         with open('C:\\Users\\s174270\\Documents\\plots\\auto\\{}\\{}.txt'.format(folder,timeFile), 'w') as f:
             for b,t in zip(test_batch_sizes, batches_times):
@@ -123,33 +130,44 @@ def plotModel(model, suffix, folder, test_batch_sizes = []):
         recon_a = model.recover(a)
         recon_a = recon_a.detach().cpu().numpy()
 
-        time_embed_start = time_ns()
+        time_embed_start = perf_counter_ns()
         init = model.embed(sample_t[0:init_len], field_t[0:init_len])
-        time_embed_end = time_ns()
-        time_transformer_start = time_ns()
+        time_embed_end = perf_counter_ns()
+        time_transformer_start = perf_counter_ns()
         emb_seq = autoregressive.generate(init,seq_len=400-init_len)
-        time_transformer_end = time_ns()
+        time_transformer_end = perf_counter_ns()
         
 
-        time_recover_start = time_ns()
+        time_recover_start = perf_counter_ns()
         recon = model.recover(emb_seq)
-        time_recover_end = time_ns()
+        time_recover_end = perf_counter_ns()
         recon = torch.cat([sample_t[0:init_len],recon],dim=0)
         recon = recon.detach().cpu().numpy()
         recon_x = np.mean(recon[:,0].reshape(sample.shape[0],-1), axis=1)
+
         crosses_zero = np.argmax(recon_x < 0)
 
         width = 0.002
-        headwidth = 2
+        headwidth = 3
         headlength = 5
 
+        l = skimage.measure.block_reduce(recon[crosses_zero].copy(), (1,2,2), np.mean)
+        nz = mcolors.Normalize(0.0, 2*np.pi)
+        colors = np.swapaxes(cm.hsv( nz(np.arctan2(l[1], l[0]) + np.pi )), 0, 1)
+
         figure(figsize=(16,8),dpi=140)
-        plt.quiver(recon[crosses_zero,0].T, recon[crosses_zero,1].T, pivot='mid', color=(0.0,0.0,0.0,1.0), width=width, headwidth=headwidth, headlength=headlength)
+        plt.quiver(
+            l[0].T,
+            l[1].T,
+            width=width,
+            pivot='mid', 
+            scale=35,
+            headwidth=headwidth,
+            headlength=headlength
+            )
+        
+        plt.imshow(colors, interpolation="bicubic")
         plt.axis("scaled")
-        # plt.ylabel('y', fontsize=32, rotation = 0)
-        # plt.xlabel('x', fontsize=32)
-        # plt.xticks(fontsize=24)
-        # plt.yticks(fontsize=24)
         ax = plt.gca()
         ax.axes.xaxis.set_visible(False)
         ax.axes.yaxis.set_visible(False)
@@ -258,9 +276,10 @@ def plotLosses(model, val_every_n_epoch, folder):
     f.close()
 
 if __name__ == '__main__':
-    plotLosses('no dynamics', 50, 'no dynamics')
+    # plotLosses('no dynamics', 50, 'no dynamics')
     plotModel('no dynamics', '_500', 'no dynamics', [])
-    plotLosses('5', 50, 'with dynamics')
-    # plotModel('5', '_450', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
-    plotModel('5', '_500', 'with dynamics', [])
-    plotLosses('all at once', 25, 'same time')
+    # plotLosses('5', 50, 'with dynamics')
+    # plotModel('5', '_500', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
+    # plotModel('5', '_500', 'with dynamics', [4, 8, 16, 32, 64, 128, 256, 512])
+    # plotModel('5', '_500', 'with dynamics', [])
+    # plotLosses('all at once', 25, 'same time')
